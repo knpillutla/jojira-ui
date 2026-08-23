@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#edf4f2" />
+    <meta name="description" content="Jojira makes flight search clear, quick, and human." />
+    <title>Jojira | Find your next flight</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="responsive.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Jojira home"><span class="brand-mark">J</span><span>jojira</span></a>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#results">Explore</a><a href="#saved">Saved trips <span class="nav-count">0</span></a><a href="#support">Support</a>
+      </nav>
+      <button class="icon-button" type="button" aria-label="Open menu" data-menu-button><span></span><span></span></button>
+    </header>
+
+    <main id="top">
+      <section class="hero-shell">
+        <div class="hero-copy">
+          <p class="eyebrow">Your next good decision</p>
+          <h1>Go somewhere <em>worth remembering.</em></h1>
+          <p class="hero-lede">Search thousands of routes with a little less noise and a lot more clarity.</p>
+        </div>
+        <div class="search-panel" aria-label="Flight search">
+          <div class="search-tabs" role="tablist" aria-label="Search type">
+            <button class="search-tab is-active" role="tab" aria-selected="true" data-search-tab="fields">Field search</button>
+            <button class="search-tab" role="tab" aria-selected="false" data-search-tab="natural">Ask naturally</button>
+          </div>
+          <form id="flight-search-form">
+            <div class="natural-search hidden" data-natural-search>
+              <label for="natural-query">Tell us where you want to go</label>
+              <div class="natural-input"><span aria-hidden="true">✦</span><input id="natural-query" placeholder="A sunny long weekend from New York in October" /><button type="button" class="voice-button" aria-label="Use voice search">◉</button></div>
+              <p class="input-hint">Try “cheapest nonstop to San Francisco next Tuesday”</p>
+            </div>
+            <div class="field-search" data-field-search>
+              <div class="field-grid">
+                <label class="field field-location"><span>From</span><strong>⌖</strong><input name="origin" value="JFK" aria-label="Origin airport" /><small>New York, US</small></label>
+                <button class="swap-button" type="button" aria-label="Swap origin and destination" data-swap>↔</button>
+                <label class="field field-location"><span>To</span><strong>⌖</strong><input name="destination" value="SFO" aria-label="Destination airport" /><small>San Francisco, US</small></label>
+                <label class="field"><span>Depart</span><strong>▣</strong><input name="depart" type="date" value="2026-09-17" aria-label="Departure date" /></label>
+                <label class="field"><span>Return</span><strong>▣</strong><input name="return" type="date" value="2026-09-24" aria-label="Return date" /></label>
+                <label class="field"><span>Passengers</span><strong>♙</strong><select name="passengers" aria-label="Passengers"><option>1 adult</option><option>2 adults</option><option>2 adults, 1 child</option></select></label>
+              </div>
+            </div>
+            <div class="search-actions"><label class="checkbox"><input type="checkbox" name="nonstop" /> <span>Nonstop only</span></label><button class="primary-button" type="submit"><span>Search flights</span><b>→</b></button></div>
+          </form>
+        </div>
+      </section>
+
+      <section class="results-section" id="results">
+        <div class="results-heading"><div><p class="eyebrow">Curated for you</p><h2>New York <span>→</span> San Francisco</h2><p class="muted" data-result-summary>Tue, Sep 17 · 6 offers found</p></div><button class="date-button" type="button">‹ <span>Sep 16</span><strong>Sep 17</strong><span>Sep 18</span> ›</button></div>
+        <div class="metric-tabs" role="tablist" aria-label="Sort flights">
+          <button class="metric-tab is-active" data-sort="cheapest"><span>Cheapest</span><strong data-metric="cheapest">$289</strong><small>from</small></button>
+          <button class="metric-tab" data-sort="shortest"><span>Shortest</span><strong data-metric="shortest">$318</strong><small>from</small></button>
+          <button class="metric-tab" data-sort="nonstop"><span>Nonstop</span><strong data-metric="nonstop">$289</strong><small>from</small></button>
+          <button class="metric-tab" data-sort="recommended"><span>Recommended</span><strong data-metric="recommended">$318</strong><small>from</small></button>
+        </div>
+        <div class="table-toolbar"><div class="toolbar-left"><span class="result-count" data-result-count>6 flights</span><button class="filter-button" type="button" data-filter-toggle>☷ <span>Filters</span><b>0</b></button></div><label class="sort-control">Sort by <select data-sort-select><option value="cheapest">Price</option><option value="shortest">Duration</option><option value="depart">Departure</option></select></label></div>
+        <div class="filter-drawer" data-filter-drawer><label>Airline <select data-airline-filter><option value="all">All airlines</option></select></label><label>Stops <select data-stops-filter><option value="all">Any stops</option><option value="0">Nonstop</option><option value="1">1 stop</option></select></label><label>Max price <input type="range" min="250" max="800" value="800" data-price-filter /><output data-price-output>$800</output></label><button type="button" class="text-button" data-clear-filters>Clear all</button></div>
+        <div class="offer-table-wrap"><table class="offer-table"><thead><tr><th>Flight</th><th>Departure</th><th>Arrival</th><th>Duration</th><th>Stops</th><th>Cabin</th><th class="price-heading">Price <span>per person</span></th><th></th></tr></thead><tbody data-offers></tbody></table></div>
+        <p class="table-footnote">Prices include estimated taxes and fees. Final price confirmed before payment.</p>
+      </section>
+    </main>
+    <footer id="support"><div class="footer-brand"><span class="brand-mark">J</span><strong>jojira</strong><p>Travel farther, with less friction.</p></div><div class="footer-links"><div><strong>Explore</strong><a href="#results">Flights</a><a href="#results">Hotels</a><a href="#results">Cars</a><a href="#results">Cruises</a></div><div><strong>Company</strong><a href="#support">About us</a><a href="#support">Careers</a><a href="#support">Contact</a><a href="#support">Press</a></div><div><strong>Good to know</strong><a href="#support">Help centre</a><a href="#support">Terms of use</a><a href="#support">Privacy policy</a><a href="#support">Accessibility</a></div></div><p class="copyright">© 2026 Jojira Travel, Inc. <span>Made for curious people.</span></p></footer>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

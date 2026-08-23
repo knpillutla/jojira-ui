@@ -1,0 +1,16 @@
+create a production ready modular code base for  flight search and booking website which will be accessed by millions of customers worldwide hooking in to the apis and output of the apis under C:\neel\personal\projects\jojira-duffel
+
+this should be the best from customer usability perspective, it should have both natural language search and field based search tabs, the results page should be multi tabbed with different metrics with each tab showing all the offers ordered by the respective tab. the tab value should show the price for each category ex:- cheapest: xxx, shorted: xxx, non stop cheapest: xxx etc. This should be reactive and should support both desktop browser and mobile platforms.
+
+this should have the ability to expand to cars, hotels, cruises in later enhancements
+flight data should be displayed like a table and the users should have the ability to filter on any column of the table
+
+maximize the data on the screen, screen should auto adjust depending on the resolution of the screen and cross browser compatible. Users should have to do a lot of scrolling or moving page and down, it is usability first design with as easy as possible for the users to interact with. they should feel sort of joy interacting with it
+
+main price tiles should have enough information on the tile itself and when clicked on the tile, it should show all the offers sorted by the column on which the tile is based on and the first record should be the offer id matching the title data offer id
+
+also add all the relavant links required by customer facing websites like contact us, legal etc
+
+evaluate if reactjs application is better or some other framework, it has to be fast serving millions of customers worldwide with high performance, scalability and reliability
+
+should be able to deploy as docker container
