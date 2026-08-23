@@ -23,33 +23,47 @@
 
     <main id="top">
       <section class="hero-shell">
-        <div class="hero-copy">
-          <p class="eyebrow">Your next good decision</p>
-          <h1>Go somewhere <em>worth remembering.</em></h1>
-          <p class="hero-lede">Search thousands of routes with a little less noise and a lot more clarity.</p>
-        </div>
         <div class="search-panel" aria-label="Flight search">
           <div class="search-tabs" role="tablist" aria-label="Search type">
-            <button class="search-tab is-active" role="tab" aria-selected="true" data-search-tab="fields">Field search</button>
+            <button class="search-tab is-active" role="tab" aria-selected="true" data-search-tab="exact">Exact search</button>
+            <button class="search-tab" role="tab" aria-selected="false" data-search-tab="enhanced">Enhanced search</button>
             <button class="search-tab" role="tab" aria-selected="false" data-search-tab="natural">Ask naturally</button>
           </div>
           <form id="flight-search-form">
             <div class="natural-search hidden" data-natural-search>
               <label for="natural-query">Tell us where you want to go</label>
-              <div class="natural-input"><span aria-hidden="true">✦</span><input id="natural-query" placeholder="A sunny long weekend from New York in October" /><button type="button" class="voice-button" aria-label="Use voice search">◉</button></div>
-              <p class="input-hint">Try “cheapest nonstop to San Francisco next Tuesday”</p>
+              <div class="natural-input"><span aria-hidden="true">✦</span><input id="natural-query" placeholder="cheapest nonstop to oslo from atl in october for 21 days" /><button type="button" class="voice-button" aria-label="Use voice search">◉</button></div>
+              <p class="input-hint">Try “cheapest nonstop to oslo from atl in october for 21 days”</p>
             </div>
             <div class="field-search" data-field-search>
               <div class="field-grid">
-                <label class="field field-location"><span>From</span><strong>⌖</strong><input name="origin" placeholder="Airport code" value="" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="origin-suggestions" aria-label="Origin airport" /><small data-origin-helper></small><div class="airport-suggestions" id="origin-suggestions" data-origin-suggestions role="listbox"></div></label>
+                <label class="field field-location">
+                  <span>From</span><strong>⌖</strong>
+                  <input name="origin" placeholder="Airport code" value="" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="origin-suggestions" aria-label="Origin airport" />
+                  <small data-origin-helper></small>
+                  <div class="airport-suggestions" id="origin-suggestions" data-origin-suggestions role="listbox"></div>
+                </label>
                 <button class="swap-button" type="button" aria-label="Swap origin and destination" data-swap>↔</button>
                 <label class="field field-location"><span>To</span><strong>⌖</strong><input name="destination" placeholder="Airport code" value="" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destination-suggestions" aria-label="Destination airport" /><small data-destination-helper></small><div class="airport-suggestions" id="destination-suggestions" data-destination-suggestions role="listbox"></div></label>
                 <label class="field"><span>Depart</span><strong>▣</strong><input name="depart" type="date" value="" aria-label="Departure date" /></label>
                 <label class="field"><span>Return</span><strong>▣</strong><input name="return" type="date" value="" aria-label="Return date" /></label>
-                <label class="field"><span>Passengers</span><strong>♙</strong><select name="passengers" aria-label="Passengers"><option value="" selected>Select passengers</option><option>1 adult</option><option>2 adults</option><option>2 adults, 1 child</option></select></label>
+                <label class="field"><span>Passengers</span><strong>♙</strong><select name="passengers" aria-label="Passengers"><option value="1" selected>1 adult</option><option value="2">2 adults</option><option value="3">3 adults</option><option value="4">4 adults</option></select></label>
+                <label class="field"><span>Cabin</span><strong>💺</strong><select name="cabin_class" aria-label="Cabin class"><option value="economy" selected>Economy</option><option value="premium_economy">Premium Econ</option><option value="business">Business</option><option value="first">First</option></select></label>
+              </div>
+              <div class="enhanced-duration-row hidden" data-enhanced-duration>
+                <label class="field"><span>Min Trip Duration</span><strong>⏳</strong><select name="min_duration" aria-label="Min trip duration"><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="4" selected>4 days</option><option value="5">5 days</option><option value="7">7 days</option><option value="10">10 days</option></select></label>
+                <label class="field"><span>Max Trip Duration</span><strong>⌛</strong><select name="max_duration" aria-label="Max trip duration"><option value="3">3 days</option><option value="5">5 days</option><option value="7" selected>7 days</option><option value="10">10 days</option><option value="14">14 days</option><option value="21">21 days</option></select></label>
+                <label class="field"><span>Date Flexibility</span><strong>✦</strong><select name="flex_days" aria-label="Date flexibility"><option value="0">Exact dates (±0d)</option><option value="1">±1 day</option><option value="2">±2 days</option><option value="3" selected>±3 days</option><option value="5">±5 days</option></select></label>
+                <label class="field"><span>Preferred Airline</span><strong>✈</strong><input name="favorite_airline" placeholder="e.g. Air France" aria-label="Preferred airline" /></label>
               </div>
             </div>
-            <div class="search-actions"><label class="checkbox"><input type="checkbox" name="nonstop" /> <span>Nonstop only</span></label><button class="primary-button" type="submit"><span>Search flights</span><b>→</b></button></div>
+            <div class="search-actions">
+              <div class="actions-left" style="display:flex; flex-direction:column; align-items:flex-start; gap:6px;">
+                <button type="button" class="text-button" data-clear-page style="font-size:12px; font-weight:700; color:var(--coral); background:none; border:none; padding:0; cursor:pointer;" title="Clear whole page">Clear</button>
+                <label class="checkbox"><input type="checkbox" name="nonstop" /> <span>Nonstop only</span></label>
+              </div>
+              <button class="primary-button" type="submit"><span>Search flights</span><b>→</b></button>
+            </div>
           </form>
           <p class="search-error" data-search-error role="alert" aria-live="polite"></p>
         </div>
@@ -57,6 +71,13 @@
           <div class="recent-heading"><span>Recent searches</span><button type="button" class="text-button" data-clear-recent>Clear</button></div>
           <div class="recent-list" data-recent-list></div>
         </section>
+        <div class="line-progress-container hidden" data-line-progress role="status" aria-live="polite">
+          <div class="line-progress-bar"></div>
+          <div class="line-progress-status">
+            <span class="line-progress-spinner"></span>
+            <span data-line-progress-text>Searching live flights...</span>
+          </div>
+        </div>
       </section>
 
       <section class="results-section" id="results">
@@ -69,14 +90,86 @@
         </div>
         <div class="table-toolbar"><div class="toolbar-left"><span class="result-count" data-result-count>6 flights</span><button class="filter-button" type="button" data-filter-toggle>☷ <span>Filters</span><b>0</b></button></div><label class="sort-control">Sort by <select data-sort-select><option value="cheapest">Price</option><option value="shortest">Duration</option><option value="depart">Departure</option></select></label></div>
         <div class="filter-drawer" data-filter-drawer><label>Airline <select data-airline-filter><option value="all">All airlines</option></select></label><label>Stops <select data-stops-filter><option value="all">Any stops</option><option value="0">Nonstop</option><option value="1">1 stop</option></select></label><label>Max price <input type="range" min="250" max="800" value="800" data-price-filter /><output data-price-output>$800</output></label><button type="button" class="text-button" data-clear-filters>Clear all</button></div>
-        <div class="offer-table-wrap"><table class="offer-table"><thead><tr><th>Flight</th><th>Departure</th><th>Arrival</th><th>Duration</th><th>Stops</th><th>Cabin</th><th class="price-heading">Price <span>per person</span></th><th></th></tr></thead><tbody data-offers></tbody></table></div>
+        <div class="offer-table-wrap"><table class="offer-table"><thead><tr><th>Flight</th><th>Duration</th><th>Stops</th><th>Emissions</th><th class="price-heading">Price</th><th></th></tr></thead><tbody data-offers></tbody></table></div>
         <p class="table-footnote">Prices include estimated taxes and fees. Final price confirmed before payment.</p>
       </section>
+
+      <section class="confirmation-section hidden" id="booking-confirmation" data-booking-confirmation-section>
+        <div class="confirmation-card-wrap" data-confirmation-card-wrap></div>
+      </section>
     </main>
-    <footer id="support"><div class="footer-brand"><span class="brand-mark">J</span><strong>jojira</strong><p>Travel farther, with less friction.</p></div><div class="footer-links"><div><strong>Explore</strong><a href="#results">Flights</a><a href="#results">Hotels</a><a href="#results">Cars</a><a href="#results">Cruises</a></div><div><strong>Company</strong><a href="#support">About us</a><a href="#support">Careers</a><a href="#support">Contact</a><a href="#support">Press</a></div><div><strong>Good to know</strong><a href="#support">Help centre</a><a href="#support">Terms of use</a><a href="#support">Privacy policy</a><a href="#support">Accessibility</a></div></div><p class="copyright">© 2026 Jojira Travel, Inc. <span>Made for curious people.</span></p></footer>
-    <aside class="cookie-banner hidden" data-cookie-banner aria-label="Cookie preferences"><div><strong>Want to keep your recent searches?</strong><p>We use one necessary cookie to remember your last five searches on this device. No advertising cookies.</p></div><div class="cookie-actions"><button type="button" class="text-button" data-cookie-decline>Decline</button><button type="button" class="primary-button" data-cookie-accept>Allow cookies <b>→</b></button></div></aside>
-    <aside class="location-banner hidden" data-location-banner aria-label="Location preferences"><div><strong>Use your location for faster searches?</strong><p>Jojira can suggest an origin airport based on your approximate location. Your permission is required.</p></div><div class="cookie-actions"><button type="button" class="text-button" data-location-decline>Not now</button><button type="button" class="primary-button" data-location-accept>Allow location <b>→</b></button></div></aside>
-    <div class="search-overlay hidden" data-search-overlay role="status" aria-live="polite" aria-label="Searching for flights"><div class="search-overlay-card"><span class="overlay-spinner" aria-hidden="true"></span><strong>Finding the best flights</strong><span>Checking routes, schedules, and live prices...</span></div></div>
-    <script type="module" src="app.js?v=7"></script>
+    <footer id="support" class="minimal-footer"><p class="copyright">© 2026 Jojira Travel, Inc. · Powered by Duffel API</p></footer>
+    
+    <div class="booking-modal-overlay hidden" data-booking-modal role="dialog" aria-modal="true" aria-label="Flight booking wizard">
+      <div class="booking-modal-card">
+        <header class="booking-header">
+          <div class="booking-title-bar">
+            <h3>Complete your booking</h3>
+            <button type="button" class="close-button" data-close-booking aria-label="Close booking modal">✕</button>
+          </div>
+          <div class="booking-stepper">
+            <div class="step-item is-active" data-step-indicator="1"><span class="step-num">1</span><span class="step-label">Review</span></div>
+            <div class="step-line"></div>
+            <div class="step-item" data-step-indicator="2"><span class="step-num">2</span><span class="step-label">Passenger</span></div>
+            <div class="step-line"></div>
+            <div class="step-item" data-step-indicator="3"><span class="step-num">3</span><span class="step-label">Payment</span></div>
+          </div>
+        </header>
+
+        <div class="booking-body" data-booking-body>
+          <!-- Step 1: Flight Review & Extras -->
+          <div class="booking-step-content" data-booking-step="1">
+            <div class="step-flight-summary" data-flight-summary></div>
+            <div class="extras-section">
+              <h4>Choose optional extras</h4>
+              <div class="extras-grid">
+                <label class="extra-card"><input type="checkbox" name="extra_bag" value="45" data-extra /><div><strong>Checked Bag (23kg)</strong><span>+$45 / person</span></div></label>
+                <label class="extra-card"><input type="checkbox" name="extra_seat" value="25" data-extra /><div><strong>Standard Seat Selection</strong><span>+$25 / person</span></div></label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Passenger Details -->
+          <div class="booking-step-content hidden" data-booking-step="2">
+            <h4>Passenger information</h4>
+            <form id="passenger-form" class="passenger-form">
+              <div class="form-row">
+                <label class="form-field field-small"><span>Title</span><select name="title"><option value="mr">Mr</option><option value="ms">Ms</option><option value="mrs">Mrs</option><option value="dr">Dr</option></select></label>
+                <label class="form-field"><span>First name *</span><input name="first_name" required placeholder="John" value="John" /></label>
+                <label class="form-field"><span>Last name *</span><input name="last_name" required placeholder="Doe" value="Doe" /></label>
+              </div>
+              <div class="form-row">
+                <label class="form-field"><span>Email address *</span><input name="email" type="email" required placeholder="john.doe@example.com" value="passenger@example.com" /></label>
+                <label class="form-field"><span>Phone number *</span><input name="phone_number" required placeholder="+14155552671" value="+14155552671" /></label>
+              </div>
+              <div class="form-row">
+                <label class="form-field"><span>Date of birth *</span><input name="born_on" type="date" required value="1992-05-15" /></label>
+                <label class="form-field field-small"><span>Gender</span><select name="gender"><option value="m">Male</option><option value="f">Female</option></select></label>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 3: Payment & Summary -->
+          <div class="booking-step-content hidden" data-booking-step="3">
+            <h4>Payment & Finalize</h4>
+            <div class="payment-error-alert hidden" data-payment-error role="alert"></div>
+            <div class="payment-methods-header">Select Payment Method</div>
+            <div class="payment-methods-list" data-payment-methods-list></div>
+            <div class="payment-dynamic-inputs" data-payment-dynamic-inputs></div>
+            <div class="price-breakdown-card" data-price-breakdown></div>
+          </div>
+        </div>
+
+        <footer class="booking-footer" data-booking-footer>
+          <button type="button" class="text-button" data-booking-back>Back</button>
+          <div class="footer-right">
+            <span class="booking-total-display" data-booking-total></span>
+            <button type="button" class="primary-button" data-booking-next><span>Continue</span> <b>→</b></button>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script type="module" src="src/core/app.js?v=2"></script>
   </body>
 </html>
