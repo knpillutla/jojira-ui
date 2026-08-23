@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="responsive.css" />
+    <link rel="stylesheet" href="styles.css?v=3" />
+    <link rel="stylesheet" href="responsive.css?v=3" />
   </head>
   <body>
     <header class="topbar">
@@ -41,21 +41,26 @@
             </div>
             <div class="field-search" data-field-search>
               <div class="field-grid">
-                <label class="field field-location"><span>From</span><strong>⌖</strong><input name="origin" value="JFK" aria-label="Origin airport" /><small>New York, US</small></label>
+                <label class="field field-location"><span>From</span><strong>⌖</strong><input name="origin" placeholder="Airport code" value="" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="origin-suggestions" aria-label="Origin airport" /><small data-origin-helper></small><div class="airport-suggestions" id="origin-suggestions" data-origin-suggestions role="listbox"></div></label>
                 <button class="swap-button" type="button" aria-label="Swap origin and destination" data-swap>↔</button>
-                <label class="field field-location"><span>To</span><strong>⌖</strong><input name="destination" value="SFO" aria-label="Destination airport" /><small>San Francisco, US</small></label>
-                <label class="field"><span>Depart</span><strong>▣</strong><input name="depart" type="date" value="2026-09-17" aria-label="Departure date" /></label>
-                <label class="field"><span>Return</span><strong>▣</strong><input name="return" type="date" value="2026-09-24" aria-label="Return date" /></label>
-                <label class="field"><span>Passengers</span><strong>♙</strong><select name="passengers" aria-label="Passengers"><option>1 adult</option><option>2 adults</option><option>2 adults, 1 child</option></select></label>
+                <label class="field field-location"><span>To</span><strong>⌖</strong><input name="destination" placeholder="Airport code" value="" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destination-suggestions" aria-label="Destination airport" /><small data-destination-helper></small><div class="airport-suggestions" id="destination-suggestions" data-destination-suggestions role="listbox"></div></label>
+                <label class="field"><span>Depart</span><strong>▣</strong><input name="depart" type="date" value="" aria-label="Departure date" /></label>
+                <label class="field"><span>Return</span><strong>▣</strong><input name="return" type="date" value="" aria-label="Return date" /></label>
+                <label class="field"><span>Passengers</span><strong>♙</strong><select name="passengers" aria-label="Passengers"><option value="" selected>Select passengers</option><option>1 adult</option><option>2 adults</option><option>2 adults, 1 child</option></select></label>
               </div>
             </div>
             <div class="search-actions"><label class="checkbox"><input type="checkbox" name="nonstop" /> <span>Nonstop only</span></label><button class="primary-button" type="submit"><span>Search flights</span><b>→</b></button></div>
           </form>
+          <p class="search-error" data-search-error role="alert" aria-live="polite"></p>
         </div>
+        <section class="recent-searches hidden" data-recent-searches aria-label="Recent searches">
+          <div class="recent-heading"><span>Recent searches</span><button type="button" class="text-button" data-clear-recent>Clear</button></div>
+          <div class="recent-list" data-recent-list></div>
+        </section>
       </section>
 
       <section class="results-section" id="results">
-        <div class="results-heading"><div><p class="eyebrow">Curated for you</p><h2>New York <span>→</span> San Francisco</h2><p class="muted" data-result-summary>Tue, Sep 17 · 6 offers found</p></div><button class="date-button" type="button">‹ <span>Sep 16</span><strong>Sep 17</strong><span>Sep 18</span> ›</button></div>
+        <div class="results-heading"><div><p class="eyebrow">Curated for you</p><h2><span data-origin-city></span> <span>→</span> <span data-destination-city></span></h2><p class="muted" data-result-summary>Search for a route to see available flights</p></div><button class="date-button" type="button">‹ <span>Sep 16</span><strong>Sep 17</strong><span>Sep 18</span> ›</button></div>
         <div class="metric-tabs" role="tablist" aria-label="Sort flights">
           <button class="metric-tab is-active" data-sort="cheapest"><span>Cheapest</span><strong data-metric="cheapest">$289</strong><small>from</small></button>
           <button class="metric-tab" data-sort="shortest"><span>Shortest</span><strong data-metric="shortest">$318</strong><small>from</small></button>
@@ -69,6 +74,9 @@
       </section>
     </main>
     <footer id="support"><div class="footer-brand"><span class="brand-mark">J</span><strong>jojira</strong><p>Travel farther, with less friction.</p></div><div class="footer-links"><div><strong>Explore</strong><a href="#results">Flights</a><a href="#results">Hotels</a><a href="#results">Cars</a><a href="#results">Cruises</a></div><div><strong>Company</strong><a href="#support">About us</a><a href="#support">Careers</a><a href="#support">Contact</a><a href="#support">Press</a></div><div><strong>Good to know</strong><a href="#support">Help centre</a><a href="#support">Terms of use</a><a href="#support">Privacy policy</a><a href="#support">Accessibility</a></div></div><p class="copyright">© 2026 Jojira Travel, Inc. <span>Made for curious people.</span></p></footer>
-    <script type="module" src="app.js"></script>
+    <aside class="cookie-banner hidden" data-cookie-banner aria-label="Cookie preferences"><div><strong>Want to keep your recent searches?</strong><p>We use one necessary cookie to remember your last five searches on this device. No advertising cookies.</p></div><div class="cookie-actions"><button type="button" class="text-button" data-cookie-decline>Decline</button><button type="button" class="primary-button" data-cookie-accept>Allow cookies <b>→</b></button></div></aside>
+    <aside class="location-banner hidden" data-location-banner aria-label="Location preferences"><div><strong>Use your location for faster searches?</strong><p>Jojira can suggest an origin airport based on your approximate location. Your permission is required.</p></div><div class="cookie-actions"><button type="button" class="text-button" data-location-decline>Not now</button><button type="button" class="primary-button" data-location-accept>Allow location <b>→</b></button></div></aside>
+    <div class="search-overlay hidden" data-search-overlay role="status" aria-live="polite" aria-label="Searching for flights"><div class="search-overlay-card"><span class="overlay-spinner" aria-hidden="true"></span><strong>Finding the best flights</strong><span>Checking routes, schedules, and live prices...</span></div></div>
+    <script type="module" src="app.js?v=7"></script>
   </body>
 </html>
