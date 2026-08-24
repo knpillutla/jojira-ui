@@ -157,11 +157,52 @@ export function normalizeOffer(offer, index) {
   const durationMins = Number(offer.total_duration_minutes || offer.duration_minutes || offer.duration || offer.slices?.[0]?.duration_minutes || 0);
 
   // Outbound and Inbound Durations
-  const outboundDurationMins = Number(offer.outbound_duration_minutes || offer.slices?.[0]?.duration_minutes || durationMins || 0);
-  const outboundDurationText = offer.outbound_duration || (outboundDurationMins > 0 ? formatDurationHoursMins(outboundDurationMins) : '');
+  let outboundDurationMins = Number(
+    offer.outbound_duration_minutes ||
+    offer.slice_details?.[0]?.duration_minutes ||
+    offer.slices?.[0]?.duration_minutes ||
+    0
+  );
+  if (!outboundDurationMins && rawDepart && rawArrive) {
+    const depMs = new Date(rawDepart).getTime();
+    const arrMs = new Date(rawArrive).getTime();
+    if (!isNaN(depMs) && !isNaN(arrMs) && arrMs > depMs) {
+      outboundDurationMins = Math.round((arrMs - depMs) / (1000 * 60));
+    }
+  }
+  if (!outboundDurationMins) outboundDurationMins = durationMins;
 
-  const inboundDurationMins = isOneWay ? 0 : Number(offer.inbound_duration_minutes || offer.return_duration_minutes || offer.slices?.[1]?.duration_minutes || 0);
-  const inboundDurationText = (isOneWay || inboundDurationMins === 0) ? '' : (offer.inbound_duration || offer.return_duration || formatDurationHoursMins(inboundDurationMins));
+  let outboundDurationText =
+    offer.outbound_duration ||
+    offer.slice_details?.[0]?.duration ||
+    (outboundDurationMins > 0 ? formatDurationHoursMins(outboundDurationMins) : '');
+
+  let inboundDurationMins = 0;
+  let inboundDurationText = '';
+
+  if (!isOneWay) {
+    inboundDurationMins = Number(
+      offer.inbound_duration_minutes ||
+      offer.return_duration_minutes ||
+      offer.slice_details?.[1]?.duration_minutes ||
+      offer.slices?.[1]?.duration_minutes ||
+      0
+    );
+
+    if (!inboundDurationMins && rawReturnDepart && rawReturnArrive) {
+      const rDepMs = new Date(rawReturnDepart).getTime();
+      const rArrMs = new Date(rawReturnArrive).getTime();
+      if (!isNaN(rDepMs) && !isNaN(rArrMs) && rArrMs > rDepMs) {
+        inboundDurationMins = Math.round((rArrMs - rDepMs) / (1000 * 60));
+      }
+    }
+
+    inboundDurationText =
+      offer.inbound_duration ||
+      offer.return_duration ||
+      offer.slice_details?.[1]?.duration ||
+      (inboundDurationMins > 0 ? formatDurationHoursMins(inboundDurationMins) : '');
+  }
 
   // Total Duration (if one-way, total duration is strictly outbound duration)
   const totalMins = isOneWay ? (outboundDurationMins || durationMins) : (durationMins || (outboundDurationMins + inboundDurationMins));
@@ -317,7 +358,11 @@ export function normalizeOffer(offer, index) {
     bookingUrl,
     redirectNotice,
     source,
-    externalAirlineConfig
+    externalAirlineConfig,
+    legs: offer.legs || (stops === 0 ? 'Non-stop' : `${stops} stop${stops > 1 ? 's' : ''}`),
+    legNames: offer.leg_names !== undefined ? offer.leg_names : (offer.leg_codes || layoverDetailText || ''),
+    legCodes: offer.leg_codes || '',
+    rawOffer: offer
   };
 }
 

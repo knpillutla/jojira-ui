@@ -215,6 +215,9 @@ export function selectOffer(id) {
   document.querySelectorAll('.offer-table tr.is-selected').forEach((item) => item.classList.remove('is-selected'));
   row?.classList.add('is-selected');
 
+  document.querySelectorAll('.stat-tile-card').forEach((c) => c.classList.remove('is-active'));
+  document.querySelectorAll(`.stat-tile-card[data-stat-tile-id="${id}"]`).forEach((c) => c.classList.add('is-active'));
+
   if (offer && offer.isExternalWebFare) {
     console.log(`🌐 [FRONTIER DIRECT BOOKING] Direct fare selected (${offer.id}). Showing Frontier redirect popup: ${offer.bookingUrl}`);
     showFrontierRedirectModal(offer);

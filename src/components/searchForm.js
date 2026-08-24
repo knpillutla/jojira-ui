@@ -2,6 +2,7 @@ import { state, $, recentSearchCookie, cookieConsentCookie, getCookie } from '..
 import { money } from '../utils/formatters.js';
 import { searchFlights } from '../api/flightApi.js';
 import { renderOffers, populateAirlines, updateRouteHeading, initTableSorting } from './offerTable.js';
+import { renderStatTiles, clearTileFilters } from './statTiles.js';
 
 let citiesDatabase = [];
 
@@ -323,6 +324,7 @@ export async function handleFlightSearch(searchPayload) {
     updateRouteHeading(originCode, destCode, departDate, normalized.routeNames.origin, normalized.routeNames.destination);
     populateAirlines();
     renderOffers();
+    renderStatTiles();
     saveRecentSearch({
       origin: originCode,
       destination: destCode,
@@ -474,6 +476,8 @@ export function clearWholePage() {
   state.categoryHighlights = {};
   state.routeNames = { origin: '', destination: '' };
   state.search = { origin: '', destination: '', depart: '' };
+
+  renderStatTiles();
 
   const resultsSection = $('#results');
   if (resultsSection) resultsSection.classList.add('hidden');
@@ -717,12 +721,7 @@ export function initSearchForm() {
   });
 
   $('[data-clear-filters]')?.addEventListener('click', () => {
-    state.filters = { airline: 'all', stops: 'all', price: 5000 };
-    $('[data-airline-filter]').value = 'all';
-    $('[data-stops-filter]').value = 'all';
-    $('[data-price-filter]').value = '5000';
-    $('[data-price-output]').textContent = '$5,000';
-    renderOffers();
+    clearTileFilters();
   });
 
   $('[data-swap]')?.addEventListener('click', () => {
