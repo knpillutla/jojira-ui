@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css?v=3" />
     <link rel="stylesheet" href="responsive.css?v=3" />
+    <script src="https://assets.duffel.com/components/v1/duffel.js"></script>
   </head>
   <body>
     <header class="topbar">
@@ -23,50 +24,207 @@
 
     <main id="top">
       <section class="hero-shell">
-        <div class="search-panel" aria-label="Flight search">
-          <div class="search-tabs" role="tablist" aria-label="Search type">
-            <button class="search-tab is-active" role="tab" aria-selected="true" data-search-tab="exact">Exact search</button>
-            <button class="search-tab" role="tab" aria-selected="false" data-search-tab="enhanced">Enhanced search</button>
-            <button class="search-tab" role="tab" aria-selected="false" data-search-tab="natural">Ask naturally</button>
-          </div>
-          <form id="flight-search-form">
-            <div class="natural-search hidden" data-natural-search>
-              <label for="natural-query">Tell us where you want to go</label>
-              <div class="natural-input"><span aria-hidden="true">✦</span><input id="natural-query" placeholder="cheapest nonstop to oslo from atl in october for 21 days" /><button type="button" class="voice-button" aria-label="Use voice search">◉</button></div>
-              <p class="input-hint">Try “cheapest nonstop to oslo from atl in october for 21 days”</p>
-            </div>
-            <div class="field-search" data-field-search>
-              <div class="field-grid">
-                <label class="field field-location">
-                  <span>From</span><strong>⌖</strong>
-                  <input name="origin" placeholder="Airport code" value="" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="origin-suggestions" aria-label="Origin airport" />
-                  <small data-origin-helper></small>
-                  <div class="airport-suggestions" id="origin-suggestions" data-origin-suggestions role="listbox"></div>
-                </label>
-                <button class="swap-button" type="button" aria-label="Swap origin and destination" data-swap>↔</button>
-                <label class="field field-location"><span>To</span><strong>⌖</strong><input name="destination" placeholder="Airport code" value="" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destination-suggestions" aria-label="Destination airport" /><small data-destination-helper></small><div class="airport-suggestions" id="destination-suggestions" data-destination-suggestions role="listbox"></div></label>
-                <label class="field"><span>Depart</span><strong>▣</strong><input name="depart" type="date" value="" aria-label="Departure date" /></label>
-                <label class="field"><span>Return</span><strong>▣</strong><input name="return" type="date" value="" aria-label="Return date" /></label>
-                <label class="field"><span>Passengers</span><strong>♙</strong><select name="passengers" aria-label="Passengers"><option value="1" selected>1 adult</option><option value="2">2 adults</option><option value="3">3 adults</option><option value="4">4 adults</option></select></label>
-                <label class="field"><span>Cabin</span><strong>💺</strong><select name="cabin_class" aria-label="Cabin class"><option value="economy" selected>Economy</option><option value="premium_economy">Premium Econ</option><option value="business">Business</option><option value="first">First</option></select></label>
-              </div>
-              <div class="enhanced-duration-row hidden" data-enhanced-duration>
-                <label class="field"><span>Min Trip Duration</span><strong>⏳</strong><select name="min_duration" aria-label="Min trip duration"><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="4" selected>4 days</option><option value="5">5 days</option><option value="7">7 days</option><option value="10">10 days</option></select></label>
-                <label class="field"><span>Max Trip Duration</span><strong>⌛</strong><select name="max_duration" aria-label="Max trip duration"><option value="3">3 days</option><option value="5">5 days</option><option value="7" selected>7 days</option><option value="10">10 days</option><option value="14">14 days</option><option value="21">21 days</option></select></label>
-                <label class="field"><span>Date Flexibility</span><strong>✦</strong><select name="flex_days" aria-label="Date flexibility"><option value="0">Exact dates (±0d)</option><option value="1">±1 day</option><option value="2">±2 days</option><option value="3" selected>±3 days</option><option value="5">±5 days</option></select></label>
-                <label class="field"><span>Preferred Airline</span><strong>✈</strong><input name="favorite_airline" placeholder="e.g. Air France" aria-label="Preferred airline" /></label>
-              </div>
-            </div>
-            <div class="search-actions">
-              <div class="actions-left" style="display:flex; flex-direction:column; align-items:flex-start; gap:6px;">
-                <button type="button" class="text-button" data-clear-page style="font-size:12px; font-weight:700; color:var(--coral); background:none; border:none; padding:0; cursor:pointer;" title="Clear whole page">Clear</button>
-                <label class="checkbox"><input type="checkbox" name="nonstop" /> <span>Nonstop only</span></label>
-              </div>
-              <button class="primary-button" type="submit"><span>Search flights</span><b>→</b></button>
-            </div>
-          </form>
-          <p class="search-error" data-search-error role="alert" aria-live="polite"></p>
+        <div class="service-nav-tabs" role="tablist" aria-label="Travel services">
+          <button class="service-tab is-active" role="tab" aria-selected="true" data-service-tab="flights">
+            <span class="service-icon">✈️</span>
+            <span>Flights</span>
+          </button>
+          <button class="service-tab" role="tab" aria-selected="false" data-service-tab="hotels">
+            <span class="service-icon">🏨</span>
+            <span>Hotels</span>
+          </button>
+          <button class="service-tab" role="tab" aria-selected="false" data-service-tab="cars">
+            <span class="service-icon">🚗</span>
+            <span>Car Rental</span>
+          </button>
+          <button class="service-tab" role="tab" aria-selected="false" data-service-tab="packages">
+            <span class="service-icon">🌴</span>
+            <span>Packages</span>
+          </button>
         </div>
+
+        <div class="service-tab-content" data-service-content="flights">
+          <div class="search-panel" aria-label="Flight search">
+            <div class="search-tabs" role="tablist" aria-label="Search type">
+              <button class="search-tab is-active" role="tab" aria-selected="true" data-search-tab="exact">Exact search</button>
+              <button class="search-tab" role="tab" aria-selected="false" data-search-tab="enhanced">Enhanced search</button>
+              <button class="search-tab" role="tab" aria-selected="false" data-search-tab="natural">Ask naturally</button>
+            </div>
+            <form id="flight-search-form">
+              <div class="natural-search hidden" data-natural-search>
+                <label for="natural-query">Tell us where you want to go</label>
+                <div class="natural-input"><span aria-hidden="true">✦</span><input id="natural-query" placeholder="cheapest nonstop to oslo from atl in october for 21 days" /><button type="button" class="voice-button" aria-label="Use voice search">◉</button></div>
+                <p class="input-hint">Try “cheapest nonstop to oslo from atl in october for 21 days”</p>
+              </div>
+              <div class="field-search" data-field-search>
+                <div class="trip-type-bar" data-trip-type-bar>
+                  <div class="trip-type-group" role="radiogroup" aria-label="Trip type">
+                    <button type="button" class="trip-type-btn is-active" role="radio" aria-checked="true" data-trip-type="round_trip">Round trip</button>
+                    <button type="button" class="trip-type-btn" role="radio" aria-checked="false" data-trip-type="one_way">One way</button>
+                    <button type="button" class="trip-type-btn" role="radio" aria-checked="false" data-trip-type="multi_city">Multi-city</button>
+                  </div>
+                </div>
+
+                <div class="multicity-container hidden" data-multicity-container>
+                  <div class="multicity-legs" data-multicity-legs>
+                    <div class="multicity-leg-row" data-leg-index="0">
+                      <span class="leg-number-badge">Flight 1</span>
+                      <div class="leg-fields-grid">
+                        <label class="field field-location">
+                          <span>From</span><strong>⌖</strong>
+                          <input name="leg_origin_0" placeholder="From city (e.g. Atlanta)" autocomplete="off" />
+                        </label>
+                        <label class="field field-location">
+                          <span>To</span><strong>⌖</strong>
+                          <input name="leg_destination_0" placeholder="To city (e.g. Paris)" autocomplete="off" />
+                        </label>
+                        <label class="field">
+                          <span>Depart</span><strong>▣</strong>
+                          <input name="leg_depart_0" type="date" />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div class="multicity-leg-row" data-leg-index="1">
+                      <span class="leg-number-badge">Flight 2</span>
+                      <div class="leg-fields-grid">
+                        <label class="field field-location">
+                          <span>From</span><strong>⌖</strong>
+                          <input name="leg_origin_1" placeholder="From city (e.g. Paris)" autocomplete="off" />
+                        </label>
+                        <label class="field field-location">
+                          <span>To</span><strong>⌖</strong>
+                          <input name="leg_destination_1" placeholder="To city (e.g. Rome)" autocomplete="off" />
+                        </label>
+                        <label class="field">
+                          <span>Depart</span><strong>▣</strong>
+                          <input name="leg_depart_1" type="date" />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="multicity-actions">
+                    <button type="button" class="text-button btn-add-flight" data-add-multicity-leg style="font-size:12px; font-weight:700; color:var(--coral); background:none; border:none; padding:4px 0; cursor:pointer;">+ Add Flight</button>
+                  </div>
+                </div>
+
+                <div class="field-grid">
+                  <label class="field field-location">
+                    <span>From</span><strong>⌖</strong>
+                    <input name="origin" placeholder="From city (e.g. Atlanta)" value="" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="origin-suggestions" aria-label="From city" />
+                    <small data-origin-helper></small>
+                    <div class="airport-suggestions" id="origin-suggestions" data-origin-suggestions role="listbox"></div>
+                  </label>
+                  <button class="swap-button" type="button" aria-label="Swap origin and destination" data-swap>↔</button>
+                  <label class="field field-location"><span>To</span><strong>⌖</strong><input name="destination" placeholder="To city (e.g. Paris)" value="" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destination-suggestions" aria-label="To city" /><small data-destination-helper></small><div class="airport-suggestions" id="destination-suggestions" data-destination-suggestions role="listbox"></div></label>
+                  <label class="field"><span>Depart</span><strong>▣</strong><input name="depart" type="date" value="" aria-label="Departure date" /></label>
+                  <label class="field"><span>Return</span><strong>▣</strong><input name="return" type="date" value="" aria-label="Return date" /></label>
+                  <div class="field passenger-field-container" data-passenger-container>
+                    <span>Passenger(s)</span>
+                    <div class="passenger-trigger" data-passenger-trigger tabindex="0" role="button" aria-expanded="false" aria-controls="passenger-popover">
+                      <strong class="passenger-icon">👤</strong>
+                      <span class="passenger-display-text" data-passenger-display>1 Adult</span>
+                      <b class="dropdown-chevron">▾</b>
+                    </div>
+
+                    <div class="passenger-popover hidden" id="passenger-popover" data-passenger-popover role="region" aria-label="Passenger Breakdown">
+                      <div class="passenger-row">
+                        <div class="passenger-type-info">
+                          <strong>Adult (12+)</strong>
+                        </div>
+                        <div class="counter-controls">
+                          <button type="button" class="counter-btn" data-counter-dec="adults" aria-label="Decrease adults" disabled>−</button>
+                          <span class="counter-val" data-counter-val="adults">1</span>
+                          <button type="button" class="counter-btn primary" data-counter-inc="adults" aria-label="Increase adults">+</button>
+                        </div>
+                      </div>
+
+                      <div class="passenger-row">
+                        <div class="passenger-type-info">
+                          <strong>Child (2-11)</strong>
+                        </div>
+                        <div class="counter-controls">
+                          <button type="button" class="counter-btn" data-counter-dec="children" aria-label="Decrease children" disabled>−</button>
+                          <span class="counter-val" data-counter-val="children">0</span>
+                          <button type="button" class="counter-btn primary" data-counter-inc="children" aria-label="Increase children">+</button>
+                        </div>
+                      </div>
+
+                      <div class="passenger-row">
+                        <div class="passenger-type-info">
+                          <strong>Infant on seat (under 2)</strong>
+                        </div>
+                        <div class="counter-controls">
+                          <button type="button" class="counter-btn" data-counter-dec="infantsInSeat" aria-label="Decrease infants on seat" disabled>−</button>
+                          <span class="counter-val" data-counter-val="infantsInSeat">0</span>
+                          <button type="button" class="counter-btn primary" data-counter-inc="infantsInSeat" aria-label="Increase infants on seat">+</button>
+                        </div>
+                      </div>
+
+                      <div class="passenger-row">
+                        <div class="passenger-type-info">
+                          <strong>Infant on lap (under 2)</strong>
+                        </div>
+                        <div class="counter-controls">
+                          <button type="button" class="counter-btn" data-counter-dec="infantsOnLap" aria-label="Decrease infants on lap" disabled>−</button>
+                          <span class="counter-val" data-counter-val="infantsOnLap">0</span>
+                          <button type="button" class="counter-btn primary" data-counter-inc="infantsOnLap" aria-label="Increase infants on lap">+</button>
+                        </div>
+                      </div>
+
+                      <div class="passenger-popover-footer">
+                        <button type="button" class="primary-button btn-done" data-passenger-done style="width:100%; padding:8px 12px; font-size:12px;">Done</button>
+                      </div>
+                    </div>
+                  </div>
+                  <label class="field"><span>Cabin</span><strong>💺</strong><select name="cabin_class" aria-label="Cabin class"><option value="economy" selected>Economy</option><option value="premium_economy">Premium Econ</option><option value="business">Business</option><option value="first">First</option></select></label>
+                </div>
+                <div class="enhanced-duration-row hidden" data-enhanced-duration>
+                  <label class="field"><span>Min Trip Duration</span><strong>⏳</strong><select name="min_duration" aria-label="Min trip duration"><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="4" selected>4 days</option><option value="5">5 days</option><option value="7">7 days</option><option value="10">10 days</option></select></label>
+                  <label class="field"><span>Max Trip Duration</span><strong>⌛</strong><select name="max_duration" aria-label="Max trip duration"><option value="3">3 days</option><option value="5">5 days</option><option value="7" selected>7 days</option><option value="10">10 days</option><option value="14">14 days</option><option value="21">21 days</option></select></label>
+                  <label class="field"><span>Date Flexibility</span><strong>✦</strong><select name="flex_days" aria-label="Date flexibility"><option value="0">Exact dates (±0d)</option><option value="1">±1 day</option><option value="2">±2 days</option><option value="3" selected>±3 days</option><option value="5">±5 days</option></select></label>
+                  <label class="field"><span>Preferred Airline</span><strong>✈</strong><input name="favorite_airline" placeholder="e.g. Air France" aria-label="Preferred airline" /></label>
+                </div>
+              </div>
+              <div class="search-actions">
+                <div class="actions-left">
+                  <label class="checkbox"><input type="checkbox" name="nonstop" /> <span>Nonstop only</span></label>
+                </div>
+                <div class="actions-right" style="display:flex; align-items:center; gap:12px;">
+                  <button type="button" class="text-button" data-clear-page style="font-size:13px; font-weight:700; color:var(--coral); background:none; border:none; padding:6px 8px; cursor:pointer;" title="Clear whole page">Clear</button>
+                  <button class="primary-button" type="submit"><span>Search flights</span><b>→</b></button>
+                </div>
+              </div>
+            </form>
+            <p class="search-error" data-search-error role="alert" aria-live="polite"></p>
+          </div>
+        </div>
+
+        <div class="service-tab-content hidden" data-service-content="hotels">
+          <div class="placeholder-service-card">
+            <h3>🏨 Hotel Search</h3>
+            <p>Compare luxury stays, boutique hotels, and vacation rentals at guaranteed low rates.</p>
+            <span class="badge-coming-soon">Coming Soon</span>
+          </div>
+        </div>
+
+        <div class="service-tab-content hidden" data-service-content="cars">
+          <div class="placeholder-service-card">
+            <h3>🚗 Car Rental</h3>
+            <p>Find unbeatable car rental deals from airport locations worldwide.</p>
+            <span class="badge-coming-soon">Coming Soon</span>
+          </div>
+        </div>
+
+        <div class="service-tab-content hidden" data-service-content="packages">
+          <div class="placeholder-service-card">
+            <h3>🌴 Flight + Hotel Packages</h3>
+            <p>Bundle flights and hotels to save up to 35% on your dream vacation.</p>
+            <span class="badge-coming-soon">Coming Soon</span>
+          </div>
+        </div>
+        
         <section class="recent-searches hidden" data-recent-searches aria-label="Recent searches">
           <div class="recent-heading"><span>Recent searches</span><button type="button" class="text-button" data-clear-recent>Clear</button></div>
           <div class="recent-list" data-recent-list></div>
@@ -81,16 +239,24 @@
       </section>
 
       <section class="results-section" id="results">
-        <div class="results-heading"><div><p class="eyebrow">Curated for you</p><h2><span data-origin-city></span> <span>→</span> <span data-destination-city></span></h2><p class="muted" data-result-summary>Search for a route to see available flights</p></div><button class="date-button" type="button">‹ <span>Sep 16</span><strong>Sep 17</strong><span>Sep 18</span> ›</button></div>
-        <div class="metric-tabs" role="tablist" aria-label="Sort flights">
-          <button class="metric-tab is-active" data-sort="cheapest"><span>Cheapest</span><strong data-metric="cheapest">$289</strong><small>from</small></button>
-          <button class="metric-tab" data-sort="shortest"><span>Shortest</span><strong data-metric="shortest">$318</strong><small>from</small></button>
-          <button class="metric-tab" data-sort="nonstop"><span>Nonstop</span><strong data-metric="nonstop">$289</strong><small>from</small></button>
-          <button class="metric-tab" data-sort="recommended"><span>Recommended</span><strong data-metric="recommended">$318</strong><small>from</small></button>
-        </div>
-        <div class="table-toolbar"><div class="toolbar-left"><span class="result-count" data-result-count>6 flights</span><button class="filter-button" type="button" data-filter-toggle>☷ <span>Filters</span><b>0</b></button></div><label class="sort-control">Sort by <select data-sort-select><option value="cheapest">Price</option><option value="shortest">Duration</option><option value="depart">Departure</option></select></label></div>
+        <div class="results-heading"><div><p class="eyebrow">Curated for you</p><h2><span data-origin-city></span> <span>→</span> <span data-destination-city></span></h2><p class="muted" data-result-summary>Search for a route to see available flights</p></div><button class="date-button" type="button"></button></div>
+        <div class="table-toolbar"><div class="toolbar-left"><span class="result-count" data-result-count></span><button class="filter-button" type="button" data-filter-toggle>☷ <span>Filters</span><b>0</b></button></div><label class="sort-control">Sort by <select data-sort-select><option value="cheapest">Price</option><option value="shortest">Duration</option><option value="depart">Departure</option></select></label></div>
         <div class="filter-drawer" data-filter-drawer><label>Airline <select data-airline-filter><option value="all">All airlines</option></select></label><label>Stops <select data-stops-filter><option value="all">Any stops</option><option value="0">Nonstop</option><option value="1">1 stop</option></select></label><label>Max price <input type="range" min="250" max="800" value="800" data-price-filter /><output data-price-output>$800</output></label><button type="button" class="text-button" data-clear-filters>Clear all</button></div>
-        <div class="offer-table-wrap"><table class="offer-table"><thead><tr><th>Flight</th><th>Duration</th><th>Stops</th><th>Emissions</th><th class="price-heading">Price</th><th></th></tr></thead><tbody data-offers></tbody></table></div>
+        <div class="offer-table-wrap">
+          <table class="offer-table">
+            <thead>
+              <tr>
+                <th data-sort-col="flight" class="sortable-th">Flight <span class="sort-icon">↕</span></th>
+                <th data-sort-col="duration" class="sortable-th">Duration <span class="sort-icon">↕</span></th>
+                <th data-sort-col="stops" class="sortable-th">Stops <span class="sort-icon">↕</span></th>
+                <th data-sort-col="emissions" class="sortable-th">Emissions <span class="sort-icon">↕</span></th>
+                <th data-sort-col="price" class="sortable-th price-heading">Price <span class="sort-icon">▲</span></th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody data-offers></tbody>
+          </table>
+        </div>
         <p class="table-footnote">Prices include estimated taxes and fees. Final price confirmed before payment.</p>
       </section>
 
@@ -167,6 +333,52 @@
             <button type="button" class="primary-button" data-booking-next><span>Continue</span> <b>→</b></button>
           </div>
         </footer>
+      </div>
+    </div>
+
+    <div class="frontier-modal-overlay hidden" data-frontier-modal role="dialog" aria-modal="true" aria-label="Frontier Airlines Direct Booking">
+      <div class="frontier-modal-card">
+        <header class="frontier-modal-header">
+          <div class="frontier-title-bar">
+            <div>
+              <span class="frontier-badge">Frontier Direct Web Fare</span>
+              <h3 data-frontier-route-heading>ATL → MCO</h3>
+            </div>
+            <button type="button" class="close-button" data-close-frontier aria-label="Close modal">✕</button>
+          </div>
+        </header>
+
+        <div class="frontier-modal-body">
+          <div class="frontier-details-grid">
+            <div class="frontier-detail-item">
+              <span class="frontier-detail-label">Origin & Destination</span>
+              <strong class="frontier-detail-val" data-frontier-airports>ATL → MCO</strong>
+            </div>
+            <div class="frontier-detail-item">
+              <span class="frontier-detail-label">Travel Dates</span>
+              <strong class="frontier-detail-val" data-frontier-dates>Oct 17 – Oct 24, 2026</strong>
+            </div>
+            <div class="frontier-detail-item">
+              <span class="frontier-detail-label">Duration</span>
+              <strong class="frontier-detail-val" data-frontier-duration>3h 29m</strong>
+            </div>
+            <div class="frontier-detail-item">
+              <span class="frontier-detail-label">Total Fare</span>
+              <strong class="frontier-detail-val price-val" data-frontier-price>$38.00</strong>
+            </div>
+          </div>
+
+          <p class="frontier-modal-notice">
+            This ultra-low fare is hosted directly on Frontier Airlines (flyfrontier.com). Click below to complete your flight booking on Frontier's official website.
+          </p>
+
+          <div class="frontier-redirect-actions">
+            <button type="button" class="text-button" data-close-frontier style="cursor:pointer; font-weight:700; color:var(--muted); background:none; border:none;">Cancel</button>
+            <a href="https://www.flyfrontier.com" target="_blank" rel="noopener noreferrer" class="primary-button" data-frontier-direct-btn style="text-decoration:none;">
+              <span>Book with Frontier Airlines</span> <b>↗</b>
+            </a>
+          </div>
+        </div>
       </div>
     </div>
 

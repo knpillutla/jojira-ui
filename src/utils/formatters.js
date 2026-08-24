@@ -1,3 +1,5 @@
+import { getExternalAirlineConfig } from '../config/externalAirlines.js';
+
 export function formatDateTime(str) {
   if (!str) return 'Flexible time';
   const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
@@ -67,7 +69,7 @@ export function formatTimeOnly(str) {
 }
 
 export function formatDurationHoursMins(minutes) {
-  if (!minutes || minutes <= 0) return 'Direct';
+  if (!minutes || minutes <= 0) return '0 hr 0 min';
   const hours = Math.floor(minutes / 60);
   const rem = Math.round(minutes % 60);
   return `${hours} hr${hours === 1 ? '' : 's'}${rem > 0 ? ` ${rem} min` : ''}`;
@@ -85,18 +87,42 @@ export function formatDateShort(str) {
   return str;
 }
 
+function getIataCode(str, fallback) {
+  if (!str) return fallback;
+  const match = String(str).match(/\(([A-Z]{3})\)/);
+  if (match) return match[1];
+  if (typeof str === 'string' && str.trim().length <= 5) return str.trim();
+  return fallback;
+}
+
 export function normalizeOffer(offer, index) {
   const tones = ['tone-af', 'tone-sk', 'tone-dl', 'tone-kl', 'tone-ua', 'tone-ba'];
   const segments = offer.slices?.[0]?.segments || [];
   const returnSegments = offer.slices?.[1]?.segments || [];
 
-  const rawDepart = offer.departures?.[0] || offer.depart || offer.departure_time || offer.departure_at || segments[0]?.departing_at;
-  const rawArrive = offer.arrivals?.[0] || offer.arrive || offer.arrival_time || offer.arrival_at || segments.slice(-1)[0]?.arriving_at;
-  const rawReturnDepart = offer.return_departure_at || offer.return_date || returnSegments[0]?.departing_at || rawArrive;
+  const rawDepart = offer.departure_at || offer.departure_time || offer.departures?.[0] || offer.depart || segments[0]?.departing_at || '';
+  const rawArrive = offer.arrival_at || offer.arrival_time || offer.arrivals?.[0] || offer.arrive || segments.slice(-1)[0]?.arriving_at || '';
+  const rawReturnDepart = offer.return_departure_at || offer.return_departure_time || offer.inbound_departure_at || offer.return_date || offer.inbound_date || returnSegments[0]?.departing_at || '';
+  const rawReturnArrive = offer.return_arrival_at || offer.return_arrival_time || offer.inbound_arrival_at || returnSegments.slice(-1)[0]?.arriving_at || '';
+
+  const isOneWay = Boolean(
+    offer.trip_type === 'one_way' ||
+    offer.is_one_way ||
+    !rawReturnDepart ||
+    String(rawReturnDepart).trim() === '' ||
+    rawReturnDepart === null ||
+    rawReturnDepart === 'null' ||
+    rawReturnDepart === 'undefined'
+  );
+
+  const outboundDepartDateTime = formatDateTime(rawDepart);
+  const outboundArriveDateTime = formatDateTime(rawArrive);
+  const inboundDepartDateTime = isOneWay ? '' : formatDateTime(rawReturnDepart);
+  const inboundArriveDateTime = isOneWay ? '' : formatDateTime(rawReturnArrive);
 
   const departTime = formatTimeOnly(rawDepart);
   const arriveTime = formatTimeOnly(rawArrive);
-  const dateRangeText = `${formatDateShort(rawDepart)} – ${formatDateShort(rawReturnDepart)}`;
+  const dateRangeText = (rawDepart && rawReturnDepart && !isOneWay) ? `${formatDateShort(rawDepart)} – ${formatDateShort(rawReturnDepart)}` : (rawDepart ? formatDateShort(rawDepart) : '');
 
   // Check if arrival is next day
   let nextDayBadge = '';
@@ -122,24 +148,34 @@ export function normalizeOffer(offer, index) {
   if (offer.owner?.name) carriers.add(offer.owner.name);
 
   const carriersArray = Array.from(carriers);
-  const carriersText = carriersArray.length > 0 ? carriersArray.slice(0, 3).join(' · ') : (offer.airline || 'Air France · Delta');
-  const codeVal = offer.code || offer.flight_number || Array.from(carrierCodes).join('/') || `AF ${100 + index}`;
+  const carriersText = carriersArray.length > 0 ? carriersArray.slice(0, 3).join(' · ') : (offer.airline || '');
+  const codeVal = offer.code || offer.flight_number || Array.from(carrierCodes).join('/') || (offer.airline ? offer.airline.slice(0, 2) : '');
 
   // Route & Duration
-  const originCode = offer.from || offer.origin || offer.slices?.[0]?.origin?.iata_code || 'ATL';
-  const destCode = offer.to || offer.destination || offer.slices?.[0]?.destination?.iata_code || 'OSL';
-  const durationMins = Number(offer.duration || offer.total_duration_minutes || offer.slices?.[0]?.duration_minutes || (600 + (index * 35)));
-  const formattedDuration = formatDurationHoursMins(durationMins);
-  const routeCodeText = `${originCode}–${destCode}`;
+  const originCode = getIataCode(offer.origin_code || offer.from || offer.origin || offer.slices?.[0]?.origin?.iata_code, '');
+  const destCode = getIataCode(offer.destination_code || offer.to || offer.destination || offer.slices?.[0]?.destination?.iata_code, '');
+  const durationMins = Number(offer.total_duration_minutes || offer.duration_minutes || offer.duration || offer.slices?.[0]?.duration_minutes || 0);
+
+  // Outbound and Inbound Durations
+  const outboundDurationMins = Number(offer.outbound_duration_minutes || offer.slices?.[0]?.duration_minutes || durationMins || 0);
+  const outboundDurationText = offer.outbound_duration || (outboundDurationMins > 0 ? formatDurationHoursMins(outboundDurationMins) : '');
+
+  const inboundDurationMins = isOneWay ? 0 : Number(offer.inbound_duration_minutes || offer.return_duration_minutes || offer.slices?.[1]?.duration_minutes || 0);
+  const inboundDurationText = (isOneWay || inboundDurationMins === 0) ? '' : (offer.inbound_duration || offer.return_duration || formatDurationHoursMins(inboundDurationMins));
+
+  // Total Duration (if one-way, total duration is strictly outbound duration)
+  const totalMins = isOneWay ? (outboundDurationMins || durationMins) : (durationMins || (outboundDurationMins + inboundDurationMins));
+  const formattedDuration = isOneWay ? (outboundDurationText || formatDurationHoursMins(totalMins)) : (offer.total_duration || formatDurationHoursMins(totalMins));
+  const routeCodeText = (originCode && destCode) ? `${originCode}–${destCode}` : '';
 
   // Stops & Layover details
-  const stops = Number(offer.stops ?? (segments.length > 0 ? segments.length - 1 : 0));
+  const stops = Number(offer.max_stops ?? (segments.length > 0 ? segments.length - 1 : 0));
   const stopsCountText = stops === 0 ? 'Nonstop' : `${stops} stop${stops > 1 ? 's' : ''}`;
   
-  let layoverDetailText = 'Direct';
+  let layoverDetailText = stops === 0 ? 'Direct' : '';
   if (stops > 0 && segments.length >= 2) {
-    const stopAirport = segments[0].destination?.iata_code || segments[1].origin?.iata_code || 'CDG';
-    let layoverMins = 120;
+    const stopAirport = segments[0].destination?.iata_code || segments[1].origin?.iata_code || '';
+    let layoverMins = 0;
     if (segments[0].arriving_at && segments[1].departing_at) {
       const arr = new Date(segments[0].arriving_at).getTime();
       const dep = new Date(segments[1].departing_at).getTime();
@@ -147,49 +183,113 @@ export function normalizeOffer(offer, index) {
         layoverMins = Math.round((dep - arr) / (1000 * 60));
       }
     }
-    layoverDetailText = `${formatDurationHoursMins(layoverMins)} ${stopAirport}`;
+    layoverDetailText = layoverMins > 0 ? `${formatDurationHoursMins(layoverMins)} ${stopAirport}` : (stopAirport || stopsCountText);
   } else if (stops > 0) {
-    const sampleAirports = ['CDG', 'LHR', 'AMS', 'FRA'];
-    const sampleAirport = sampleAirports[index % sampleAirports.length];
-    layoverDetailText = `2 hr 20 min ${sampleAirport}`;
+    layoverDetailText = offer.leg_codes ? `${offer.leg_codes}` : stopsCountText;
   }
+
+  // Outbound & Inbound route texts with legs
+  let outboundRouteText = (originCode && destCode) ? `${originCode} - ${destCode}` : '';
+  let inboundRouteText = (destCode && originCode && !isOneWay) ? `${destCode} - ${originCode}` : '';
+
+  if (offer.slices && offer.slices.length >= 1) {
+    const outSegs = offer.slices[0]?.segments || [];
+    if (outSegs.length > 0) {
+      const outList = [outSegs[0].origin?.iata_code || originCode];
+      outSegs.forEach((seg) => {
+        if (seg.destination?.iata_code) outList.push(seg.destination.iata_code);
+      });
+      outboundRouteText = outList.filter(Boolean).join(' - ');
+    }
+
+    const inSegs = isOneWay ? [] : (offer.slices[1]?.segments || []);
+    if (inSegs.length > 0) {
+      const inList = [inSegs[0].origin?.iata_code || destCode];
+      inSegs.forEach((seg) => {
+        if (seg.destination?.iata_code) inList.push(seg.destination.iata_code);
+      });
+      inboundRouteText = inList.filter(Boolean).join(' - ');
+    }
+  } else if (stops > 0 && !isOneWay) {
+    let legCodesList = [];
+    if (typeof offer.leg_codes === 'string' && offer.leg_codes.trim()) {
+      legCodesList = offer.leg_codes.split(',').map((s) => s.trim()).filter(Boolean);
+    } else if (Array.isArray(offer.leg_codes)) {
+      legCodesList = offer.leg_codes;
+    }
+
+    let outStopsCount = 1;
+    let inStopsCount = 1;
+    let outOrigin = originCode;
+    let outDest = destCode;
+    let inOrigin = destCode;
+    let inDest = originCode;
+
+    if (Array.isArray(offer.slice_details) && offer.slice_details.length >= 2) {
+      outStopsCount = Number(offer.slice_details[0]?.stops ?? 1);
+      inStopsCount = Number(offer.slice_details[1]?.stops ?? 1);
+      if (offer.slice_details[0]?.origin_code) outOrigin = getIataCode(offer.slice_details[0].origin_code, originCode);
+      if (offer.slice_details[0]?.destination_code) outDest = getIataCode(offer.slice_details[0].destination_code, destCode);
+      if (offer.slice_details[1]?.origin_code) inOrigin = getIataCode(offer.slice_details[1].origin_code, destCode);
+      if (offer.slice_details[1]?.destination_code) inDest = getIataCode(offer.slice_details[1].destination_code, originCode);
+    } else {
+      outStopsCount = Math.ceil(stops / 2);
+      inStopsCount = Math.floor(stops / 2) || 1;
+    }
+
+    let outLegs = [];
+    let inLegs = [];
+    if (legCodesList.length > 0) {
+      outLegs = legCodesList.slice(0, outStopsCount);
+      inLegs = legCodesList.slice(outStopsCount);
+      if (outLegs.length === 0 && outStopsCount > 0) outLegs = [legCodesList[0]];
+      if (inLegs.length === 0 && inStopsCount > 0) inLegs = [legCodesList[legCodesList.length - 1] || legCodesList[0]];
+    }
+
+    outboundRouteText = [outOrigin, ...outLegs, outDest].filter(Boolean).join(' - ');
+    inboundRouteText = [inOrigin, ...inLegs, inDest].filter(Boolean).join(' - ');
+  }
+
+  const outboundRouteTextWithDuration = outboundDurationText ? `${outboundRouteText} (${outboundDurationText})` : outboundRouteText;
+  const inboundRouteTextWithDuration = (inboundDurationText && !isOneWay) ? `${inboundRouteText} (${inboundDurationText})` : inboundRouteText;
 
   // Emissions (Google Flights style)
-  const baseEmissions = 450 + ((index * 37) % 250);
-  const emissionsKg = offer.total_emissions_kg ? `${Math.round(offer.total_emissions_kg)} kg CO2e` : `${baseEmissions} kg CO2e`;
-  const emissionsVar = ((index * 7) % 30) - 15;
-  const isLowEmissions = emissionsVar < -5;
-  const emissionsNote = isLowEmissions ? `${emissionsVar}% emissions` : (emissionsVar > 5 ? `+${emissionsVar}% emissions` : 'Avg emissions');
+  const emissionsKg = offer.total_emissions_kg ? `${Math.round(offer.total_emissions_kg)} kg CO2e` : '';
+  const isLowEmissions = Boolean(offer.is_low_emissions);
+  const emissionsNote = offer.emissions_note || (isLowEmissions ? 'Low emissions' : '');
 
   // Flight Number & Stop Codes
-  const flightNumber = offer.code || offer.flight_number || (segments[0]?.marketing_carrier_flight_number ? `${segments[0]?.marketing_carrier?.iata_code || ''} ${segments[0].marketing_carrier_flight_number}` : `AF ${100 + index}`);
+  const flightNumber = offer.flight_number || offer.flight_numbers || offer.code || (segments[0]?.marketing_carrier_flight_number ? `${segments[0]?.marketing_carrier?.iata_code || ''} ${segments[0].marketing_carrier_flight_number}` : (offer.airline || ''));
   
-  let stopCodesList = [];
-  if (stops > 0 && segments.length >= 2) {
-    stopCodesList = segments.slice(0, -1).map((seg) => seg.destination?.iata_code).filter(Boolean);
-  }
-  if (stops > 0 && stopCodesList.length === 0) {
-    const sampleAirports = ['CDG', 'LHR', 'AMS', 'FRA'];
-    stopCodesList = [sampleAirports[index % sampleAirports.length]];
-  }
-  const stopCodesText = stops === 0 ? 'Nonstop' : stopCodesList.join(', ');
+  const stopCodesText = stops === 0 ? 'Nonstop' : (offer.leg_codes || `${stops} stop${stops > 1 ? 's' : ''}`);
 
   // Price
-  const rawPrice = offer.price || offer.total_amount || offer.total_amount_usd || offer.price_usd || (720 + index * 14);
+  const rawPrice = offer.price || offer.total_amount || offer.total_amount_usd || offer.price_usd || 0;
   const priceVal = parseMoneyVal(rawPrice);
 
+  // External Web Fare details (configured external airlines e.g. Frontier, Spirit, Ryanair, Wizz, Breeze, Allegiant)
+  const externalAirlineConfig = getExternalAirlineConfig(offer.airline || offer.owner?.name || offer.code);
+  const isExternalWebFare = Boolean((offer.is_external_web_fare || offer.booking_type === 'external_redirect') && (externalAirlineConfig || offer.is_external_web_fare));
+  const bookingUrl = externalAirlineConfig?.mainUrl || offer.booking_url || offer.external_url || 'https://www.flyfrontier.com';
+  const redirectNotice = externalAirlineConfig?.noticeText || offer.redirect_notice || '';
+  const source = offer.source || '';
+
   return {
-    id: offer.offer_id || offer.id || `offer-${index + 1}`,
-    airline: carriersText,
+    id: offer.offer_id || offer.id || String(index + 1),
+    airline: offer.airline || '',
     code: codeVal,
     flightNumber,
     tone: tones[index % tones.length],
     departTime,
     arriveTime,
+    outboundDepartDateTime,
+    outboundArriveDateTime,
+    inboundDepartDateTime,
+    inboundArriveDateTime,
     dateRangeText,
     nextDayBadge,
-    depart: formatDateTime(rawDepart),
-    arrive: formatDateTime(rawArrive),
+    depart: outboundDepartDateTime || formatDateTime(rawDepart),
+    arrive: outboundArriveDateTime || formatDateTime(rawArrive),
     from: originCode,
     to: destCode,
     originName: offer.origin_name || '',
@@ -197,6 +297,10 @@ export function normalizeOffer(offer, index) {
     duration: durationMins,
     formattedDuration,
     routeCodeText,
+    outboundRouteText,
+    inboundRouteText,
+    outboundRouteTextWithDuration,
+    inboundRouteTextWithDuration,
     stops,
     stopsCountText,
     stopCodesText,
@@ -207,7 +311,13 @@ export function normalizeOffer(offer, index) {
     cabin: offer.cabin || offer.cabin_class || 'Economy',
     price: priceVal,
     formattedPrice: money(priceVal),
-    badge: offer.badge || (index === 0 ? 'Cheapest Nonstop' : '')
+    badge: offer.badge || '',
+    isOneWay,
+    isExternalWebFare,
+    bookingUrl,
+    redirectNotice,
+    source,
+    externalAirlineConfig
   };
 }
 

@@ -2,7 +2,9 @@ export const state = {
   offers: [],
   filters: { airline: 'all', stops: 'all', price: 5000 },
   sort: 'cheapest',
-  search: { origin: 'ATL', destination: 'CDG', depart: '2026-10-02' },
+  sortColumn: 'price',
+  sortDirection: 'asc',
+  search: { origin: '', destination: '', depart: '' },
   categoryHighlights: {},
   routeNames: { origin: '', destination: '' }
 };

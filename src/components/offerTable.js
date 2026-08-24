@@ -8,11 +8,62 @@ export function sortedOffers() {
     (state.filters.stops === 'all' || offer.stops === Number(state.filters.stops)) &&
     offer.price <= state.filters.price
   );
+
+  const col = state.sortColumn || state.sort || 'price';
+  const dir = state.sortDirection || 'asc';
+  const mult = dir === 'asc' ? 1 : -1;
+
   return [...filtered].sort((a, b) => {
-    if (state.sort === 'shortest') return a.duration - b.duration;
-    if (state.sort === 'depart') return a.depart.localeCompare(b.depart);
-    if (state.sort === 'nonstop') return (a.stops - b.stops) || (a.price - b.price);
-    return (a.price - b.price) || (a.duration - b.duration);
+    let res = 0;
+    if (col === 'flight') {
+      res = (a.airline || '').localeCompare(b.airline || '') || (a.flightNumber || '').localeCompare(b.flightNumber || '');
+    } else if (col === 'duration' || col === 'shortest') {
+      res = (a.duration || 0) - (b.duration || 0);
+    } else if (col === 'stops' || col === 'nonstop') {
+      res = (a.stops || 0) - (b.stops || 0);
+    } else if (col === 'emissions') {
+      const aE = parseFloat(a.emissionsKg) || 0;
+      const bE = parseFloat(b.emissionsKg) || 0;
+      res = aE - bE;
+    } else if (col === 'depart') {
+      res = (a.depart || '').localeCompare(b.depart || '');
+    } else {
+      res = (a.price || 0) - (b.price || 0);
+    }
+    return (res * mult) || ((a.price || 0) - (b.price || 0));
+  });
+}
+
+export function updateSortHeaderIcons() {
+  document.querySelectorAll('th[data-sort-col]').forEach((th) => {
+    const col = th.dataset.sortCol;
+    const icon = th.querySelector('.sort-icon');
+    const isCurrent = state.sortColumn === col;
+
+    th.classList.toggle('is-sorted', isCurrent);
+    if (icon) {
+      if (isCurrent) {
+        icon.textContent = state.sortDirection === 'asc' ? '▲' : '▼';
+      } else {
+        icon.textContent = '↕';
+      }
+    }
+  });
+}
+
+export function initTableSorting() {
+  document.querySelectorAll('th[data-sort-col]').forEach((th) => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.sortCol;
+      if (state.sortColumn === col) {
+        state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.sortColumn = col;
+        state.sortDirection = 'asc';
+      }
+      updateSortHeaderIcons();
+      renderOffers();
+    });
   });
 }
 
@@ -27,7 +78,19 @@ export function renderOffers() {
         <div class="gf-flight-cell">
           <span class="airline-logo ${offer.tone}">${offer.code.slice(0, 2)}</span>
           <div class="gf-time-carrier">
-            <div class="gf-times"><strong>${offer.departTime} – ${offer.arriveTime}</strong><sup class="gf-next-day">${offer.nextDayBadge}</sup></div>
+            <div class="gf-times-list">
+              <div class="gf-times-line">
+                ${offer.inboundDepartDateTime ? '<span class="gf-leg-badge">Out</span>' : ''}
+                <strong>${offer.outboundDepartDateTime || offer.depart}${offer.outboundArriveDateTime ? ' – ' + offer.outboundArriveDateTime : ''}</strong>
+                <sup class="gf-next-day">${offer.nextDayBadge}</sup>
+              </div>
+              ${offer.inboundDepartDateTime ? `
+              <div class="gf-times-line">
+                <span class="gf-leg-badge">Ret</span>
+                <strong>${offer.inboundDepartDateTime}${offer.inboundArriveDateTime ? ' – ' + offer.inboundArriveDateTime : ''}</strong>
+              </div>
+              ` : ''}
+            </div>
             <div class="gf-sub-details">
               <strong class="gf-flight-num">${offer.flightNumber}</strong>
               <span class="gf-dot-sep">·</span>
@@ -41,7 +104,10 @@ export function renderOffers() {
       <td>
         <div class="gf-col-cell">
           <strong>${offer.formattedDuration}</strong>
-          <small>${offer.routeCodeText}</small>
+          <div class="gf-route-lines">
+            <small class="gf-route-line">${offer.outboundRouteTextWithDuration || offer.outboundRouteText}</small>
+            ${offer.inboundRouteText ? `<small class="gf-route-line">${offer.inboundRouteTextWithDuration || offer.inboundRouteText}</small>` : ''}
+          </div>
         </div>
       </td>
       <td>
@@ -59,12 +125,13 @@ export function renderOffers() {
       <td class="price-cell">
         <div class="gf-price-wrap">
           <strong class="gf-price">${offer.formattedPrice}</strong>
-          <small>round trip</small>
+          <small>${offer.isOneWay ? 'one way' : 'round trip'}</small>
         </div>
       </td>
       <td class="action-cell">
-        <button class="select-button" type="button" data-select-offer="${offer.id}">
-          <span>Select</span><b>→</b>
+        <button class="select-button ${offer.isExternalWebFare ? 'is-external' : ''}" type="button" data-select-offer="${offer.id}" title="${offer.isExternalWebFare ? (offer.redirectNotice || 'Redirects to external booking site in a new tab') : 'Select flight'}">
+          <span>${offer.isExternalWebFare ? `Book with ${offer.airline || 'Airline'}` : 'Select'}</span>
+          <b>${offer.isExternalWebFare ? '↗' : '→'}</b>
         </button>
       </td>
     </tr>
@@ -86,10 +153,74 @@ export function renderOffers() {
   });
 }
 
+export function showFrontierRedirectModal(offer) {
+  const modal = $('[data-frontier-modal]');
+  const routeHeading = $('[data-frontier-route-heading]');
+  const airportsEl = $('[data-frontier-airports]');
+  const datesEl = $('[data-frontier-dates]');
+  const durationEl = $('[data-frontier-duration]');
+  const priceEl = $('[data-frontier-price]');
+  const directBtn = $('[data-frontier-direct-btn]');
+  const badgeEl = document.querySelector('.frontier-badge');
+  const noticeTextEl = document.querySelector('.frontier-modal-notice');
+
+  const cfg = offer?.externalAirlineConfig;
+  const targetUrl = cfg?.mainUrl || 'https://www.flyfrontier.com';
+
+  if (badgeEl) badgeEl.textContent = cfg?.badgeText || `${offer?.airline || 'Direct'} Web Fare`;
+  if (noticeTextEl) {
+    noticeTextEl.textContent = cfg?.noticeText || offer?.redirectNotice || `This ultra-low fare is hosted directly on ${offer?.airline || 'the airline'}. Click below to visit their official website.`;
+  }
+
+  const originCode = offer?.from || state.search.origin || '';
+  const destCode = offer?.to || state.search.destination || '';
+  const originName = offer?.originName || '';
+  const destName = offer?.destinationName || '';
+
+  const routeStr = `${originCode}${originName ? ' (' + originName + ')' : ''} → ${destCode}${destName ? ' (' + destName + ')' : ''}`;
+
+  if (routeHeading) routeHeading.textContent = `${originCode} → ${destCode}`;
+  if (airportsEl) airportsEl.textContent = routeStr;
+
+  const outboundDate = offer?.outboundDepartDateTime || offer?.depart || state.search.depart || '';
+  const returnDate = offer?.inboundDepartDateTime || offer?.arrive || state.search.return || '';
+  const datesStr = (outboundDate && returnDate && outboundDate !== returnDate) ? `${outboundDate} – ${returnDate}` : (outboundDate || returnDate || 'Flexible Dates');
+  if (datesEl) datesEl.textContent = datesStr;
+
+  let durationText = offer?.formattedDuration || '';
+  if (offer?.outboundDurationText && offer?.inboundDurationText) {
+    durationText += ` (Out: ${offer.outboundDurationText} / Ret: ${offer.inboundDurationText})`;
+  }
+  if (durationEl) durationEl.textContent = durationText || 'Direct Flight';
+
+  if (priceEl) priceEl.textContent = offer?.formattedPrice || '';
+
+  if (directBtn) {
+    directBtn.href = targetUrl;
+    const btnSpan = directBtn.querySelector('span');
+    if (btnSpan) btnSpan.textContent = cfg?.buttonText || `Book with ${offer?.airline || 'Airline'}`;
+  }
+
+  // Always display the popup modal for the user to review details and click redirect link
+  modal?.classList.remove('hidden');
+
+  document.querySelectorAll('[data-close-frontier]').forEach((btn) => {
+    btn.onclick = () => modal?.classList.add('hidden');
+  });
+}
+
 export function selectOffer(id) {
+  const offer = state.offers.find((o) => o.id === id);
   const row = document.querySelector(`[data-offer-id="${id}"]`);
   document.querySelectorAll('.offer-table tr.is-selected').forEach((item) => item.classList.remove('is-selected'));
   row?.classList.add('is-selected');
+
+  if (offer && offer.isExternalWebFare) {
+    console.log(`🌐 [FRONTIER DIRECT BOOKING] Direct fare selected (${offer.id}). Showing Frontier redirect popup: ${offer.bookingUrl}`);
+    showFrontierRedirectModal(offer);
+    return;
+  }
+
   row?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   openBookingWizard(id);
 }
@@ -101,22 +232,7 @@ export function populateAirlines() {
   select.innerHTML = '<option value="all">All airlines</option>' + airlines.map((airline) => `<option value="${airline}">${airline}</option>`).join('');
 }
 
-export function updateMetrics() {
-  const cheapestHighlight = highlightPrice(state.categoryHighlights.overall_cheapest) || highlightPrice(state.categoryHighlights.cheapest);
-  const cheapest = Number.isFinite(cheapestHighlight) ? cheapestHighlight : state.offers.reduce((lowest, offer) => Math.min(lowest, offer.price), Infinity);
-
-  const shortestHighlight = highlightPrice(state.categoryHighlights.shortest_flight) || highlightPrice(state.categoryHighlights.fastest) || highlightPrice(state.categoryHighlights.shortest_non_stop);
-  const shortest = Number.isFinite(shortestHighlight) ? shortestHighlight : state.offers.reduce((lowest, offer) => Math.min(lowest, offer.price), Infinity);
-
-  const nonstopHighlight = highlightPrice(state.categoryHighlights.cheapest_non_stop) || highlightPrice(state.categoryHighlights.cheapest_nonstop);
-  const nonstopOffer = state.offers.find((offer) => offer.stops === 0);
-  const nonstop = Number.isFinite(nonstopHighlight) ? nonstopHighlight : (nonstopOffer ? nonstopOffer.price : null);
-
-  $('[data-metric="cheapest"]').textContent = Number.isFinite(cheapest) ? money(cheapest) : '--';
-  $('[data-metric="shortest"]').textContent = Number.isFinite(shortest) ? money(shortest) : '--';
-  $('[data-metric="nonstop"]').textContent = Number.isFinite(nonstop) ? money(nonstop) : '--';
-  $('[data-metric="recommended"]').textContent = Number.isFinite(cheapest) ? money(cheapest) : '--';
-}
+// Removed updateMetrics completely
 
 export function updateRouteHeading(origin, destination, departDate, originName, destinationName) {
   const originText = originName ? `${originName} (${origin})` : origin;
