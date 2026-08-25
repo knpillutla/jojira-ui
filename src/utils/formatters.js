@@ -33,11 +33,14 @@ export function duration(minutes) {
 }
 
 export function money(amount) {
+  const num = typeof amount === 'number' ? amount : parseMoneyVal(amount);
+  const hasCents = num % 1 !== 0;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    maximumFractionDigits: 0
-  }).format(amount || 0);
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: 2
+  }).format(num || 0);
 }
 
 export function parseMoneyVal(val) {

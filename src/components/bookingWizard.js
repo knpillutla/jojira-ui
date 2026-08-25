@@ -836,7 +836,11 @@ export async function renderBookingStep() {
     item.classList.toggle('hidden', Number(item.dataset.bookingStep) !== step);
   });
 
-  $('[data-booking-total]').textContent = money(calculateBookingTotal());
+  const totalDisplay = $('[data-booking-total]');
+  if (totalDisplay) {
+    totalDisplay.style.display = 'block';
+    totalDisplay.textContent = money(calculateBookingTotal());
+  }
   $('[data-booking-back]').style.display = step === 1 ? 'none' : 'inline-block';
 
   const nextBtn = $('[data-booking-next]');
@@ -879,11 +883,17 @@ export function renderStep3Summary() {
   if (!offer) return;
   const verified = bookingState.verifiedOffer;
 
-  const base = verified?.base_amount ? Number(verified.base_amount) : offer.price;
+  const rawTotal = verified?.total_amount ? Number(verified.total_amount) : (offer.price || 0);
   const tax = verified?.tax_amount ? Number(verified.tax_amount) : 0;
+
+  let base = verified?.base_amount ? Number(verified.base_amount) : 0;
+  if (!base || base <= 0) {
+    base = tax > 0 && rawTotal > tax ? rawTotal - tax : rawTotal;
+  }
+
   const bag = bookingState.extras.bag ? 45 : 0;
   const seat = bookingState.extras.seat ? 25 : 0;
-  const total = (verified?.total_amount ? Number(verified.total_amount) : offer.price) + bag + seat;
+  const total = rawTotal + bag + seat;
 
   $('[data-price-breakdown]').innerHTML = `
     <div>

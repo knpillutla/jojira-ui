@@ -712,6 +712,31 @@
   font-size: 10px;
 }
 
+/* Booking Modal Footer & Price Display Above Pay Button */
+.booking-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid var(--line);
+  background: #f8faf9;
+}
+
+.footer-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.booking-total-display {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink);
+}
+
 
 
 

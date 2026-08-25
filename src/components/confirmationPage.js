@@ -3,7 +3,9 @@ import { money } from '../utils/formatters.js';
 
 export function calculateBookingTotal() {
   if (!bookingState.activeOffer) return 0;
-  let total = bookingState.activeOffer.price;
+  let total = bookingState.verifiedOffer?.total_amount
+    ? Number(bookingState.verifiedOffer.total_amount)
+    : Number(bookingState.activeOffer.price || 0);
   if (bookingState.extras.bag) total += 45;
   if (bookingState.extras.seat) total += 25;
   return total;
