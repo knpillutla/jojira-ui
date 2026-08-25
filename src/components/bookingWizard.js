@@ -1,6 +1,6 @@
 import { state, bookingState, $ } from '../core/state.js';
 import { money } from '../utils/formatters.js';
-import { getPaymentMethods, bookFlight, fetchClientComponentKey } from '../api/flightApi.js';
+import { getPaymentMethods, bookFlight, fetchClientComponentKey, verifyFlightOffer } from '../api/flightApi.js';
 import { showMainPageBookingConfirmation, calculateBookingTotal } from './confirmationPage.js';
 
 // bookingWizard.js
@@ -104,6 +104,7 @@ export async function openBookingWizard(id) {
   const offer = state.offers.find((item) => item.id === id) || state.offers[0];
   if (!offer) return;
   bookingState.activeOffer = offer;
+  bookingState.verifiedOffer = null;
   bookingState.currentStep = 1;
   bookingState.extras = { bag: false, seat: false };
   bookingState.bookingResult = null;
@@ -112,6 +113,19 @@ export async function openBookingWizard(id) {
   // Invoke Client Component Key API on book click
   bookingState.clientKey = await fetchClientComponentKey();
   console.log('🔑 [DUFFEL CLIENT KEY]:', bookingState.clientKey);
+
+  // Fetch verified live offer details from backend before rendering payment screen
+  if (offer.id && !offer.id.startsWith('mock_')) {
+    verifyFlightOffer(offer.id).then((verified) => {
+      if (verified && (verified.total_amount || verified.offer_details)) {
+        console.log('✅ [DUFFEL LIVE OFFER VERIFIED]:', verified);
+        bookingState.verifiedOffer = verified;
+        if (bookingState.currentStep === 3) {
+          renderStep3Summary();
+        }
+      }
+    });
+  }
 
   document.querySelectorAll('[data-extra]').forEach((chk) => (chk.checked = false));
   $('[data-booking-modal]').classList.remove('hidden');
@@ -810,6 +824,7 @@ export async function renderDynamicPaymentInputs() {
   }
 }
 export async function renderBookingStep() {
+  hidePaymentProgress();
   const step = bookingState.currentStep;
   document.querySelectorAll('[data-step-indicator]').forEach((item) => {
     const num = Number(item.dataset.stepIndicator);
@@ -862,23 +877,91 @@ export function renderStep1Summary() {
 export function renderStep3Summary() {
   const offer = bookingState.activeOffer;
   if (!offer) return;
-  const base = offer.price;
+  const verified = bookingState.verifiedOffer;
+
+  const base = verified?.base_amount ? Number(verified.base_amount) : offer.price;
+  const tax = verified?.tax_amount ? Number(verified.tax_amount) : 0;
   const bag = bookingState.extras.bag ? 45 : 0;
   const seat = bookingState.extras.seat ? 25 : 0;
-  const total = base + bag + seat;
+  const total = (verified?.total_amount ? Number(verified.total_amount) : offer.price) + bag + seat;
+
   $('[data-price-breakdown]').innerHTML = `
     <div>
-      <div style="font-size:13px;color:var(--muted)">Base flight: ${money(base)}${bag ? ' · Bag: +$45' : ''}${seat ? ' · Seat: +$25' : ''}</div>
-      <div style="font-weight:700">Total Price</div>
+      <div style="font-size:13px;color:var(--muted)">
+        ${tax > 0 ? `Base: ${money(base)} · Taxes & Fees: ${money(tax)}` : `Base flight: ${money(base)}`}${bag ? ' · Bag: +$45' : ''}${seat ? ' · Seat: +$25' : ''}
+      </div>
+      <div style="font-weight:700">
+        Total Price ${verified ? '<span style="font-size:11px;color:var(--mint-strong);margin-left:6px;background:#e6f4ea;padding:2px 6px;border-radius:4px;">✓ Verified Live Duffel Offer</span>' : ''}
+      </div>
     </div>
     <strong>${money(total)}</strong>
   `;
 }
 
+export function showPaymentProgress(statusText = 'Processing payment with Duffel...') {
+  const modalOverlay = $('[data-payment-progress-modal]');
+  const inlineProgress = $('[data-payment-progress]');
+  const textEls = document.querySelectorAll('[data-payment-progress-text]');
+  const nextBtn = $('[data-booking-next]');
+  const backBtn = $('[data-booking-back]');
+
+  textEls.forEach((el) => (el.textContent = statusText));
+
+  if (modalOverlay) modalOverlay.classList.remove('hidden');
+  if (inlineProgress) inlineProgress.classList.remove('hidden');
+
+  // Disable all controls, buttons, radio options, and labels during processing
+  document.querySelectorAll('[data-booking-modal] input, [data-booking-modal] button, [data-booking-modal] select').forEach((el) => {
+    el.disabled = true;
+  });
+
+  document.querySelectorAll('.payment-method-card').forEach((card) => {
+    card.style.pointerEvents = 'none';
+    card.style.opacity = '0.6';
+  });
+
+  if (nextBtn) {
+    nextBtn.disabled = true;
+    nextBtn.innerHTML = '<span>Processing...</span>';
+  }
+  if (backBtn) {
+    backBtn.disabled = true;
+  }
+}
+
+export function hidePaymentProgress() {
+  const modalOverlay = $('[data-payment-progress-modal]');
+  const inlineProgress = $('[data-payment-progress]');
+  const nextBtn = $('[data-booking-next]');
+  const backBtn = $('[data-booking-back]');
+
+  if (modalOverlay) modalOverlay.classList.add('hidden');
+  if (inlineProgress) inlineProgress.classList.add('hidden');
+
+  // Re-enable controls, buttons, and radio options
+  document.querySelectorAll('[data-booking-modal] input, [data-booking-modal] button, [data-booking-modal] select').forEach((el) => {
+    el.disabled = false;
+  });
+
+  document.querySelectorAll('.payment-method-card').forEach((card) => {
+    card.style.pointerEvents = '';
+    card.style.opacity = '';
+  });
+
+  if (nextBtn) {
+    nextBtn.disabled = false;
+    nextBtn.innerHTML = '<span>💳 Pay & Complete Booking</span> <b>✓</b>';
+  }
+  if (backBtn) {
+    backBtn.disabled = false;
+  }
+}
+
 export async function submitBookingOrder() {
   const offer = bookingState.activeOffer;
   const errorEl = $('[data-payment-error]');
-  const nextBtn = $('[data-booking-next]');
+
+  hidePaymentProgress();
 
   // ------------------------------------------------------------
   // Clear previous errors
@@ -984,6 +1067,7 @@ export async function submitBookingOrder() {
     console.log(
       `💳 [DUFFEL] Non-card payment method selected (${methodId}). Submitting order directly.`
     );
+    showPaymentProgress(`Processing payment with ${currentMethod?.name || 'Duffel Balance'}...`);
     await executeBookingSubmissionWithCardId(undefined);
     return;
   }
@@ -1002,6 +1086,7 @@ export async function submitBookingOrder() {
       return;
     }
     console.log('💳 [DUFFEL] Saved Customer Card ID found:', cardId);
+    showPaymentProgress('Processing order with saved customer card...');
     await executeBookingSubmissionWithCardId(cardId);
     return;
   }
@@ -1016,6 +1101,7 @@ export async function submitBookingOrder() {
       cardId
     );
 
+    showPaymentProgress('Processing order with tokenized card...');
     await executeBookingSubmissionWithCardId(cardId);
     return;
   }
@@ -1094,11 +1180,10 @@ export async function submitBookingOrder() {
     return;
   }
 
+  showPaymentProgress('Securing card details with Duffel...');
+
   // ------------------------------------------------------------
   // Give Duffel's web component time to create its iframe.
-  //
-  // The custom element can be registered before its internal
-  // iframe has actually finished mounting.
   // ------------------------------------------------------------
 
   console.log(
@@ -1121,6 +1206,7 @@ export async function submitBookingOrder() {
     typeof cardFormEl.createCardForTemporaryUse !==
     'function'
   ) {
+    hidePaymentProgress();
     console.error(
       '❌ [DUFFEL] createCardForTemporaryUse() is not available.'
     );
@@ -1136,26 +1222,7 @@ export async function submitBookingOrder() {
   }
 
   // ------------------------------------------------------------
-  // Disable Pay button
-  // ------------------------------------------------------------
-
-  if (nextBtn) {
-    nextBtn.disabled = true;
-    nextBtn.textContent = 'Processing Card...';
-  }
-
-  // ------------------------------------------------------------
   // Trigger Duffel card tokenization
-  //
-  // IMPORTANT:
-  // We DO NOT call the backend here.
-  //
-  // The Duffel success event will provide the card ID.
-  // That success handler will call:
-  //
-  // executeBookingSubmissionWithCardId(cardId)
-  //
-  // Your backend then handles 3DS + order creation.
   // ------------------------------------------------------------
 
   try {
@@ -1166,16 +1233,11 @@ export async function submitBookingOrder() {
     cardFormEl.createCardForTemporaryUse();
 
   } catch (error) {
+    hidePaymentProgress();
     console.error(
       '❌ [DUFFEL COMPONENT] Card tokenization failed:',
       error
     );
-
-    if (nextBtn) {
-      nextBtn.disabled = false;
-      nextBtn.textContent =
-        '💳 Pay & Complete Booking';
-    }
 
     if (errorEl) {
       errorEl.textContent =
@@ -1186,12 +1248,6 @@ export async function submitBookingOrder() {
       errorEl.classList.remove('hidden');
     }
   }
-
-  // IMPORTANT:
-  // Do not continue to executeBookingSubmissionWithCardId()
-  // here.
-  //
-  // The Duffel success callback handles that.
 }
 
 
@@ -1202,19 +1258,12 @@ export async function submitBookingOrder() {
 export async function executeBookingSubmissionWithCardId(cardId) {
   const offer = bookingState.activeOffer;
   const errorEl = $('[data-payment-error]');
-  const nextBtn = $('[data-booking-next]');
 
   if (!offer || !bookingState.passenger) {
+    hidePaymentProgress();
     console.error(
       '❌ [BOOKING] Missing offer or passenger information.'
     );
-
-    if (nextBtn) {
-      nextBtn.disabled = false;
-      nextBtn.textContent =
-        '💳 Pay & Complete Booking';
-    }
-
     return;
   }
 
@@ -1233,6 +1282,7 @@ export async function executeBookingSubmissionWithCardId(cardId) {
     methodId === 'customer_card';
 
   if (!cardId && (isCard || isCustomerCard)) {
+    hidePaymentProgress();
     console.error(
       '❌ [BOOKING] executeBookingSubmissionWithCardId called without card ID for card payment.'
     );
@@ -1244,14 +1294,10 @@ export async function executeBookingSubmissionWithCardId(cardId) {
       errorEl.classList.remove('hidden');
     }
 
-    if (nextBtn) {
-      nextBtn.disabled = false;
-      nextBtn.textContent =
-        '💳 Pay & Complete Booking';
-    }
-
     return;
   }
+
+  showPaymentProgress(`Confirming booking & issuing ticket with ${currentMethod?.name || 'Duffel'}...`);
 
   const total = calculateBookingTotal();
 
@@ -1281,10 +1327,6 @@ export async function executeBookingSubmissionWithCardId(cardId) {
 
   // ------------------------------------------------------------
   // Booking payload
-  //
-  // DO NOT add the 3DS session here.
-  //
-  // Your backend obtains that from Duffel.
   // ------------------------------------------------------------
 
   const payload = {
@@ -1316,24 +1358,13 @@ export async function executeBookingSubmissionWithCardId(cardId) {
   );
 
   try {
-    // ----------------------------------------------------------
-    // Your existing API function
-    // ----------------------------------------------------------
-
     const {
       result,
-      errorMsg
+      errorMsg,
+      isTemporaryError
     } = await bookFlight(payload);
 
-    // ----------------------------------------------------------
-    // Restore button
-    // ----------------------------------------------------------
-
-    if (nextBtn) {
-      nextBtn.disabled = false;
-      nextBtn.textContent =
-        '💳 Pay & Complete Booking';
-    }
+    hidePaymentProgress();
 
     // ----------------------------------------------------------
     // Backend returned an error
@@ -1348,8 +1379,17 @@ export async function executeBookingSubmissionWithCardId(cardId) {
       );
 
       if (errorEl) {
-        errorEl.textContent =
-          `⚠️ Booking Error: ${errorMsg}`;
+        if (isTemporaryError || errorMsg.includes('503') || errorMsg.includes('temporary issue')) {
+          errorEl.innerHTML =
+            `<strong>⚠️ Temporary Duffel Service Error</strong><br/>` +
+            `${errorMsg}<br/>` +
+            `<small style="margin-top: 4px; display: inline-block; color: #cbd5e1;">` +
+            `🔒 <strong>Payment Safeguarded:</strong> Order retries preserve idempotency so your card/balance will not be double-charged. You may safely retry now.` +
+            `</small>`;
+        } else {
+          errorEl.textContent =
+            `⚠️ Booking Error: ${errorMsg}`;
+        }
 
         errorEl.classList.remove('hidden');
       }
@@ -1373,16 +1413,12 @@ export async function executeBookingSubmissionWithCardId(cardId) {
     showMainPageBookingConfirmation();
 
   } catch (error) {
+    hidePaymentProgress();
+
     console.error(
       '❌ [BOOKING] Backend request failed:',
       error
     );
-
-    if (nextBtn) {
-      nextBtn.disabled = false;
-      nextBtn.textContent =
-        '💳 Pay & Complete Booking';
-    }
 
     if (errorEl) {
       errorEl.textContent =

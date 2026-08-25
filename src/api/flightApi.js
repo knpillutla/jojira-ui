@@ -123,13 +123,29 @@ export async function fetchClientComponentKey() {
   return null;
 }
 
-
-
-
-
-
-
-
+export async function verifyFlightOffer(offerId) {
+  if (!offerId) return null;
+  try {
+    const endpoints = [
+      `${apiBase}/api/v1/flights/offers/${offerId}`,
+      `${apiBase}/api/flights/offers/${offerId}`
+    ];
+    for (const url of endpoints) {
+      try {
+        console.log(`📡 [OFFER VERIFY REQUEST] GET ${url}`);
+        const resp = await fetch(url);
+        if (resp.ok && resp.headers.get('content-type')?.includes('json')) {
+          const data = await resp.json();
+          console.log(`✅ [OFFER VERIFY SUCCESS] from ${url}:`, data);
+          return data;
+        }
+      } catch (err) { }
+    }
+  } catch (e) {
+    console.error('Failed to verify flight offer details:', e);
+  }
+  return null;
+}
 
 export async function getPaymentMethods() {
   try {
@@ -158,6 +174,7 @@ export async function getPaymentMethods() {
 export async function bookFlight(bookingPayload) {
   let result = null;
   let errorMsg = null;
+  let isTemporaryError = false;
 
   try {
     const endpoints = [
@@ -178,8 +195,11 @@ export async function bookFlight(bookingPayload) {
         if (resp.ok) {
           result = await resp.json();
           console.log(`✅ [BOOKING SUCCESS] from ${url}:`, result);
-          return { result, errorMsg: null };
+          return { result, errorMsg: null, isTemporaryError: false };
         } else if (resp.status !== 404) {
+          if (resp.status === 503 || resp.status === 500 || resp.status === 502 || resp.status === 504) {
+            isTemporaryError = true;
+          }
           try {
             const errJson = await resp.json();
             errorMsg = errJson.detail || errJson.message || `Booking failed with status ${resp.status}`;
@@ -188,6 +208,9 @@ export async function bookFlight(bookingPayload) {
             }
           } catch (e) {
             errorMsg = `Booking failed with status ${resp.status}`;
+          }
+          if (errorMsg && (errorMsg.includes('503') || errorMsg.includes('temporary issue') || errorMsg.includes('Service Unavailable'))) {
+            isTemporaryError = true;
           }
           break;
         }
@@ -203,5 +226,5 @@ export async function bookFlight(bookingPayload) {
     errorMsg = 'Could not connect to booking server. Please check backend connection.';
   }
 
-  return { result, errorMsg };
+  return { result, errorMsg, isTemporaryError };
 }
