@@ -1379,13 +1379,10 @@ export async function executeBookingSubmissionWithCardId(cardId) {
       );
 
       if (errorEl) {
-        if (isTemporaryError || errorMsg.includes('503') || errorMsg.includes('temporary issue')) {
+        if (isTemporaryError || errorMsg.includes('temporary service disruption') || errorMsg.includes('503') || errorMsg.includes('No payment was charged')) {
           errorEl.innerHTML =
-            `<strong>⚠️ Temporary Duffel Service Error</strong><br/>` +
-            `${errorMsg}<br/>` +
-            `<small style="margin-top: 4px; display: inline-block; color: #cbd5e1;">` +
-            `🔒 <strong>Payment Safeguarded:</strong> Order retries preserve idempotency so your card/balance will not be double-charged. You may safely retry now.` +
-            `</small>`;
+            `<strong>⚠️ Temporary Service Disruption</strong><br/>` +
+            `${errorMsg}`;
         } else {
           errorEl.textContent =
             `⚠️ Booking Error: ${errorMsg}`;

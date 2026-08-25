@@ -197,7 +197,7 @@ export async function bookFlight(bookingPayload) {
           console.log(`✅ [BOOKING SUCCESS] from ${url}:`, result);
           return { result, errorMsg: null, isTemporaryError: false };
         } else if (resp.status !== 404) {
-          if (resp.status === 503 || resp.status === 500 || resp.status === 502 || resp.status === 504) {
+          if (resp.status >= 500 && resp.status <= 599) {
             isTemporaryError = true;
           }
           try {
@@ -209,7 +209,7 @@ export async function bookFlight(bookingPayload) {
           } catch (e) {
             errorMsg = `Booking failed with status ${resp.status}`;
           }
-          if (errorMsg && (errorMsg.includes('503') || errorMsg.includes('temporary issue') || errorMsg.includes('Service Unavailable'))) {
+          if (errorMsg && (errorMsg.includes('temporary') || errorMsg.includes('disruption') || errorMsg.includes('Service Unavailable') || errorMsg.includes('503'))) {
             isTemporaryError = true;
           }
           break;
