@@ -946,8 +946,22 @@ export async function submitBookingOrder() {
   };
 
   // ------------------------------------------------------------
-  // Check for an existing/saved customer card
+  // Determine Payment Method
   // ------------------------------------------------------------
+
+  const currentMethod = bookingState.paymentMethods.find(
+    (m) => m.id === bookingState.selectedPaymentMethod
+  );
+
+  const methodId = bookingState.selectedPaymentMethod;
+
+  const isCard =
+    currentMethod?.requires_card_details ||
+    methodId === 'card';
+
+  const isCustomerCard =
+    currentMethod?.requires_customer_card_id ||
+    methodId === 'customer_card';
 
   const dynamicInputs =
     $('[data-payment-dynamic-inputs]');
@@ -963,14 +977,37 @@ export async function submitBookingOrder() {
     undefined;
 
   // ------------------------------------------------------------
-  // If we already have a card ID, send it to backend.
-  //
-  // Your backend will handle:
-  //   card ID
-  //      ↓
-  //   3DS session
-  //      ↓
-  //   Duffel order
+  // Non-card payment method (e.g. Duffel Balance, Hold)
+  // ------------------------------------------------------------
+
+  if (!isCard && !isCustomerCard) {
+    console.log(
+      `💳 [DUFFEL] Non-card payment method selected (${methodId}). Submitting order directly.`
+    );
+    await executeBookingSubmissionWithCardId(undefined);
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // Saved Customer Card Payment
+  // ------------------------------------------------------------
+
+  if (isCustomerCard) {
+    if (!cardId) {
+      if (errorEl) {
+        errorEl.textContent =
+          '⚠️ Please enter a valid saved customer card ID.';
+        errorEl.classList.remove('hidden');
+      }
+      return;
+    }
+    console.log('💳 [DUFFEL] Saved Customer Card ID found:', cardId);
+    await executeBookingSubmissionWithCardId(cardId);
+    return;
+  }
+
+  // ------------------------------------------------------------
+  // If we already have a tokenized card ID, send it to backend.
   // ------------------------------------------------------------
 
   if (cardId) {
@@ -984,7 +1021,7 @@ export async function submitBookingOrder() {
   }
 
   // ------------------------------------------------------------
-  // Get Duffel Card Form
+  // Get Duffel Card Form (only for card payments)
   // ------------------------------------------------------------
 
   const cardFormEl =
@@ -1159,19 +1196,7 @@ export async function submitBookingOrder() {
 
 
 // ================================================================
-// STEP 2: SEND CARD ID TO YOUR BACKEND
-//
-// Your backend is responsible for:
-//
-//   card_id
-//      ↓
-//   Duffel 3DS session
-//      ↓
-//   three_d_secure_session_id
-//      ↓
-//   Duffel order creation
-//
-// No Duffel 3DS API call is made from this browser code.
+// STEP 2: SEND CARD ID / PAYMENT TO YOUR BACKEND
 // ================================================================
 
 export async function executeBookingSubmissionWithCardId(cardId) {
@@ -1193,9 +1218,23 @@ export async function executeBookingSubmissionWithCardId(cardId) {
     return;
   }
 
-  if (!cardId) {
+  const currentMethod = bookingState.paymentMethods.find(
+    (m) => m.id === bookingState.selectedPaymentMethod
+  );
+
+  const methodId = bookingState.selectedPaymentMethod;
+
+  const isCard =
+    currentMethod?.requires_card_details ||
+    methodId === 'card';
+
+  const isCustomerCard =
+    currentMethod?.requires_customer_card_id ||
+    methodId === 'customer_card';
+
+  if (!cardId && (isCard || isCustomerCard)) {
     console.error(
-      '❌ [BOOKING] executeBookingSubmissionWithCardId called without card ID.'
+      '❌ [BOOKING] executeBookingSubmissionWithCardId called without card ID for card payment.'
     );
 
     if (errorEl) {
