@@ -22,108 +22,64 @@ function flightNumSubDetails(flightNumber, carrierName) {
 }
 
 
+function normalizeSortKey(key) {
+  if (!key) return 'price';
+  if (key === 'cheapest') return 'price';
+  if (key === 'shortest') return 'duration';
+  return key;
+}
+
 export function sortedOffers() {
   const f = state.filters;
-
   const filtered = state.offers.filter((offer) => {
-    // 1. Single airline dropdown fallback or Multi-select airlines
-    if (f.airlines && f.airlines.length > 0) {
-      if (!f.airlines.includes(offer.airline)) return false;
-    } else if (f.airline !== 'all' && offer.airline !== f.airline) {
-      return false;
+    if (f.airline !== 'all' && offer.airline !== f.airline) return false;
+    if (f.stops !== 'all' && String(offer.stops) !== String(f.stops)) return false;
+
+    const offerPrice = Number(offer.price || 0);
+    if (f.price && offerPrice > f.price) return false;
+
+    if (f.airlines?.length > 0 && !f.airlines.includes(offer.airline)) return false;
+    if (f.stopsList?.length > 0 && !f.stopsList.includes(String(offer.stops))) return false;
+
+    if (f.datesFilter && f.datesFilter !== 'all' && offer.dateRangeText) {
+      if (!offer.dateRangeText.includes(f.datesFilter)) return false;
     }
 
-    // 2. Stops filter (single select fallback or multi-select stopsList)
-    if (f.stopsList && f.stopsList.length > 0) {
-      const stopVal = offer.stops >= 2 ? '2plus' : String(offer.stops || 0);
-      if (!f.stopsList.includes(stopVal)) return false;
-    } else if (f.stops !== 'all' && offer.stops !== Number(f.stops)) {
-      return false;
-    }
-
-    // 3. Price slider & Price Ranges
-    if (offer.price > f.price) return false;
-    if (f.priceRanges && f.priceRanges.length > 0) {
-      const price = offer.price || 0;
-      const matchesBucket = f.priceRanges.some((bucket) => {
-        if (bucket === 'under100') return price < 100;
-        if (bucket === '100to200') return price >= 100 && price <= 200;
-        if (bucket === '200to500') return price > 200 && price <= 500;
-        if (bucket === 'over500') return price > 500;
+    if (f.durations?.length > 0) {
+      const dur = offer.duration || 0;
+      const matchDur = f.durations.some((d) => {
+        if (d === 'under3') return dur < 180;
+        if (d === '3to6') return dur >= 180 && dur <= 360;
+        if (d === '6to9') return dur > 360 && dur <= 540;
+        if (d === 'over9') return dur > 540;
         return true;
       });
-      if (!matchesBucket) return false;
+      if (!matchDur) return false;
     }
 
-    // 4. Dates filter
-    if (f.datesFilter && f.datesFilter !== 'all') {
-      const dateText = offer.dateRangeText || offer.depart || '';
-      if (!dateText.includes(f.datesFilter)) return false;
-    } else if (f.dates && f.dates.length > 0) {
-      const dateText = offer.dateRangeText || offer.depart || '';
-      if (!f.dates.some((d) => dateText.includes(d))) return false;
-    }
+    if (f.depTimes?.length > 0) {
+      const matchDep = f.depTimes.some((t) => {
+        const timeStr = offer.outboundDepartDateTime || offer.depart || '';
+        const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if (!match) return true;
+        let h = parseInt(match[1], 10);
+        const ampm = match[3].toUpperCase();
+        if (ampm === 'PM' && h < 12) h += 12;
+        if (ampm === 'AM' && h === 12) h = 0;
 
-    // 5. Departure Time filter
-    if (f.depTimeFilter && f.depTimeFilter !== 'all') {
-      const depHour = getHourFromStr(offer.outboundDepartDateTime || offer.departTime || offer.depart);
-      if (f.depTimeFilter === 'morning' && !(depHour >= 0 && depHour < 12)) return false;
-      if (f.depTimeFilter === 'afternoon' && !(depHour >= 12 && depHour < 18)) return false;
-      if (f.depTimeFilter === 'evening' && !(depHour >= 18 && depHour < 24)) return false;
-    } else if (f.depTimes && f.depTimes.length > 0) {
-      const depHour = getHourFromStr(offer.outboundDepartDateTime || offer.departTime || offer.depart);
-      const matchesDep = f.depTimes.some((t) => {
-        if (t === 'morning') return depHour >= 0 && depHour < 12;
-        if (t === 'afternoon') return depHour >= 12 && depHour < 18;
-        if (t === 'evening') return depHour >= 18 && depHour < 24;
+        if (t === 'morning') return h < 12;
+        if (t === 'afternoon') return h >= 12 && h < 18;
+        if (t === 'evening') return h >= 18;
         return true;
       });
-      if (!matchesDep) return false;
+      if (!matchDep) return false;
     }
-
-    // 6. Return Time filter
-    if (f.retTimeFilter && f.retTimeFilter !== 'all') {
-      if (offer.isOneWay) return false;
-      const retHour = getHourFromStr(offer.inboundDepartDateTime || offer.returnDepart || '');
-      if (f.retTimeFilter === 'morning' && !(retHour >= 0 && retHour < 12)) return false;
-      if (f.retTimeFilter === 'afternoon' && !(retHour >= 12 && retHour < 18)) return false;
-      if (f.retTimeFilter === 'evening' && !(retHour >= 18 && retHour < 24)) return false;
-    } else if (f.retTimes && f.retTimes.length > 0) {
-      if (offer.isOneWay) return false;
-      const retHour = getHourFromStr(offer.inboundDepartDateTime || offer.returnDepart || '');
-      const matchesRet = f.retTimes.some((t) => {
-        if (t === 'morning') return retHour >= 0 && retHour < 12;
-        if (t === 'afternoon') return retHour >= 12 && retHour < 18;
-        if (t === 'evening') return retHour >= 18 && retHour < 24;
-        return true;
-      });
-      if (!matchesRet) return false;
-    }
-
-    // 7. Duration filter
-    if (f.durationFilter && f.durationFilter !== 'all') {
-      const durMins = offer.duration || 0;
-      if (f.durationFilter === 'under3' && !(durMins < 180)) return false;
-      if (f.durationFilter === '3to6' && !(durMins >= 180 && durMins <= 360)) return false;
-      if (f.durationFilter === '6to9' && !(durMins > 360 && durMins <= 540)) return false;
-      if (f.durationFilter === 'over9' && !(durMins > 540)) return false;
-    } else if (f.durations && f.durations.length > 0) {
-      const durMins = offer.duration || 0;
-      const matchesDur = f.durations.some((d) => {
-        if (d === 'under3') return durMins < 180;
-        if (d === '3to6') return durMins >= 180 && durMins <= 360;
-        if (d === '6to9') return durMins > 360 && durMins <= 540;
-        if (d === 'over9') return durMins > 540;
-        return true;
-      });
-      if (!matchesDur) return false;
-    }
-
 
     return true;
   });
 
-  const col = state.sortColumn || state.sort || 'price';
+  const rawCol = state.sortColumn || state.sort || 'price';
+  const col = normalizeSortKey(rawCol);
   const dir = state.sortDirection || 'asc';
   const mult = dir === 'asc' ? 1 : -1;
 
@@ -131,28 +87,43 @@ export function sortedOffers() {
     let res = 0;
     if (col === 'flight') {
       res = (a.airline || '').localeCompare(b.airline || '') || (a.flightNumber || '').localeCompare(b.flightNumber || '');
-    } else if (col === 'duration' || col === 'shortest') {
-      res = (a.duration || 0) - (b.duration || 0);
-    } else if (col === 'stops' || col === 'nonstop') {
-      res = (a.stops || 0) - (b.stops || 0);
+    } else if (col === 'depart_time' || col === 'depart') {
+      const timeA = a.rawDepart ? new Date(a.rawDepart).getTime() : (a.departTime ? new Date(`1970-01-01T${a.departTime}`).getTime() : 0);
+      const timeB = b.rawDepart ? new Date(b.rawDepart).getTime() : (b.departTime ? new Date(`1970-01-01T${b.departTime}`).getTime() : 0);
+      res = (isNaN(timeA) ? 0 : timeA) - (isNaN(timeB) ? 0 : timeB);
+    } else if (col === 'return_time') {
+      const timeA = a.rawReturnDepart ? new Date(a.rawReturnDepart).getTime() : 0;
+      const timeB = b.rawReturnDepart ? new Date(b.rawReturnDepart).getTime() : 0;
+      res = (isNaN(timeA) ? 0 : timeA) - (isNaN(timeB) ? 0 : timeB);
+    } else if (col === 'duration') {
+      res = (Number(a.duration) || 0) - (Number(b.duration) || 0);
+    } else if (col === 'stops') {
+      res = (Number(a.stops) || 0) - (Number(b.stops) || 0);
     } else if (col === 'emissions') {
       const aE = parseFloat(a.emissionsKg) || 0;
       const bE = parseFloat(b.emissionsKg) || 0;
       res = aE - bE;
-    } else if (col === 'depart') {
-      res = (a.depart || '').localeCompare(b.depart || '');
     } else {
-      res = (a.price || 0) - (b.price || 0);
+      res = (Number(a.price) || 0) - (Number(b.price) || 0);
     }
-    return (res * mult) || ((a.price || 0) - (b.price || 0));
+
+    if (res === 0 && col !== 'price') {
+      res = (Number(a.price) || 0) - (Number(b.price) || 0);
+    }
+    if (res === 0) {
+      res = (a.id || '').toString().localeCompare((b.id || '').toString());
+    }
+    return res * mult;
   });
 }
 
 export function updateSortHeaderIcons() {
-  document.querySelectorAll('span[data-sort-col]').forEach((span) => {
-    const col = span.dataset.sortCol;
-    const icon = span.querySelector('.sort-icon');
-    const isCurrent = state.sortColumn === col;
+  const currentCol = normalizeSortKey(state.sortColumn || state.sort || 'price');
+
+  document.querySelectorAll('#results [data-sort-col]').forEach((th) => {
+    const col = normalizeSortKey(th.dataset.sortCol);
+    const icon = th.querySelector('.sort-icon');
+    const isCurrent = (currentCol === col);
 
     if (icon) {
       if (isCurrent) {
@@ -162,17 +133,25 @@ export function updateSortHeaderIcons() {
       }
     }
   });
+
+  const select = $('#results [data-sort-select]');
+  if (select) {
+    select.value = currentCol === 'price' ? 'cheapest' : (currentCol === 'duration' ? 'shortest' : currentCol);
+  }
 }
 
 export function initTableSorting() {
-  document.querySelectorAll('span[data-sort-col]').forEach((span) => {
-    span.addEventListener('click', (e) => {
+  document.querySelectorAll('#results [data-sort-col]').forEach((element) => {
+    element.addEventListener('click', (e) => {
       e.stopPropagation();
-      const col = span.dataset.sortCol;
-      if (state.sortColumn === col) {
+      const col = normalizeSortKey(element.dataset.sortCol);
+      const currentCol = normalizeSortKey(state.sortColumn || state.sort || 'price');
+
+      if (currentCol === col) {
         state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
       } else {
         state.sortColumn = col;
+        state.sort = col;
         state.sortDirection = 'asc';
       }
       updateSortHeaderIcons();
@@ -180,7 +159,7 @@ export function initTableSorting() {
     });
   });
 
-  document.querySelectorAll('[data-layout-view]').forEach((btn) => {
+  document.querySelectorAll('#results [data-layout-view]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       const btnMode = btn.dataset.layoutView;
@@ -195,18 +174,18 @@ export function initTableSorting() {
 
 export function renderOffers() {
   const visible = sortedOffers();
-  const offersEl = $('[data-offers]');
-  const cardsContainer = $('[data-flight-cards-container]');
-  const tableWrap = $('.offer-table-wrap');
+  const offersEl = $('#results [data-offers]') || $('[data-offers]');
+  const cardsContainer = $('#results [data-flight-cards-container]') || $('[data-flight-cards-container]');
+  const tableWrap = $('#results .offer-table-wrap') || $('.offer-table-wrap');
   const mode = state.tabLayouts?.flights || getPreferredLayout('flights') || 'table';
 
-  document.querySelectorAll('.view-layout-toggle [data-layout-view]').forEach((btn) => {
+  document.querySelectorAll('#results .view-layout-toggle [data-layout-view]').forEach((btn) => {
     const btnMode = btn.dataset.layoutView;
     const isActive = btnMode === mode || (mode === 'table' && btnMode === 'list');
     btn.classList.toggle('is-active', isActive);
   });
 
-
+  updateSortHeaderIcons();
   updateColumnFilterPopovers();
 
 

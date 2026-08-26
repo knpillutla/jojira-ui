@@ -673,10 +673,10 @@ export async function handleFlightSearch(searchPayload) {
       favoriteAirline: searchPayload.favoriteAirline || ''
     });
 
-    $('.results-heading')?.classList.remove('hidden');
-    $('.table-toolbar')?.classList.remove('hidden');
-    $('.offer-table-wrap')?.classList.remove('hidden');
-    $('.table-footnote')?.classList.remove('hidden');
+    $('#results .results-heading')?.classList.remove('hidden');
+    $('#results .table-toolbar')?.classList.remove('hidden');
+    $('#results .offer-table-wrap')?.classList.remove('hidden');
+    $('#results .table-footnote')?.classList.remove('hidden');
 
     $('[data-booking-confirmation-section]')?.classList.add('hidden');
     if (resultsSection) {
@@ -938,10 +938,10 @@ export function showInitialTrendingMode() {
   }
 
   // Hide empty table elements on initial page load
-  $('.results-heading')?.classList.add('hidden');
-  $('.table-toolbar')?.classList.add('hidden');
-  $('.offer-table-wrap')?.classList.add('hidden');
-  $('.table-footnote')?.classList.add('hidden');
+  $('#results .results-heading')?.classList.add('hidden');
+  $('#results .table-toolbar')?.classList.add('hidden');
+  $('#results .offer-table-wrap')?.classList.add('hidden');
+  $('#results .table-footnote')?.classList.add('hidden');
 
   // Trending Flights only belongs on the Flights tab; AI Search has its own
   // "Trending prompts" chips inside its search panel instead.
@@ -1238,54 +1238,57 @@ export function initSearchForm() {
     renderOffers();
   }));
 
-  $('[data-sort-select]')?.addEventListener('change', (e) => {
+  $('#results [data-sort-select]')?.addEventListener('change', (e) => {
     state.sort = e.target.value;
+    state.sortColumn = e.target.value;
+    updateSortHeaderIcons();
     renderOffers();
   });
 
-  $('[data-filter-toggle]')?.addEventListener('click', () => $('[data-filter-drawer]').classList.toggle('is-open'));
+  $('#results [data-filter-toggle]')?.addEventListener('click', () => $('#results [data-filter-drawer]')?.classList.toggle('is-open'));
   
-  $('[data-dates-filter]')?.addEventListener('change', (e) => {
+  $('#results [data-dates-filter]')?.addEventListener('change', (e) => {
     state.filters.datesFilter = e.target.value;
     renderOffers();
   });
 
-  $('[data-airline-filter]')?.addEventListener('change', (e) => {
+  $('#results [data-airline-filter]')?.addEventListener('change', (e) => {
     state.filters.airline = e.target.value;
     renderOffers();
   });
 
-  $('[data-dep-time-filter]')?.addEventListener('change', (e) => {
+  $('#results [data-dep-time-filter]')?.addEventListener('change', (e) => {
     state.filters.depTimeFilter = e.target.value;
     renderOffers();
   });
 
-  $('[data-ret-time-filter]')?.addEventListener('change', (e) => {
+  $('#results [data-ret-time-filter]')?.addEventListener('change', (e) => {
     state.filters.retTimeFilter = e.target.value;
     renderOffers();
   });
 
-  $('[data-duration-filter]')?.addEventListener('change', (e) => {
+  $('#results [data-duration-filter]')?.addEventListener('change', (e) => {
     state.filters.durationFilter = e.target.value;
     renderOffers();
   });
 
-  $('[data-stops-filter]')?.addEventListener('change', (e) => {
+  $('#results [data-stops-filter]')?.addEventListener('change', (e) => {
     state.filters.stops = e.target.value;
     renderOffers();
   });
 
-  $('[data-price-filter]')?.addEventListener('input', (e) => {
+  $('#results [data-price-filter]')?.addEventListener('input', (e) => {
     state.filters.price = Number(e.target.value);
-    $('[data-price-output]').textContent = money(state.filters.price);
+    const pOut = $('#results [data-price-output]') || $('[data-price-output]');
+    if (pOut) pOut.textContent = money(state.filters.price);
     renderOffers();
   });
 
-  $('[data-clear-filters]')?.addEventListener('click', () => {
+  $('#results [data-clear-filters]')?.addEventListener('click', () => {
     clearTileFilters();
     const filterSelects = ['dates-filter', 'airline-filter', 'dep-time-filter', 'ret-time-filter', 'duration-filter', 'stops-filter'];
     filterSelects.forEach((s) => {
-      const el = $(`[data-${s}]`);
+      const el = $(`#results [data-${s}]`);
       if (el) el.value = 'all';
     });
     state.filters.datesFilter = 'all';

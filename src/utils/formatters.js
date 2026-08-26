@@ -348,6 +348,8 @@ export function normalizeOffer(offer, index) {
     inboundCarrierName,
     inboundCarrierCode,
     isSameCarrierBothWays,
+    rawDepart: rawDepart || '',
+    rawReturnDepart: rawReturnDepart || '',
     depart: outboundDepartDateTime || formatDateTime(rawDepart),
     arrive: outboundArriveDateTime || formatDateTime(rawArrive),
     from: originCode,
