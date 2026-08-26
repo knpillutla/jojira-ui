@@ -1244,8 +1244,29 @@ export function initSearchForm() {
   });
 
   $('[data-filter-toggle]')?.addEventListener('click', () => $('[data-filter-drawer]').classList.toggle('is-open'));
+  
+  $('[data-dates-filter]')?.addEventListener('change', (e) => {
+    state.filters.datesFilter = e.target.value;
+    renderOffers();
+  });
+
   $('[data-airline-filter]')?.addEventListener('change', (e) => {
     state.filters.airline = e.target.value;
+    renderOffers();
+  });
+
+  $('[data-dep-time-filter]')?.addEventListener('change', (e) => {
+    state.filters.depTimeFilter = e.target.value;
+    renderOffers();
+  });
+
+  $('[data-ret-time-filter]')?.addEventListener('change', (e) => {
+    state.filters.retTimeFilter = e.target.value;
+    renderOffers();
+  });
+
+  $('[data-duration-filter]')?.addEventListener('change', (e) => {
+    state.filters.durationFilter = e.target.value;
     renderOffers();
   });
 
@@ -1262,7 +1283,18 @@ export function initSearchForm() {
 
   $('[data-clear-filters]')?.addEventListener('click', () => {
     clearTileFilters();
+    const filterSelects = ['dates-filter', 'airline-filter', 'dep-time-filter', 'ret-time-filter', 'duration-filter', 'stops-filter'];
+    filterSelects.forEach((s) => {
+      const el = $(`[data-${s}]`);
+      if (el) el.value = 'all';
+    });
+    state.filters.datesFilter = 'all';
+    state.filters.depTimeFilter = 'all';
+    state.filters.retTimeFilter = 'all';
+    state.filters.durationFilter = 'all';
+    renderOffers();
   });
+
 
   $('[data-swap]')?.addEventListener('click', () => {
     const origin = document.querySelector('[name="origin"]');

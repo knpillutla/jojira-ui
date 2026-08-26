@@ -56,13 +56,21 @@ export function sortedOffers() {
     }
 
     // 4. Dates filter
-    if (f.dates && f.dates.length > 0) {
+    if (f.datesFilter && f.datesFilter !== 'all') {
+      const dateText = offer.dateRangeText || offer.depart || '';
+      if (!dateText.includes(f.datesFilter)) return false;
+    } else if (f.dates && f.dates.length > 0) {
       const dateText = offer.dateRangeText || offer.depart || '';
       if (!f.dates.some((d) => dateText.includes(d))) return false;
     }
 
     // 5. Departure Time filter
-    if (f.depTimes && f.depTimes.length > 0) {
+    if (f.depTimeFilter && f.depTimeFilter !== 'all') {
+      const depHour = getHourFromStr(offer.outboundDepartDateTime || offer.departTime || offer.depart);
+      if (f.depTimeFilter === 'morning' && !(depHour >= 0 && depHour < 12)) return false;
+      if (f.depTimeFilter === 'afternoon' && !(depHour >= 12 && depHour < 18)) return false;
+      if (f.depTimeFilter === 'evening' && !(depHour >= 18 && depHour < 24)) return false;
+    } else if (f.depTimes && f.depTimes.length > 0) {
       const depHour = getHourFromStr(offer.outboundDepartDateTime || offer.departTime || offer.depart);
       const matchesDep = f.depTimes.some((t) => {
         if (t === 'morning') return depHour >= 0 && depHour < 12;
@@ -74,7 +82,13 @@ export function sortedOffers() {
     }
 
     // 6. Return Time filter
-    if (f.retTimes && f.retTimes.length > 0) {
+    if (f.retTimeFilter && f.retTimeFilter !== 'all') {
+      if (offer.isOneWay) return false;
+      const retHour = getHourFromStr(offer.inboundDepartDateTime || offer.returnDepart || '');
+      if (f.retTimeFilter === 'morning' && !(retHour >= 0 && retHour < 12)) return false;
+      if (f.retTimeFilter === 'afternoon' && !(retHour >= 12 && retHour < 18)) return false;
+      if (f.retTimeFilter === 'evening' && !(retHour >= 18 && retHour < 24)) return false;
+    } else if (f.retTimes && f.retTimes.length > 0) {
       if (offer.isOneWay) return false;
       const retHour = getHourFromStr(offer.inboundDepartDateTime || offer.returnDepart || '');
       const matchesRet = f.retTimes.some((t) => {
@@ -87,7 +101,13 @@ export function sortedOffers() {
     }
 
     // 7. Duration filter
-    if (f.durations && f.durations.length > 0) {
+    if (f.durationFilter && f.durationFilter !== 'all') {
+      const durMins = offer.duration || 0;
+      if (f.durationFilter === 'under3' && !(durMins < 180)) return false;
+      if (f.durationFilter === '3to6' && !(durMins >= 180 && durMins <= 360)) return false;
+      if (f.durationFilter === '6to9' && !(durMins > 360 && durMins <= 540)) return false;
+      if (f.durationFilter === 'over9' && !(durMins > 540)) return false;
+    } else if (f.durations && f.durations.length > 0) {
       const durMins = offer.duration || 0;
       const matchesDur = f.durations.some((d) => {
         if (d === 'under3') return durMins < 180;
@@ -98,6 +118,7 @@ export function sortedOffers() {
       });
       if (!matchesDur) return false;
     }
+
 
     return true;
   });
