@@ -10,12 +10,15 @@ export function initBundleSearch() {
     e.preventDefault();
     const formData = new FormData(form);
 
+    const checkedTypes = Array.from(form.querySelectorAll('input[name="bundle_types"]:checked')).map((el) => el.value);
+
     const payload = {
       origin: formData.get('bundle_origin') || 'ATL',
       destination: formData.get('bundle_destination') || 'CDG',
       depart: formData.get('bundle_depart') || '',
       return: formData.get('bundle_return') || '',
-      travelers: parseInt(formData.get('bundle_travelers') || '1', 10)
+      travelers: parseInt(formData.get('bundle_travelers') || '1', 10),
+      bundleTypes: (checkedTypes.length > 0 ? checkedTypes : ['flights', 'hotels', 'cars']).join(',')
     };
 
     saveRecentSearch({

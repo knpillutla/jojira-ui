@@ -247,7 +247,8 @@
               <div class="field-grid">
                 <label class="field field-location">
                   <span>Destination / City</span><strong>📍</strong>
-                  <input name="hotel_location" placeholder="City or Landmark (e.g. Paris)" value="Paris" autocomplete="off" />
+                  <input name="hotel_location" placeholder="City or Landmark (e.g. Paris)" value="Paris" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="hotel-location-suggestions" aria-label="Destination city" />
+                  <div class="airport-suggestions" id="hotel-location-suggestions" data-hotel-location-suggestions role="listbox"></div>
                 </label>
                 <label class="field"><span>Check-in</span><strong>▣</strong><input name="hotel_checkin" type="date" value="" /></label>
                 <label class="field"><span>Check-out</span><strong>▣</strong><input name="hotel_checkout" type="date" value="" /></label>
@@ -317,6 +318,12 @@
                 <label class="field"><span>Depart</span><strong>▣</strong><input name="bundle_depart" type="date" value="" /></label>
                 <label class="field"><span>Return</span><strong>▣</strong><input name="bundle_return" type="date" value="" /></label>
                 <label class="field"><span>Travelers</span><strong>👤</strong><select name="bundle_travelers"><option value="1">1 Person</option><option value="2" selected>2 People</option><option value="4">4 People</option></select></label>
+              </div>
+              <div class="bundle-types-row" style="margin-top:12px; display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+                <span style="font-size:11px; color:var(--muted); font-weight:600;">Include in package:</span>
+                <label class="checkbox"><input type="checkbox" name="bundle_types" value="flights" checked /> <span>✈️ Flights</span></label>
+                <label class="checkbox"><input type="checkbox" name="bundle_types" value="hotels" checked /> <span>🏨 Hotels</span></label>
+                <label class="checkbox"><input type="checkbox" name="bundle_types" value="cars" checked /> <span>🚗 Cars</span></label>
               </div>
               <div class="input-hint-row" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                 <span style="font-size:11px; color:var(--muted); font-weight:600;">Popular searches:</span>

@@ -19,10 +19,10 @@ export async function searchHotels(payload) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        location: location,
-        check_in: payload.checkIn || '',
-        check_out: payload.checkOut || '',
-        guests: payload.guests || 2,
+        location_string: location,
+        check_in_date: payload.checkIn || '',
+        check_out_date: payload.checkOut || '',
+        guests_count: payload.guests || 2,
         rooms: payload.rooms || 1
       })
     });
@@ -102,9 +102,10 @@ export async function searchCars(payload) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         pickup_location: location,
-        pickup_date: payload.pickupDate || '',
-        dropoff_date: payload.dropoffDate || '',
-        category: payload.category || 'all'
+        dropoff_location: payload.dropoffLocation || location,
+        pickup_datetime: payload.pickupDate ? `${payload.pickupDate}T10:00:00Z` : '',
+        dropoff_datetime: payload.dropoffDate ? `${payload.dropoffDate}T10:00:00Z` : '',
+        driver_age: payload.driverAge || 30
       })
     });
 
@@ -178,7 +179,7 @@ export async function searchBundles(payload) {
   const origin = payload.origin || 'ATL';
   const destination = payload.destination || 'CDG';
 
-  const cacheKey = `bundles_${(origin || '').toLowerCase()}_${(destination || '').toLowerCase()}_${payload.depart || ''}_${payload.return || ''}_${payload.travelers || 1}`;
+  const cacheKey = `bundles_${(origin || '').toLowerCase()}_${(destination || '').toLowerCase()}_${payload.depart || ''}_${payload.return || ''}_${payload.travelers || 1}_${payload.bundleTypes || 'flights,hotels,cars'}`;
   const cached = getCachedSearch(cacheKey);
   if (cached) return cached;
 
@@ -191,7 +192,12 @@ export async function searchBundles(payload) {
         destination: destination,
         departure_date: payload.depart || '',
         return_date: payload.return || '',
-        travelers: payload.travelers || 1
+        passengers_count: payload.travelers || 1,
+        cabin_class: payload.cabinClass || 'economy',
+        rooms: payload.rooms || 1,
+        driver_age: payload.driverAge || 30,
+        bundle_types: payload.bundleTypes || 'flights,hotels,cars',
+        force_refresh: false
       })
     });
 

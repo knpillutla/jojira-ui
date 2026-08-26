@@ -1,10 +1,15 @@
 import { searchHotels } from '../../api/travelApi.js';
 import { renderHotelResults } from './hotelResults.js';
-import { saveRecentSearch } from '../searchForm.js';
+import { saveRecentSearch, attachCityAutocomplete } from '../searchForm.js';
 
 export function initHotelSearch() {
   const form = document.getElementById('hotel-search-form');
   if (!form) return;
+
+  attachCityAutocomplete(
+    form.querySelector('[name="hotel_location"]'),
+    form.querySelector('[data-hotel-location-suggestions]')
+  );
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

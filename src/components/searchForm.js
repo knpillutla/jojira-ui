@@ -971,67 +971,79 @@ export function showInitialTrendingMode() {
   });
 }
 
-export async function initCityAutocomplete() {
+// Reusable city-autocomplete attacher shared by flight, hotel, car and bundle location fields
+export async function attachCityAutocomplete(input, container, onSelect) {
+  if (!input || !container) return;
   await loadCitiesConfig();
 
-  const setupInput = (inputName, suggestionsSelector) => {
-    const input = document.querySelector(`[name="${inputName}"]`);
-    const container = document.querySelector(suggestionsSelector);
-    if (!input || !container) return;
+  const renderList = (queryStr) => {
+    const q = (queryStr || '').trim().toLowerCase();
 
-    const renderList = (queryStr) => {
-      const q = (queryStr || '').trim().toLowerCase();
-      
-      const filtered = citiesDatabase.filter((c) =>
-        !q ||
-        c.city.toLowerCase().includes(q) ||
-        c.code.toLowerCase().includes(q) ||
-        (c.country && c.country.toLowerCase().includes(q)) ||
-        (c.airport && c.airport.toLowerCase().includes(q))
-      ).slice(0, 8);
+    const filtered = citiesDatabase.filter((c) =>
+      !q ||
+      c.city.toLowerCase().includes(q) ||
+      c.code.toLowerCase().includes(q) ||
+      (c.country && c.country.toLowerCase().includes(q)) ||
+      (c.airport && c.airport.toLowerCase().includes(q))
+    ).slice(0, 8);
 
-      if (!filtered.length) {
+    if (!filtered.length) {
+      container.classList.remove('is-open');
+      container.innerHTML = '';
+      return;
+    }
+
+    container.innerHTML = filtered.map((c) => `
+      <button type="button" data-select-city="${c.city}" data-select-code="${c.code}" data-select-label="${c.city} (${c.code})">
+        <div class="sugg-header">
+          <span class="sugg-city">${c.city}</span>
+          <span class="sugg-code">(${c.code})</span>
+        </div>
+        <div class="sugg-sub">${c.country ? c.country + ' · ' : ''}${c.airport}</div>
+      </button>
+    `).join('');
+
+    container.classList.add('is-open');
+
+    container.querySelectorAll('[data-select-city]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        input.value = btn.dataset.selectLabel;
         container.classList.remove('is-open');
-        container.innerHTML = '';
-        return;
-      }
-
-      container.innerHTML = filtered.map((c) => `
-        <button type="button" data-select-city="${c.city}" data-select-code="${c.code}" data-select-label="${c.city} (${c.code})">
-          <div class="sugg-header">
-            <span class="sugg-city">${c.city}</span>
-            <span class="sugg-code">(${c.code})</span>
-          </div>
-          <div class="sugg-sub">${c.country ? c.country + ' · ' : ''}${c.airport}</div>
-        </button>
-      `).join('');
-
-      container.classList.add('is-open');
-
-      container.querySelectorAll('[data-select-city]').forEach((btn) => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          input.value = btn.dataset.selectLabel;
-          container.classList.remove('is-open');
-          const originVal = document.querySelector('[name="origin"]')?.value || '';
-          const destVal = document.querySelector('[name="destination"]')?.value || '';
-          updateFieldHelpers(originVal, destVal);
-        });
+        if (onSelect) onSelect(btn.dataset.selectCity, btn.dataset.selectCode, btn.dataset.selectLabel);
       });
-    };
-
-    input.addEventListener('focus', () => renderList(input.value));
-    input.addEventListener('input', () => renderList(input.value));
-
-    document.addEventListener('click', (e) => {
-      if (!input.contains(e.target) && !container.contains(e.target)) {
-        container.classList.remove('is-open');
-      }
     });
   };
 
-  setupInput('origin', '[data-origin-suggestions]');
-  setupInput('destination', '[data-destination-suggestions]');
+  input.addEventListener('focus', () => renderList(input.value));
+  input.addEventListener('input', () => renderList(input.value));
+
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target) && !container.contains(e.target)) {
+      container.classList.remove('is-open');
+    }
+  });
+}
+
+export async function initCityAutocomplete() {
+  await loadCitiesConfig();
+
+  const updateFlightHelpers = () => {
+    const originVal = document.querySelector('[name="origin"]')?.value || '';
+    const destVal = document.querySelector('[name="destination"]')?.value || '';
+    updateFieldHelpers(originVal, destVal);
+  };
+
+  attachCityAutocomplete(
+    document.querySelector('[name="origin"]'),
+    document.querySelector('[data-origin-suggestions]'),
+    updateFlightHelpers
+  );
+  attachCityAutocomplete(
+    document.querySelector('[name="destination"]'),
+    document.querySelector('[data-destination-suggestions]'),
+    updateFlightHelpers
+  );
 }
 
 let multicityLegCount = 2;
