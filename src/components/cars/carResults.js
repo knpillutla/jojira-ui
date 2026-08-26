@@ -1,3 +1,4 @@
+import { state, getPreferredLayout, setPreferredLayout } from '../../core/state.js';
 import { renderTravelStatTiles, wireTravelStatTileClicks } from '../../utils/travelStatTiles.js';
 import { normalizeCarApiResponse } from '../../api/travelApi.js';
 import { openCarBookingWizard, initCarBookingEvents } from './carBookingWizard.js';
@@ -10,48 +11,43 @@ export function renderCarResults(raw) {
   const data = (raw && raw.cars) ? raw : normalizeCarApiResponse(raw);
 
   if (!data || !data.cars || data.cars.length === 0) {
-    container.innerHTML = `<p class="muted">No car rentals available for the selected dates.</p>`;
+    container.innerHTML = `<p class="muted">No car rentals found matching your search.</p>`;
     return;
   }
 
-  const form = document.getElementById('car-search-form');
-  const pickupVal = form?.querySelector('[name="car_pickup"]')?.value || '2026-09-15';
-  const dropoffVal = form?.querySelector('[name="car_dropoff"]')?.value || '2026-09-22';
-  let rentalDays = 7;
-  if (pickupVal && dropoffVal) {
-    const start = new Date(pickupVal);
-    const end = new Date(dropoffVal);
-    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-      const diff = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
-      if (diff > 0) rentalDays = diff;
-    }
+  const pickupDateStr = document.querySelector('[name="car_pickup_date"]')?.value;
+  const dropoffDateStr = document.querySelector('[name="car_dropoff_date"]')?.value;
+  let rentalDays = 3;
+  if (pickupDateStr && dropoffDateStr) {
+    const d1 = new Date(pickupDateStr);
+    const d2 = new Date(dropoffDateStr);
+    const diff = Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24));
+    if (diff > 0) rentalDays = diff;
   }
 
   const cardsHtml = data.cars.map((c) => {
-    const featuresHtml = c.features.map(f => `<span class="car-feature">⚡ ${f}</span>`).join('');
+    const featuresHtml = c.features.map(f => `<span class="amenity-chip">✓ ${f}</span>`).join('');
+    const totalPrice = (c.price_per_day * rentalDays).toFixed(2);
 
     return `
-      <div class="travel-card car-card" data-car-card-id="${c.id}">
-        <div class="travel-card-image" style="background-image: url('${c.image}')">
-          <span class="car-category-badge">${c.category}</span>
+      <div class="travel-result-card" data-car-card-id="${c.id}">
+        <div class="card-hero-thumb" style="background-image: url('${c.image}')">
+          <span class="category-badge">${c.company}</span>
+          <span class="rating-pill">⚡ ${c.transmission}</span>
         </div>
-        <div class="travel-card-body">
-          <div class="travel-card-header">
-            <div>
-              <h3 class="travel-card-title">${c.model}</h3>
-              <p class="travel-card-sub">Provided by <strong>${c.supplier}</strong> · ⏱️ <strong>${rentalDays} Days</strong> · ${c.transmission} · 👤 ${c.seats} Seats</p>
-            </div>
-            <div class="rating-badge">
-              <strong>${c.rating}</strong>
-            </div>
+        <div class="card-details-body">
+          <div class="card-header-row">
+            <h3>${c.model}</h3>
+            <span class="card-supplier">${c.category}</span>
           </div>
-          <div class="car-features-list">
+          <div class="amenities-wrap">
+            <span class="amenity-chip">👤 ${c.seats} seats</span>
             ${featuresHtml}
           </div>
-          <div class="travel-card-footer">
-            <div class="price-box">
-              <span class="price-amount">$${c.total_price}</span>
-              <span class="price-period">${rentalDays} Days Total ($${c.price_per_day}/day)</span>
+          <div class="card-footer-row">
+            <div class="price-stack">
+              <strong class="price-amount">$${c.price_per_day}</strong>
+              <small class="price-label">per day · $${totalPrice} total (${rentalDays} days)</small>
             </div>
             <button type="button" class="primary-button btn-book-car" data-car-id="${c.id}">Rent Car</button>
           </div>
@@ -60,7 +56,9 @@ export function renderCarResults(raw) {
     `;
   }).join('');
 
-  const currentMode = (document.querySelector('[data-layout-view].is-active')?.dataset?.layoutView) || 'grid-2';
+  const preferredMode = state.tabLayouts?.cars || getPreferredLayout('cars') || 'grid-2';
+  const isSingleRecord = data.cars.length === 1;
+  const activeRenderMode = isSingleRecord ? 'list' : preferredMode;
   const listRowsHtml = buildCarListRowsHtml(data.cars, rentalDays);
   const tiles = buildCarStatTiles(data.cars, rentalDays);
 
@@ -69,15 +67,16 @@ export function renderCarResults(raw) {
     <div class="results-heading-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
       <h4>Car Rentals near ${data.pickup_location} (${data.total_found} vehicles available for ${rentalDays} Days)</h4>
       <div class="view-layout-toggle" role="radiogroup" aria-label="Layout view options">
-        <button type="button" class="view-btn ${currentMode==='list'?'is-active':''}" data-layout-view="list" title="List View" aria-label="List View">☰</button>
-        <button type="button" class="view-btn ${currentMode==='grid-1'?'is-active':''}" data-layout-view="grid-1" title="1-Column Tiles" aria-label="1-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="12" rx="1"/></svg></button>
-        <button type="button" class="view-btn ${currentMode==='grid-2'?'is-active':''}" data-layout-view="grid-2" title="2-Column Tiles" aria-label="2-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="6" height="12" rx="1"/><rect x="9" y="2" width="6" height="12" rx="1"/></svg></button>
-        <button type="button" class="view-btn ${currentMode==='grid-3'?'is-active':''}" data-layout-view="grid-3" title="3-Column Tiles" aria-label="3-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="4" height="12" rx="1"/><rect x="6" y="2" width="4" height="12" rx="1"/><rect x="11.5" y="2" width="4" height="12" rx="1"/></svg></button>
-        <button type="button" class="view-btn ${currentMode==='grid-4'?'is-active':''}" data-layout-view="grid-4" title="4-Column Tiles (Show Maximum Tiles)" aria-label="4-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="3" height="12" rx="1"/><rect x="4.5" y="2" width="3" height="12" rx="1"/><rect x="8.5" y="2" width="3" height="12" rx="1"/><rect x="12.5" y="2" width="3" height="12" rx="1"/></svg></button>
+        <button type="button" class="view-btn ${preferredMode==='list'?'is-active':''}" data-layout-view="list" title="List View" aria-label="List View">☰</button>
+        <button type="button" class="view-btn ${preferredMode==='grid-1'?'is-active':''}" data-layout-view="grid-1" title="1-Column Tiles" aria-label="1-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="12" rx="1"/></svg></button>
+        <button type="button" class="view-btn ${preferredMode==='grid-2'?'is-active':''}" data-layout-view="grid-2" title="2-Column Tiles" aria-label="2-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="6" height="12" rx="1"/><rect x="9" y="2" width="6" height="12" rx="1"/></svg></button>
+        <button type="button" class="view-btn ${preferredMode==='grid-3'?'is-active':''}" data-layout-view="grid-3" title="3-Column Tiles" aria-label="3-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="4" height="12" rx="1"/><rect x="6" y="2" width="4" height="12" rx="1"/><rect x="11.5" y="2" width="4" height="12" rx="1"/></svg></button>
+        <button type="button" class="view-btn ${preferredMode==='grid-4'?'is-active':''}" data-layout-view="grid-4" title="4-Column Tiles (Show Maximum Tiles)" aria-label="4-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="3" height="12" rx="1"/><rect x="4.5" y="2" width="3" height="12" rx="1"/><rect x="8.5" y="2" width="3" height="12" rx="1"/><rect x="12.5" y="2" width="3" height="12" rx="1"/></svg></button>
       </div>
+
     </div>
-    <div class="travel-cards-grid view-${currentMode}">
-      ${currentMode === 'list' ? listRowsHtml : cardsHtml}
+    <div class="travel-cards-grid view-${activeRenderMode}">
+      ${activeRenderMode === 'list' ? listRowsHtml : cardsHtml}
     </div>
   `;
 
@@ -96,33 +95,24 @@ export function renderCarResults(raw) {
 
   bindRentButtons();
 
-  // Wire clicks on stat tiles to launch booking wizard
-  container.querySelectorAll('[data-travel-tile-target]').forEach((tile) => {
-    tile.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const targetId = tile.getAttribute('data-travel-tile-target');
-      const carItem = data.cars.find((c) => c.id === targetId) || data.cars[0];
-      if (carItem) {
-        openCarBookingWizard(carItem);
-      }
-    });
-  });
-
   container.querySelectorAll('[data-layout-view]').forEach(btn => {
     btn.addEventListener('click', () => {
       const mode = btn.dataset.layoutView;
+      setPreferredLayout('cars', mode);
+      const renderModeForClick = data.cars.length === 1 ? 'list' : mode;
       const grid = container.querySelector('.travel-cards-grid');
       if (grid) {
-        grid.className = `travel-cards-grid view-${mode}`;
-        grid.innerHTML = mode === 'list' ? listRowsHtml : cardsHtml;
+        grid.className = `travel-cards-grid view-${renderModeForClick}`;
+        grid.innerHTML = renderModeForClick === 'list' ? listRowsHtml : cardsHtml;
         bindRentButtons();
       }
       container.querySelectorAll('[data-layout-view]').forEach(b => b.classList.toggle('is-active', b === btn));
     });
   });
+
+
 }
 
-// Compact single-line rows (used in List view) with a small thumbnail so many more fit on screen
 function buildCarListRowsHtml(cars, rentalDays = 7) {
   return cars.map((c) => `
     <div class="list-row" data-car-card-id="${c.id}">

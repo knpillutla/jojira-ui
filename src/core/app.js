@@ -1,10 +1,11 @@
 import { initSearchForm, renderRecentSearches, clearWholePage, setDefaultDateFields } from '../components/searchForm.js';
-import { initBookingEvents } from '../components/flights/flightBookingWizard.js';
+import { initBookingEvents, hidePaymentProgress } from '../components/flights/flightBookingWizard.js';
 import { initHotelSearch } from '../components/hotels/hotelSearch.js';
 import { initStayBookingEvents } from '../components/hotels/stayBookingWizard.js';
 import { initCarSearch } from '../components/cars/carSearch.js';
 import { initBundleSearch } from '../components/bundles/bundleSearch.js';
 import { initPlannerControls } from '../components/planner/plannerControls.js';
+import { initTableSorting } from '../components/offerTable.js';
 
 function initServiceTabSwitching() {
 
@@ -31,7 +32,6 @@ function initServiceTabSwitching() {
         }
       });
 
-      // Keep flights results section displayed when switching to flights tab or AI search tab
       const resultsSection = document.getElementById('results');
       if (resultsSection) {
         if (target === 'flights' || target === 'ai-search') {
@@ -44,9 +44,9 @@ function initServiceTabSwitching() {
   });
 }
 
-import { initTableSorting } from '../components/offerTable.js';
-
 function initApp() {
+  hidePaymentProgress();
+
   initSearchForm();
   initBookingEvents();
   initHotelSearch();
@@ -60,13 +60,13 @@ function initApp() {
 
   renderRecentSearches();
 
-
   // On page load/hard refresh: clear out flight search data & results, preserving recent searches
   clearWholePage();
 
   // Default every date field (all tabs) to today+20 / today+27
   setDefaultDateFields();
 }
+
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);

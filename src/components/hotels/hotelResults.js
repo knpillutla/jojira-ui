@@ -1,6 +1,8 @@
+import { state, getPreferredLayout, setPreferredLayout } from '../../core/state.js';
 import { renderTravelStatTiles, wireTravelStatTileClicks } from '../../utils/travelStatTiles.js';
 import { normalizeHotelApiResponse } from '../../api/travelApi.js';
 import { openStayBookingWizard, initStayBookingEvents } from './stayBookingWizard.js';
+
 
 export function renderHotelResults(raw) {
   initStayBookingEvents();
@@ -49,7 +51,9 @@ export function renderHotelResults(raw) {
     `;
   }).join('');
 
-  const currentMode = (document.querySelector('[data-layout-view].is-active')?.dataset?.layoutView) || 'grid-2';
+  const preferredMode = state.tabLayouts?.hotels || getPreferredLayout('hotels') || 'grid-2';
+  const isSingleRecord = data.hotels.length === 1;
+  const activeRenderMode = isSingleRecord ? 'list' : preferredMode;
   const listRowsHtml = buildHotelListRowsHtml(data.hotels);
   const tiles = buildHotelStatTiles(data.hotels);
 
@@ -58,15 +62,16 @@ export function renderHotelResults(raw) {
     <div class="results-heading-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
       <h4>Hotels in ${data.destination} (${data.total_found} stays found)</h4>
       <div class="view-layout-toggle" role="radiogroup" aria-label="Layout view options">
-        <button type="button" class="view-btn ${currentMode==='list'?'is-active':''}" data-layout-view="list" title="List View" aria-label="List View">☰</button>
-        <button type="button" class="view-btn ${currentMode==='grid-1'?'is-active':''}" data-layout-view="grid-1" title="1-Column Tiles" aria-label="1-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="12" rx="1"/></svg></button>
-        <button type="button" class="view-btn ${currentMode==='grid-2'?'is-active':''}" data-layout-view="grid-2" title="2-Column Tiles" aria-label="2-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="6" height="12" rx="1"/><rect x="9" y="2" width="6" height="12" rx="1"/></svg></button>
-        <button type="button" class="view-btn ${currentMode==='grid-3'?'is-active':''}" data-layout-view="grid-3" title="3-Column Tiles" aria-label="3-Column Tiles"><svg width="0.5" y="2" width="4" height="12" rx="1"/><rect x="6" y="2" width="4" height="12" rx="1"/><rect x="11.5" y="2" width="4" height="12" rx="1"/></svg></button>
-        <button type="button" class="view-btn ${currentMode==='grid-4'?'is-active':''}" data-layout-view="grid-4" title="4-Column Tiles (Show Maximum Tiles)" aria-label="4-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="3" height="12" rx="1"/><rect x="4.5" y="2" width="3" height="12" rx="1"/><rect x="8.5" y="2" width="3" height="12" rx="1"/><rect x="12.5" y="2" width="3" height="12" rx="1"/></svg></button>
+        <button type="button" class="view-btn ${preferredMode==='list'?'is-active':''}" data-layout-view="list" title="List View" aria-label="List View">☰</button>
+        <button type="button" class="view-btn ${preferredMode==='grid-1'?'is-active':''}" data-layout-view="grid-1" title="1-Column Tiles" aria-label="1-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="12" rx="1"/></svg></button>
+        <button type="button" class="view-btn ${preferredMode==='grid-2'?'is-active':''}" data-layout-view="grid-2" title="2-Column Tiles" aria-label="2-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="6" height="12" rx="1"/><rect x="9" y="2" width="6" height="12" rx="1"/></svg></button>
+        <button type="button" class="view-btn ${preferredMode==='grid-3'?'is-active':''}" data-layout-view="grid-3" title="3-Column Tiles" aria-label="3-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="4" height="12" rx="1"/><rect x="6" y="2" width="4" height="12" rx="1"/><rect x="11.5" y="2" width="4" height="12" rx="1"/></svg></button>
+        <button type="button" class="view-btn ${preferredMode==='grid-4'?'is-active':''}" data-layout-view="grid-4" title="4-Column Tiles (Show Maximum Tiles)" aria-label="4-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="3" height="12" rx="1"/><rect x="4.5" y="2" width="3" height="12" rx="1"/><rect x="8.5" y="2" width="3" height="12" rx="1"/><rect x="12.5" y="2" width="3" height="12" rx="1"/></svg></button>
       </div>
+
     </div>
-    <div class="travel-cards-grid view-${currentMode}">
-      ${currentMode === 'list' ? listRowsHtml : cardsHtml}
+    <div class="travel-cards-grid view-${activeRenderMode}">
+      ${activeRenderMode === 'list' ? listRowsHtml : cardsHtml}
     </div>
   `;
 
@@ -100,15 +105,20 @@ export function renderHotelResults(raw) {
   container.querySelectorAll('[data-layout-view]').forEach(btn => {
     btn.addEventListener('click', () => {
       const mode = btn.dataset.layoutView;
+      setPreferredLayout('hotels', mode);
+      const renderModeForClick = data.hotels.length === 1 ? 'list' : mode;
       const grid = container.querySelector('.travel-cards-grid');
       if (grid) {
-        grid.className = `travel-cards-grid view-${mode}`;
-        grid.innerHTML = mode === 'list' ? listRowsHtml : cardsHtml;
+        grid.className = `travel-cards-grid view-${renderModeForClick}`;
+        grid.innerHTML = renderModeForClick === 'list' ? listRowsHtml : cardsHtml;
         bindReserveButtons();
       }
       container.querySelectorAll('[data-layout-view]').forEach(b => b.classList.toggle('is-active', b === btn));
     });
   });
+
+
+
 }
 
 

@@ -1,4 +1,4 @@
-import { state, $ } from '../core/state.js';
+import { state, $, setPreferredLayout, getPreferredLayout } from '../core/state.js';
 import { money, duration, highlightPrice } from '../utils/formatters.js';
 import { openFlightBookingWizard as openBookingWizard } from './flights/flightBookingWizard.js';
 import { getHourFromStr, initColumnFilters, updateColumnFilterPopovers } from './columnFilters.js';
@@ -180,18 +180,35 @@ export function initTableSorting() {
     });
   });
 
+  document.querySelectorAll('[data-layout-view]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const btnMode = btn.dataset.layoutView;
+      const targetMode = btnMode === 'list' ? 'table' : btnMode;
+      setPreferredLayout('flights', targetMode);
+      renderOffers();
+    });
+  });
+
   initColumnFilters();
 }
-
 
 export function renderOffers() {
   const visible = sortedOffers();
   const offersEl = $('[data-offers]');
   const cardsContainer = $('[data-flight-cards-container]');
   const tableWrap = $('.offer-table-wrap');
-  const mode = state.layoutView || 'table';
+  const mode = state.tabLayouts?.flights || getPreferredLayout('flights') || 'table';
+
+  document.querySelectorAll('.view-layout-toggle [data-layout-view]').forEach((btn) => {
+    const btnMode = btn.dataset.layoutView;
+    const isActive = btnMode === mode || (mode === 'table' && btnMode === 'list');
+    btn.classList.toggle('is-active', isActive);
+  });
+
 
   updateColumnFilterPopovers();
+
 
 
   if (mode === 'table') {

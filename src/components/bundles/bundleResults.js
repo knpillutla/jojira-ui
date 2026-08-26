@@ -1,51 +1,39 @@
+import { state, getPreferredLayout, setPreferredLayout } from '../../core/state.js';
 import { renderTravelStatTiles, wireTravelStatTileClicks } from '../../utils/travelStatTiles.js';
+import { normalizeBundleApiResponse } from '../../api/travelApi.js';
 
-export function renderBundleResults(data) {
+export function renderBundleResults(raw) {
   const container = document.querySelector('[data-bundle-results]');
   if (!container) return;
 
+  const data = (raw && raw.packages) ? raw : normalizeBundleApiResponse(raw);
+
   if (!data || !data.packages || data.packages.length === 0) {
-    container.innerHTML = `<p class="muted">No flight + hotel bundles available for your route.</p>`;
+    container.innerHTML = `<p class="muted">No vacation packages available for the selected destination.</p>`;
     return;
   }
 
   const cardsHtml = data.packages.map((pkg) => {
-    const inclusionsHtml = pkg.inclusions.map(inc => `<li>✓ ${inc}</li>`).join('');
-
     return `
       <div class="travel-card bundle-card" data-bundle-card-id="${pkg.id}">
         <div class="travel-card-image" style="background-image: url('${pkg.image}')">
-          <span class="bundle-savings-badge">SAVE ${pkg.savings_percentage}% (Save $${pkg.savings_amount})</span>
+          <span class="bundle-savings-badge">Save $${pkg.savings}</span>
         </div>
         <div class="travel-card-body">
           <div class="travel-card-header">
             <div>
               <h3 class="travel-card-title">${pkg.title}</h3>
-              <p class="travel-card-sub">Flight + ${pkg.hotel_details.nights}-Night Hotel Bundle</p>
+              <p class="travel-card-sub">✈️ ${pkg.flight_summary} · 🏨 ${pkg.hotel_name}</p>
+            </div>
+            <div class="rating-badge">
+              <strong>${pkg.rating}</strong>
             </div>
           </div>
-          
-          <div class="bundle-details-grid">
-            <div class="bundle-component-box">
-              <span class="comp-icon">✈️</span>
-              <div>
-                <strong>${pkg.flight_details.airline}</strong>
-                <p>${pkg.flight_details.stops} · ${pkg.flight_details.cabin}</p>
-              </div>
-            </div>
-            <div class="bundle-component-box">
-              <span class="comp-icon">🏨</span>
-              <div>
-                <strong>${pkg.hotel_details.name}</strong>
-                <p>${'★'.repeat(pkg.hotel_details.stars)} (${pkg.hotel_details.rating} / 5 rating)</p>
-              </div>
-            </div>
+          <div class="bundle-includes-list">
+            <span class="bundle-chip">✓ Roundtrip Flight</span>
+            <span class="bundle-chip">✓ ${pkg.hotel_stars}★ Hotel Stay</span>
+            <span class="bundle-chip">✓ Free Cancellation</span>
           </div>
-
-          <ul class="bundle-inclusions-list">
-            ${inclusionsHtml}
-          </ul>
-
           <div class="travel-card-footer">
             <div class="price-box">
               <span class="price-original">$${pkg.individual_price_sum}</span>
@@ -59,7 +47,7 @@ export function renderBundleResults(data) {
     `;
   }).join('');
 
-  const currentMode = (document.querySelector('[data-layout-view].is-active')?.dataset?.layoutView) || 'grid-2';
+  const currentMode = state.tabLayouts?.packages || getPreferredLayout('packages') || 'grid-2';
   const listRowsHtml = buildBundleListRowsHtml(data.packages);
   const tiles = buildBundleStatTiles(data.packages);
 
@@ -71,7 +59,7 @@ export function renderBundleResults(data) {
         <button type="button" class="view-btn ${currentMode==='list'?'is-active':''}" data-layout-view="list" title="List View" aria-label="List View">☰</button>
         <button type="button" class="view-btn ${currentMode==='grid-1'?'is-active':''}" data-layout-view="grid-1" title="1-Column Tiles" aria-label="1-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="12" rx="1"/></svg></button>
         <button type="button" class="view-btn ${currentMode==='grid-2'?'is-active':''}" data-layout-view="grid-2" title="2-Column Tiles" aria-label="2-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="6" height="12" rx="1"/><rect x="9" y="2" width="6" height="12" rx="1"/></svg></button>
-        <button type="button" class="view-btn ${currentMode==='grid-3'?'is-active':''}" data-layout-view="grid-3" title="3-Column Tiles" aria-label="3-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="4" height="12" rx="1"/><rect x="6" y="2" width="4" height="12" rx="1"/><rect x="11.5" y="2" width="4" height="12" rx="1"/></svg></button>
+        <button type="button" class="view-btn ${currentMode==='grid-3'?'is-active':''}" data-layout-view="grid-3" title="3-Column Tiles" aria-label="3-Column Tiles"><svg width="0.5" y="2" width="4" height="12" rx="1"/><rect x="6" y="2" width="4" height="12" rx="1"/><rect x="11.5" y="2" width="4" height="12" rx="1"/></svg></button>
         <button type="button" class="view-btn ${currentMode==='grid-4'?'is-active':''}" data-layout-view="grid-4" title="4-Column Tiles (Show Maximum Tiles)" aria-label="4-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="3" height="12" rx="1"/><rect x="4.5" y="2" width="3" height="12" rx="1"/><rect x="8.5" y="2" width="3" height="12" rx="1"/><rect x="12.5" y="2" width="3" height="12" rx="1"/></svg></button>
       </div>
     </div>
@@ -83,6 +71,7 @@ export function renderBundleResults(data) {
   container.querySelectorAll('[data-layout-view]').forEach(btn => {
     btn.addEventListener('click', () => {
       const mode = btn.dataset.layoutView;
+      setPreferredLayout('packages', mode);
       const grid = container.querySelector('.travel-cards-grid');
       if (grid) {
         grid.className = `travel-cards-grid view-${mode}`;

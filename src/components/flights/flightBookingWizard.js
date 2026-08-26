@@ -337,17 +337,33 @@ export function renderStep3Summary() {
   `;
 }
 
+let paymentProgressTimeout = null;
+
 export function showPaymentProgress(statusText = 'Processing payment with Duffel...') {
   const modalOverlay = $('[data-payment-progress-modal]');
   const inlineProgress = $('[data-payment-progress]');
   const textEls = document.querySelectorAll('[data-payment-progress-text]');
+  const cancelBtn = $('[data-cancel-payment-progress]');
   const nextBtn = $('[data-booking-next]');
   const backBtn = $('[data-booking-back]');
+
+  if (paymentProgressTimeout) clearTimeout(paymentProgressTimeout);
 
   textEls.forEach((el) => (el.textContent = statusText));
 
   if (modalOverlay) modalOverlay.classList.remove('hidden');
   if (inlineProgress) inlineProgress.classList.remove('hidden');
+
+  // Show Cancel & Try Again button after 2.5 seconds so user is never trapped
+  if (cancelBtn) {
+    cancelBtn.classList.add('hidden');
+    paymentProgressTimeout = setTimeout(() => {
+      cancelBtn.classList.remove('hidden');
+      textEls.forEach((el) => {
+        el.textContent = 'Still processing with booking server... You can wait or cancel below.';
+      });
+    }, 2500);
+  }
 
   document.querySelectorAll('[data-booking-modal] input, [data-booking-modal] button, [data-booking-modal] select').forEach((el) => {
     el.disabled = true;
@@ -368,13 +384,20 @@ export function showPaymentProgress(statusText = 'Processing payment with Duffel
 }
 
 export function hidePaymentProgress() {
+  if (paymentProgressTimeout) {
+    clearTimeout(paymentProgressTimeout);
+    paymentProgressTimeout = null;
+  }
+
   const modalOverlay = $('[data-payment-progress-modal]');
   const inlineProgress = $('[data-payment-progress]');
+  const cancelBtn = $('[data-cancel-payment-progress]');
   const nextBtn = $('[data-booking-next]');
   const backBtn = $('[data-booking-back]');
 
   if (modalOverlay) modalOverlay.classList.add('hidden');
   if (inlineProgress) inlineProgress.classList.add('hidden');
+  if (cancelBtn) cancelBtn.classList.add('hidden');
 
   document.querySelectorAll('[data-booking-modal] input, [data-booking-modal] button, [data-booking-modal] select').forEach((el) => {
     el.disabled = false;
@@ -393,6 +416,7 @@ export function hidePaymentProgress() {
     backBtn.disabled = false;
   }
 }
+
 
 export async function submitBookingOrder() {
   const offer = bookingState.activeOffer;
@@ -544,11 +568,23 @@ export async function executeBookingSubmissionWithCardId(cardId) {
 export function initBookingEvents() {
   $('[data-close-booking]')?.addEventListener('click', closeFlightBookingWizard);
 
+  $('[data-cancel-payment-progress]')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    hidePaymentProgress();
+    const errorEl = $('[data-payment-error]');
+    if (errorEl) {
+      errorEl.textContent = '⚠️ Payment process was cancelled. You can review your booking details and try again.';
+      errorEl.classList.remove('hidden');
+    }
+  });
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeFlightBookingWizard();
+      hidePaymentProgress();
     }
   });
+
 
   document.addEventListener('change', (e) => {
     const chk = e.target.closest('[data-extra]');

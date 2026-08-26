@@ -1,3 +1,25 @@
+export function getPreferredLayout(tab = 'flights') {
+  try {
+    const key = `jojira_preferred_layout_${tab}`;
+    const defaultLayout = tab === 'flights' ? 'table' : 'grid-2';
+    return localStorage.getItem(key) || defaultLayout;
+  } catch (e) {
+    return tab === 'flights' ? 'table' : 'grid-2';
+  }
+}
+
+export function setPreferredLayout(tab = 'flights', mode) {
+  if (!mode) return;
+  try {
+    const key = `jojira_preferred_layout_${tab}`;
+    localStorage.setItem(key, mode);
+  } catch (e) {
+    // ignore
+  }
+  if (!state.tabLayouts) state.tabLayouts = {};
+  state.tabLayouts[tab] = mode;
+}
+
 export const state = {
   offers: [],
   filters: {
@@ -15,10 +37,18 @@ export const state = {
   sort: 'cheapest',
   sortColumn: 'price',
   sortDirection: 'asc',
+  tabLayouts: {
+    flights: getPreferredLayout('flights'),
+    hotels: getPreferredLayout('hotels'),
+    cars: getPreferredLayout('cars'),
+    packages: getPreferredLayout('packages')
+  },
   search: { origin: '', destination: '', depart: '' },
   categoryHighlights: {},
   routeNames: { origin: '', destination: '' }
 };
+
+
 
 
 export const bookingState = {
