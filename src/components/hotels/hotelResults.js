@@ -20,6 +20,35 @@ export function renderHotelResults(raw) {
     const amenitiesHtml = h.amenities.map(a => `<span class="amenity-chip">✓ ${a}</span>`).join('');
     const starsHtml = '★'.repeat(h.stars);
 
+    const hasRealCustomImage = Boolean(h.image && !h.image.includes('unsplash') && !h.image.includes('placeholder'));
+
+    if (!hasRealCustomImage) {
+      return `
+        <div class="travel-card hotel-card flight-style-card" data-hotel-card-id="${h.id}" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:flex; flex-direction:column; justify-space-between; box-shadow:0 1px 3px rgba(0,0,0,0.05); transition:transform 0.2s, box-shadow 0.2s;">
+          <div class="flight-tile-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:10px;">
+            <div class="flight-tile-brand" style="display:flex; align-items:center; gap:8px;">
+              <span class="airline-logo tone-ba" style="width:32px; height:32px; border-radius:8px; background:#4338ca; color:#ffffff; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:14px;">🏨</span>
+              <span class="flight-tile-airline" style="font-weight:700; font-size:15px; color:#0f172a;">${h.name}</span>
+            </div>
+            <span class="badge badge-gold" style="padding:4px 10px; border-radius:16px; background:#fef3c7; color:#b45309; font-weight:700; font-size:11px;">${starsHtml} (${h.rating} ★)</span>
+          </div>
+          <div class="travel-card-body" style="padding:0; flex:1;">
+            <p style="font-size:12px; color:#64748b; margin:0 0 10px 0;">📍 ${h.location_description} (${h.distance_to_center} from center)</p>
+            <div class="amenities-row" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
+              ${amenitiesHtml}
+            </div>
+          </div>
+          <div class="travel-card-footer" style="display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid #f1f5f9; padding-top:12px; margin-top:auto;">
+            <div class="price-box">
+              <span class="price-amount" style="font-size:18px; font-weight:800; color:var(--coral-orange, #ff6b6b);">$${Number(h.total_price || 0).toFixed(2)}</span>
+              <span class="price-period" style="display:block; font-size:11px; color:#64748b;">Total ($${Number(h.price_per_night || 0).toFixed(2)}/night)</span>
+            </div>
+            <button type="button" class="primary-button btn-select-room" data-hotel-id="${h.id}">Reserve Room ➔</button>
+          </div>
+        </div>
+      `;
+    }
+
     return `
       <div class="travel-card hotel-card" data-hotel-card-id="${h.id}">
         <div class="travel-card-image" style="background-image: url('${h.image}')">
@@ -41,8 +70,8 @@ export function renderHotelResults(raw) {
           </div>
           <div class="travel-card-footer">
             <div class="price-box">
-              <span class="price-amount">$${h.total_price}</span>
-              <span class="price-period">Total ($${h.price_per_night}/night)</span>
+              <span class="price-amount">$${Number(h.total_price || 0).toFixed(2)}</span>
+              <span class="price-period">Total ($${Number(h.price_per_night || 0).toFixed(2)}/night)</span>
             </div>
             <button type="button" class="primary-button btn-select-room" data-hotel-id="${h.id}">Reserve Room</button>
           </div>

@@ -6,11 +6,17 @@ export function initBundleSearch() {
   const form = document.getElementById('bundle-search-form');
   if (!form) return;
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  const triggerSearch = async () => {
     const formData = new FormData(form);
 
-    const checkedTypes = Array.from(form.querySelectorAll('input[name="bundle_types"]:checked')).map((el) => el.value);
+    let checkedTypes = Array.from(form.querySelectorAll('input[name="bundle_types"]:checked')).map((el) => el.value);
+
+    // If user unchecks all 3, default to flights so search is never empty
+    if (checkedTypes.length === 0) {
+      const flightChk = form.querySelector('input[name="bundle_types"][value="flights"]');
+      if (flightChk) flightChk.checked = true;
+      checkedTypes = ['flights'];
+    }
 
     const payload = {
       origin: formData.get('bundle_origin') || 'ATL',
@@ -18,7 +24,7 @@ export function initBundleSearch() {
       depart: formData.get('bundle_depart') || '',
       return: formData.get('bundle_return') || '',
       travelers: parseInt(formData.get('bundle_travelers') || '1', 10),
-      bundleTypes: (checkedTypes.length > 0 ? checkedTypes : ['flights', 'hotels', 'cars']).join(',')
+      bundleTypes: checkedTypes.join(',')
     };
 
     saveRecentSearch({
@@ -30,6 +36,9 @@ export function initBundleSearch() {
       travelers: payload.travelers
     });
 
+    const labels = checkedTypes.map(t => t === 'flights' ? 'flight' : (t === 'hotels' ? 'hotel' : 'car'));
+    const labelStr = labels.join(' + ');
+
     const container = document.querySelector('[data-bundle-results]');
     if (container) {
       container.innerHTML = `
@@ -37,7 +46,7 @@ export function initBundleSearch() {
           <div class="line-progress-bar"></div>
           <div class="line-progress-status">
             <span class="line-progress-spinner"></span>
-            <span>Bundling best flight + hotel packages for ${payload.origin} → ${payload.destination}...</span>
+            <span>Bundling best ${labelStr} packages for ${payload.origin} → ${payload.destination}...</span>
           </div>
         </div>
       `;
@@ -48,9 +57,28 @@ export function initBundleSearch() {
       renderBundleResults(data);
     } catch (err) {
       if (container) {
-        container.innerHTML = `<p class="search-error">Failed to search vacation packages. Please try again.</p>`;
+        container.innerHTML = `
+          <div class="search-error-banner" role="alert">
+            <span style="font-size:16px;">⚠️</span>
+            <span>Our vacation packages search service is currently unavailable. Please try again in a few moments.</span>
+          </div>
+        `;
       }
     }
+
+
+  };
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    triggerSearch();
+  });
+
+  // Automatically start a new search whenever any bundle type checkbox (Flights, Hotels, Cars) is checked or unchecked
+  form.querySelectorAll('input[name="bundle_types"]').forEach((chk) => {
+    chk.addEventListener('change', () => {
+      triggerSearch();
+    });
   });
 
   // Popular searches presets
@@ -62,7 +90,8 @@ export function initBundleSearch() {
       const destInput = form.querySelector('[name="bundle_destination"]');
       if (originInput) originInput.value = originVal;
       if (destInput) destInput.value = destVal;
-      form.querySelector('button[type="submit"]')?.click();
+      triggerSearch();
     });
   });
 }
+

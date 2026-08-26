@@ -388,7 +388,7 @@ export function normalizeOffer(offer, index) {
 export function normalizeSearchResponse(data) {
   if (!data) return { offers: [], searchParams: {}, categoryHighlights: {}, routeNames: { origin: '', destination: '' } };
 
-  const meta = data.meta_data || data.meta || {};
+  const meta = data.meta_data || data.metadata || data.meta || {};
   const innerData = data.data || data;
 
   let rawList = [];
@@ -397,10 +397,16 @@ export function normalizeSearchResponse(data) {
     rawList = innerData.offers;
   } else if (Array.isArray(innerData.raw_offers) && innerData.raw_offers.length > 0) {
     rawList = innerData.raw_offers;
+  } else if (Array.isArray(innerData.results) && innerData.results.length > 0) {
+    rawList = innerData.results;
   } else if (Array.isArray(data.offers) && data.offers.length > 0) {
     rawList = data.offers;
   } else if (Array.isArray(data.results) && data.results.length > 0) {
     rawList = data.results;
+  } else if (Array.isArray(innerData.top_offers) && innerData.top_offers.length > 0) {
+    rawList = innerData.top_offers;
+  } else if (innerData.category_highlights && typeof innerData.category_highlights === 'object') {
+    rawList = Object.values(innerData.category_highlights).filter(Boolean);
   } else {
     rawList = [
       ...(data.top_offers || innerData.top_offers || []),
@@ -436,9 +442,10 @@ export function normalizeSearchResponse(data) {
     },
     categoryHighlights: data.category_highlights || innerData.category_highlights || {},
     routeNames: {
-      origin: data.origin_name || data.category_highlights?.overall_cheapest?.origin_name || data.top_offers?.[0]?.origin_name || '',
-      destination: data.destination_name || data.category_highlights?.overall_cheapest?.destination_name || data.top_offers?.[0]?.destination_name || ''
+      origin: data.origin_name || data.category_highlights?.overall_cheapest?.origin_name || data.top_offers?.[0]?.origin_name || innerData.top_offers?.[0]?.origin_name || '',
+      destination: data.destination_name || data.category_highlights?.overall_cheapest?.destination_name || data.top_offers?.[0]?.destination_name || innerData.top_offers?.[0]?.destination_name || ''
     }
   };
 }
+
 

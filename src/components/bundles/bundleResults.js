@@ -13,7 +13,19 @@ export function renderBundleResults(raw) {
     return;
   }
 
+  const types = Array.isArray(data.bundleTypes) ? data.bundleTypes : (typeof data.bundleTypes === 'string' ? data.bundleTypes.split(',') : ['flights', 'hotels', 'cars']);
+  const headingParts = [];
+  if (types.includes('flights')) headingParts.push('Flight');
+  if (types.includes('hotels')) headingParts.push('Hotel');
+  if (types.includes('cars')) headingParts.push('Car');
+  const headingText = (headingParts.length ? headingParts.join(' + ') : 'Vacation') + ` Packages to ${data.destination}`;
+
   const cardsHtml = data.packages.map((pkg) => {
+    const subParts = [];
+    if (pkg.flight_summary) subParts.push(`✈️ ${pkg.flight_summary}`);
+    if (pkg.hotel_name) subParts.push(`🏨 ${pkg.hotel_name}`);
+    if (pkg.car_model) subParts.push(`🚗 ${pkg.car_model}`);
+
     return `
       <div class="travel-card bundle-card" data-bundle-card-id="${pkg.id}">
         <div class="travel-card-image" style="background-image: url('${pkg.image}')">
@@ -23,15 +35,16 @@ export function renderBundleResults(raw) {
           <div class="travel-card-header">
             <div>
               <h3 class="travel-card-title">${pkg.title}</h3>
-              <p class="travel-card-sub">✈️ ${pkg.flight_summary} · 🏨 ${pkg.hotel_name}</p>
+              <p class="travel-card-sub">${subParts.join(' · ') || 'Vacation Package'}</p>
             </div>
             <div class="rating-badge">
               <strong>${pkg.rating}</strong>
             </div>
           </div>
           <div class="bundle-includes-list">
-            <span class="bundle-chip">✓ Roundtrip Flight</span>
-            <span class="bundle-chip">✓ ${pkg.hotel_stars}★ Hotel Stay</span>
+            ${pkg.flight_summary ? '<span class="bundle-chip">✓ Roundtrip Flight</span>' : ''}
+            ${pkg.hotel_name ? `<span class="bundle-chip">✓ ${pkg.hotel_stars || 5}★ Hotel Stay</span>` : ''}
+            ${pkg.car_model ? `<span class="bundle-chip">✓ ${pkg.car_model}</span>` : ''}
             <span class="bundle-chip">✓ Free Cancellation</span>
           </div>
           <div class="travel-card-footer">
@@ -54,12 +67,12 @@ export function renderBundleResults(raw) {
   container.innerHTML = `
     ${renderTravelStatTiles(tiles, 'bundle-card-id')}
     <div class="results-heading-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
-      <h4>Flight + Hotel Bundles to ${data.destination}</h4>
+      <h4>${headingText}</h4>
       <div class="view-layout-toggle" role="radiogroup" aria-label="Layout view options">
         <button type="button" class="view-btn ${currentMode==='list'?'is-active':''}" data-layout-view="list" title="List View" aria-label="List View">☰</button>
         <button type="button" class="view-btn ${currentMode==='grid-1'?'is-active':''}" data-layout-view="grid-1" title="1-Column Tiles" aria-label="1-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="12" rx="1"/></svg></button>
         <button type="button" class="view-btn ${currentMode==='grid-2'?'is-active':''}" data-layout-view="grid-2" title="2-Column Tiles" aria-label="2-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="6" height="12" rx="1"/><rect x="9" y="2" width="6" height="12" rx="1"/></svg></button>
-        <button type="button" class="view-btn ${currentMode==='grid-3'?'is-active':''}" data-layout-view="grid-3" title="3-Column Tiles" aria-label="3-Column Tiles"><svg width="0.5" y="2" width="4" height="12" rx="1"/><rect x="6" y="2" width="4" height="12" rx="1"/><rect x="11.5" y="2" width="4" height="12" rx="1"/></svg></button>
+        <button type="button" class="view-btn ${currentMode==='grid-3'?'is-active':''}" data-layout-view="grid-3" title="3-Column Tiles" aria-label="3-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="4" height="12" rx="1"/><rect x="6" y="2" width="4" height="12" rx="1"/><rect x="11.5" y="2" width="4" height="12" rx="1"/></svg></button>
         <button type="button" class="view-btn ${currentMode==='grid-4'?'is-active':''}" data-layout-view="grid-4" title="4-Column Tiles (Show Maximum Tiles)" aria-label="4-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="3" height="12" rx="1"/><rect x="4.5" y="2" width="3" height="12" rx="1"/><rect x="8.5" y="2" width="3" height="12" rx="1"/><rect x="12.5" y="2" width="3" height="12" rx="1"/></svg></button>
       </div>
     </div>

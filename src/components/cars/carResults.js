@@ -27,12 +27,44 @@ export function renderCarResults(raw) {
 
   const cardsHtml = data.cars.map((c) => {
     const featuresHtml = c.features.map(f => `<span class="amenity-chip">✓ ${f}</span>`).join('');
-    const totalPrice = (c.price_per_day * rentalDays).toFixed(2);
+    const pricePerDayFormatted = Number(c.price_per_day || 0).toFixed(2);
+    const totalPriceFormatted = Number(c.total_price || (c.price_per_day * rentalDays) || 0).toFixed(2);
+    const supplierName = c.supplier || c.supplier_name || 'Rental Supplier';
+
+    const hasRealCustomImage = Boolean(c.image && !c.image.includes('unsplash') && !c.image.includes('placeholder'));
+
+    if (!hasRealCustomImage) {
+      return `
+        <div class="travel-result-card flight-style-card" data-car-card-id="${c.id}" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.05); transition:transform 0.2s, box-shadow 0.2s;">
+          <div class="flight-tile-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #f1f5f9; padding-bottom:10px;">
+            <div class="flight-tile-brand" style="display:flex; align-items:center; gap:8px;">
+              <span class="airline-logo tone-sk" style="width:32px; height:32px; border-radius:8px; background:#0f172a; color:#ffffff; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; text-transform:uppercase;">${supplierName.slice(0, 2)}</span>
+              <span class="flight-tile-airline" style="font-weight:700; font-size:15px; color:#0f172a;">${supplierName}</span>
+            </div>
+            <span class="badge badge-blue" style="padding:4px 10px; border-radius:16px; background:#e0f2fe; color:#0369a1; font-weight:600; font-size:11px;">⚡ ${c.transmission}</span>
+          </div>
+          <div class="card-details-body" style="flex:1;">
+            <h3 style="font-size:16px; font-weight:700; color:#0f172a; margin:0 0 4px 0;">${c.model}</h3>
+            <p style="font-size:12px; color:#64748b; margin:0 0 10px 0;">${c.category} · 👤 ${c.seats} seats</p>
+            <div class="amenities-wrap" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
+              ${featuresHtml}
+            </div>
+          </div>
+          <div class="card-footer-row" style="display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid #f1f5f9; padding-top:12px; margin-top:auto;">
+            <div class="price-stack">
+              <strong class="price-amount" style="font-size:18px; font-weight:800; color:var(--coral-orange, #ff6b6b);">$${pricePerDayFormatted}</strong>
+              <small class="price-label" style="display:block; font-size:11px; color:#64748b;">per day · $${totalPriceFormatted} total (${rentalDays} days)</small>
+            </div>
+            <button type="button" class="primary-button btn-book-car" data-car-id="${c.id}">Rent Car ➔</button>
+          </div>
+        </div>
+      `;
+    }
 
     return `
       <div class="travel-result-card" data-car-card-id="${c.id}">
         <div class="card-hero-thumb" style="background-image: url('${c.image}')">
-          <span class="category-badge">${c.company}</span>
+          <span class="category-badge">${supplierName}</span>
           <span class="rating-pill">⚡ ${c.transmission}</span>
         </div>
         <div class="card-details-body">
@@ -46,8 +78,8 @@ export function renderCarResults(raw) {
           </div>
           <div class="card-footer-row">
             <div class="price-stack">
-              <strong class="price-amount">$${c.price_per_day}</strong>
-              <small class="price-label">per day · $${totalPrice} total (${rentalDays} days)</small>
+              <strong class="price-amount">$${pricePerDayFormatted}</strong>
+              <small class="price-label">per day · $${totalPriceFormatted} total (${rentalDays} days)</small>
             </div>
             <button type="button" class="primary-button btn-book-car" data-car-id="${c.id}">Rent Car</button>
           </div>
@@ -55,6 +87,7 @@ export function renderCarResults(raw) {
       </div>
     `;
   }).join('');
+
 
   const preferredMode = state.tabLayouts?.cars || getPreferredLayout('cars') || 'grid-2';
   const isSingleRecord = data.cars.length === 1;
@@ -99,7 +132,8 @@ export function renderCarResults(raw) {
     btn.addEventListener('click', () => {
       const mode = btn.dataset.layoutView;
       setPreferredLayout('cars', mode);
-      const renderModeForClick = data.cars.length === 1 ? 'list' : mode;
+      const isSingle = data.cars.length === 1;
+      const renderModeForClick = isSingle ? 'list' : mode;
       const grid = container.querySelector('.travel-cards-grid');
       if (grid) {
         grid.className = `travel-cards-grid view-${renderModeForClick}`;
@@ -114,19 +148,25 @@ export function renderCarResults(raw) {
 }
 
 function buildCarListRowsHtml(cars, rentalDays = 7) {
-  return cars.map((c) => `
-    <div class="list-row" data-car-card-id="${c.id}">
-      <span class="list-row-icon" style="background-image:url('${c.image}')"></span>
-      <span class="list-row-title">${c.model}</span>
-      <span class="list-row-meta">${c.category} · ${c.supplier} · ⏱️ ${rentalDays} Days</span>
-      <span class="list-row-meta">${c.rating} ★</span>
-      <span class="list-row-price" style="text-align:right;">
-        <strong style="font-size:14px;color:var(--deep-navy);display:block;">$${c.total_price} Total (${rentalDays} Days)</strong>
-        <small style="font-size:11px;color:var(--muted)">$${c.price_per_day}/day</small>
-      </span>
-      <button type="button" class="primary-button btn-book-car" data-car-id="${c.id}">Rent</button>
-    </div>
-  `).join('');
+  return cars.map((c) => {
+    const pricePerDayFormatted = Number(c.price_per_day || 0).toFixed(2);
+    const totalPriceFormatted = Number(c.total_price || (c.price_per_day * rentalDays) || 0).toFixed(2);
+    const supplierName = c.supplier || c.supplier_name || 'Rental Supplier';
+
+    return `
+      <div class="list-row" data-car-card-id="${c.id}">
+        <span class="list-row-icon" style="background-image:url('${c.image}')"></span>
+        <span class="list-row-title">${c.model}</span>
+        <span class="list-row-meta">${c.category} · ${supplierName} · ⏱️ ${rentalDays} Days</span>
+        <span class="list-row-meta">${c.rating} ★</span>
+        <span class="list-row-price" style="text-align:right;">
+          <strong style="font-size:14px;color:var(--deep-navy);display:block;">$${totalPriceFormatted} Total (${rentalDays} Days)</strong>
+          <small style="font-size:11px;color:var(--muted)">$${pricePerDayFormatted}/day</small>
+        </span>
+        <button type="button" class="primary-button btn-book-car" data-car-id="${c.id}">Rent</button>
+      </div>
+    `;
+  }).join('');
 }
 
 // Cheapest / Top Rated / Best Value tiles derived straight from the car results
@@ -147,18 +187,19 @@ function buildCarStatTiles(cars, rentalDays = 7) {
   ].forEach(({ item, badgeLabel, badgeClass }) => {
     if (!item || seen.has(item.id)) return;
     seen.add(item.id);
+    const totalPriceFormatted = Number(item.total_price || (item.price_per_day * rentalDays) || 0).toFixed(2);
+    const supplierName = item.supplier || item.supplier_name || 'Rental Supplier';
+
     tiles.push({
       key: item.id,
       cardId: item.id,
       badgeLabel,
       badgeClass,
       title: item.model,
-      meta: `${item.category} · ${item.supplier} · ⏱️ ${rentalDays} Days`,
-      price: `$${item.total_price} (${rentalDays} Days Total)`
+      meta: `${item.category} · ${supplierName} · ⏱️ ${rentalDays} Days`,
+      price: `$${totalPriceFormatted} (${rentalDays} Days Total)`
     });
   });
 
   return tiles;
 }
-
-

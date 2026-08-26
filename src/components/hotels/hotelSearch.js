@@ -50,9 +50,16 @@ export function initHotelSearch() {
       renderHotelResults(data);
     } catch (err) {
       if (container) {
-        container.innerHTML = `<p class="search-error">Failed to load hotels. Please try again.</p>`;
+        container.innerHTML = `
+          <div class="search-error-banner" role="alert">
+            <span style="font-size:16px;">⚠️</span>
+            <span>Our hotel search service is currently unavailable. Please try again in a few moments.</span>
+          </div>
+        `;
       }
     }
+
+
   });
 
   // Popular searches presets

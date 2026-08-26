@@ -43,9 +43,16 @@ export function initCarSearch() {
       renderCarResults(data);
     } catch (err) {
       if (container) {
-        container.innerHTML = `<p class="search-error">Failed to search car rentals. Please try again.</p>`;
+        container.innerHTML = `
+          <div class="search-error-banner" role="alert">
+            <span style="font-size:16px;">⚠️</span>
+            <span>Our car rental search service is currently unavailable. Please try again in a few moments.</span>
+          </div>
+        `;
       }
     }
+
+
   });
 
   // Popular searches presets

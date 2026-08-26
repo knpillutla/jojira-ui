@@ -6,7 +6,8 @@ import { renderStatTiles, clearTileFilters, renderTrendingSearches } from './sta
 import { renderBundleResults } from './bundles/bundleResults.js';
 import { renderHotelResults } from './hotels/hotelResults.js';
 import { renderCarResults } from './cars/carResults.js';
-import { generateMockHotels, generateMockCars, generateMockBundles } from '../api/travelApi.js';
+import { searchHotels, searchCars, searchBundles } from '../api/travelApi.js';
+
 
 let citiesDatabase = [];
 
@@ -579,7 +580,7 @@ export async function handleFlightSearch(searchPayload) {
           })
         };
       } else {
-        bundleData = generateMockBundles(origin, destination);
+        bundleData = await searchBundles({ origin, destination });
       }
 
       renderBundleResults(bundleData);
@@ -596,7 +597,7 @@ export async function handleFlightSearch(searchPayload) {
       const location = normalized.searchParams?.destination || searchPayload.destination || 'Paris';
       const hotelData = (normalized.results && normalized.results.length > 0 && normalized.results[0].name)
         ? normalized
-        : generateMockHotels(location, searchPayload.depart, searchPayload.return);
+        : await searchHotels({ location, checkIn: searchPayload.depart, checkOut: searchPayload.return });
       renderHotelResults(hotelData);
       saveRecentSearch({
         origin: location, destination: location, prompt: searchPayload.prompt || '', type: 'natural'
@@ -611,13 +612,14 @@ export async function handleFlightSearch(searchPayload) {
       const location = normalized.searchParams?.destination || searchPayload.destination || 'Paris CDG Airport';
       const carData = (normalized.results && normalized.results.length > 0 && normalized.results[0].model)
         ? normalized
-        : generateMockCars(location, 'all');
+        : await searchCars({ location, pickupDate: searchPayload.depart, dropoffDate: searchPayload.return, category: 'all' });
       renderCarResults(carData);
       saveRecentSearch({
         origin: location, destination: location, prompt: searchPayload.prompt || '', type: 'natural'
       });
       return;
     }
+
 
     // 4. FLIGHTS ROUTING (Default)
     if (lineProgress) lineProgress.classList.add('hidden');
@@ -685,20 +687,18 @@ export async function handleFlightSearch(searchPayload) {
     console.error('Search failed:', err);
     const errorEl = $('[data-search-error]');
     if (errorEl) {
-      const errMsg = err.message || 'Flight search failed. Please check inputs and server connection.';
       errorEl.innerHTML = `
-        <strong>⚠️ Search Alert:</strong> <span>${errMsg}</span>
-        <div style="margin-top:10px;">
-          <a href="https://www.flyfrontier.com" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:7px 14px; background:#0f172a; color:#ffffff; font-weight:700; font-size:12px; border-radius:6px; text-decoration:none;">
-            Book Directly on Frontier Website ↗
-          </a>
+        <div class="search-error-banner" role="alert">
+          <span style="font-size:16px;">⚠️</span>
+          <span>Our flight search service is currently unavailable. Please try again in a few moments.</span>
         </div>
       `;
       errorEl.classList.remove('hidden');
       errorEl.classList.add('is-visible');
       errorEl.scrollIntoView({ behavior: 'smooth' });
     }
-  } finally {
+  }
+ finally {
     if (lineProgress) lineProgress.classList.add('hidden');
   }
 }
