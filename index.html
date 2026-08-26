@@ -279,7 +279,8 @@
               <div class="field-grid">
                 <label class="field field-location">
                   <span>Pickup Location</span><strong>🚗</strong>
-                  <input name="car_location" placeholder="Airport or City (e.g. Paris CDG Airport)" value="Paris CDG Airport" autocomplete="off" />
+                  <input name="car_location" placeholder="Airport or City (e.g. Paris CDG Airport)" value="Paris CDG Airport" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="car-location-suggestions" aria-label="Pickup location" />
+                  <div class="airport-suggestions" id="car-location-suggestions" data-car-location-suggestions role="listbox"></div>
                 </label>
                 <label class="field"><span>Pickup Date</span><strong>▣</strong><input name="car_pickup" type="date" value="" /></label>
                 <label class="field"><span>Drop-off Date</span><strong>▣</strong><input name="car_dropoff" type="date" value="" /></label>

@@ -5,6 +5,7 @@
 - **Never Modify Code in Other Projects**: Under no circumstances should code or files be created, edited, or modified in external project directories (such as `jojira-duffel` or any other directory outside `jojira-ui`). All code edits, refactoring, and file creation must remain strictly scoped to the active project workspace (`jojira-ui`).
 - **Never Update Scripts in Other Folders**: Do not modify, edit, or update scripts, configuration files, or source code located in folders outside the active project workspace (`jojira-ui`).
 - **Do Not Execute Scratchpad Files Automatically**: Under no circumstances should scratchpad Markdown files, temporary scratch notes, or scratchpad tasks be executed automatically, in order to avoid unnecessary token burn.
+- **Do Not Run Commands Automatically**: Under no circumstances should terminal commands, build tasks, scripts, or server restarts be executed automatically unless explicitly asked by the user.
 
 ## Code Design & Architecture Rules
 

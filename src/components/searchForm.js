@@ -1044,6 +1044,10 @@ export async function initCityAutocomplete() {
     document.querySelector('[data-destination-suggestions]'),
     updateFlightHelpers
   );
+  attachCityAutocomplete(
+    document.querySelector('[name="car_location"]'),
+    document.querySelector('[data-car-location-suggestions]')
+  );
 }
 
 let multicityLegCount = 2;
