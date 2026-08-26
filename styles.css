@@ -407,9 +407,20 @@
   white-space: nowrap;
 }
 
+.stops-col-cell {
+  min-width: 110px;
+  max-width: 160px;
+}
+
 .gf-layover {
   color: #64748b;
+  font-size: 0.73rem;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
+
 
 .gf-emissions-kg {
   font-size: 0.9rem;
@@ -450,7 +461,7 @@
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  text-align: center;
+  text-align: center !important;
   padding: 0.85rem 1rem;
 }
 
@@ -459,10 +470,182 @@
   vertical-align: middle;
 }
 
+.offer-table-wrap {
+  overflow: visible !important;
+  position: relative;
+}
+
+.offer-table thead {
+  position: relative;
+  z-index: 50;
+}
+
+/* Column Header Multi-Select Filter Styles */
+.offer-table th[data-col-filter-wrap] {
+  position: relative;
+  z-index: 50;
+  text-align: center !important;
+}
+
+.th-header-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  text-align: center;
+}
+
+
+.th-header-cell span[data-sort-col] {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.col-filter-trigger {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.col-filter-trigger:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.col-filter-trigger.has-active-filters {
+  background: #ffedd5;
+  border-color: #fdba74;
+}
+
+.filter-count-badge {
+  background: var(--coral);
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 10px;
+}
+
+.col-filter-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 99999 !important;
+  min-width: 230px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25);
+  padding: 12px;
+  margin-top: 4px;
+  text-align: left;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  display: block;
+}
+
+.col-filter-popover.hidden {
+  display: none !important;
+}
+
+.stops-col-cell {
+  min-width: 135px !important;
+  white-space: normal !important;
+}
+
+.stops-col-cell .gf-col-cell strong {
+  font-size: 0.9rem !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.stops-col-cell .gf-layover {
+  font-size: 0.76rem !important;
+  color: #64748b !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  word-break: break-word !important;
+  line-height: 1.35 !important;
+}
+
+
+.popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.popover-clear-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.popover-clear-btn:hover {
+  text-decoration: underline;
+}
+
+.popover-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.popover-option-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #334155;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: background 0.12s ease;
+}
+
+.popover-option-item:hover {
+  background: #f8fafc;
+}
+
+.popover-option-item input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--coral);
+  width: 14px;
+  height: 14px;
+}
+
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
 
 /* Stat Tiles Styling */
 .stat-tiles-wrapper {
@@ -678,7 +861,8 @@
 .offer-table th.action-heading, .offer-table td.action-cell {
   position: sticky;
   right: 36px;
-  width: 140px;
+  width: 190px;
+  min-width: 190px;
   background: #f3f7f5;
   z-index: 3;
 }
@@ -686,17 +870,22 @@
 
 .offer-table th.price-heading {
   position: sticky;
-  right: 176px;
+  right: 226px;
+  min-width: 110px;
   background: #f3f7f5;
   z-index: 3;
+  text-align: right;
 }
 .offer-table td.price-cell {
   position: sticky;
-  right: 176px;
+  right: 226px;
+  min-width: 110px;
   background: #ffffff;
-  z-index: 1;
-  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.05);
+  z-index: 3;
+  text-align: right;
+  box-shadow: -3px 0 6px rgba(0, 0, 0, 0.06);
 }
+
 
 /* Row expand/collapse chevron */
 .expand-cell { width: 36px; text-align: center; }

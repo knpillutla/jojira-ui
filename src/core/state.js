@@ -1,6 +1,17 @@
 export const state = {
   offers: [],
-  filters: { airline: 'all', stops: 'all', price: 5000 },
+  filters: {
+    airline: 'all',
+    stops: 'all',
+    price: 5000,
+    dates: [],
+    airlines: [],
+    depTimes: [],
+    retTimes: [],
+    durations: [],
+    stopsList: [],
+    priceRanges: []
+  },
   sort: 'cheapest',
   sortColumn: 'price',
   sortDirection: 'asc',
@@ -8,6 +19,7 @@ export const state = {
   categoryHighlights: {},
   routeNames: { origin: '', destination: '' }
 };
+
 
 export const bookingState = {
   activeOffer: null,

@@ -1,11 +1,13 @@
 import { initSearchForm, renderRecentSearches, clearWholePage, setDefaultDateFields } from '../components/searchForm.js';
-import { initBookingEvents } from '../components/bookingWizard.js';
+import { initBookingEvents } from '../components/flights/flightBookingWizard.js';
 import { initHotelSearch } from '../components/hotels/hotelSearch.js';
+import { initStayBookingEvents } from '../components/hotels/stayBookingWizard.js';
 import { initCarSearch } from '../components/cars/carSearch.js';
 import { initBundleSearch } from '../components/bundles/bundleSearch.js';
 import { initPlannerControls } from '../components/planner/plannerControls.js';
 
 function initServiceTabSwitching() {
+
   const tabs = document.querySelectorAll('[data-service-tab]');
   const contents = document.querySelectorAll('[data-service-content]');
 
@@ -42,16 +44,22 @@ function initServiceTabSwitching() {
   });
 }
 
+import { initTableSorting } from '../components/offerTable.js';
+
 function initApp() {
   initSearchForm();
   initBookingEvents();
   initHotelSearch();
+  initStayBookingEvents();
   initCarSearch();
+
   initBundleSearch();
   initPlannerControls();
   initServiceTabSwitching();
+  initTableSorting();
 
   renderRecentSearches();
+
 
   // On page load/hard refresh: clear out flight search data & results, preserving recent searches
   clearWholePage();

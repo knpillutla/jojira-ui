@@ -32,23 +32,34 @@ function normalizeHighlightOffer(raw) {
   if (!src || !(src.offer_id || src.id)) return null;
 
   const priceNum = typeof src.total_amount === 'number' ? src.total_amount : parseMoneyVal(src.price);
-  const stops = Number(src.max_stops ?? 0);
+  const stops = Number(src.max_stops ?? src.stops ?? 0);
+  const isOneWay = Boolean(src.is_one_way || src.trip_type === 'one_way');
+  const from = src.origin_code || src.from || 'ATL';
+  const to = src.destination_code || src.to || 'MCO';
+  const formattedDuration = src.total_duration || src.duration || (src.duration_minutes ? `${Math.floor(src.duration_minutes / 60)}h ${src.duration_minutes % 60}m` : '');
+
+  const outboundRouteTextWithDuration = src.outbound_route_with_duration || (formattedDuration ? `${from} – ${to} (${formattedDuration})` : `${from} – ${to}`);
+  const inboundRouteTextWithDuration = isOneWay ? '' : (src.inbound_route_with_duration || '');
 
   return {
     id: src.offer_id || src.id,
-    airline: src.airline || '',
+    airline: src.airline || src.airline_name || '',
+    code: src.code || src.airline_code || '',
     flightNumber: src.flight_number || src.outbound_flight_number || '',
-    from: src.origin_code || '',
-    to: src.destination_code || '',
+    from,
+    to,
     price: priceNum,
     formattedPrice: money(priceNum),
     duration: src.duration_minutes || src.total_duration_minutes || 0,
-    formattedDuration: src.total_duration || src.duration || '',
+    formattedDuration,
     stops,
     legs: src.legs || (stops === 0 ? 'Non-stop' : `${stops} stop${stops > 1 ? 's' : ''}`),
     legCodes: src.leg_codes || '',
     legNames: src.leg_names || '',
     favoriteAirline,
+    isOneWay,
+    outboundRouteTextWithDuration,
+    inboundRouteTextWithDuration,
     isExternalWebFare: Boolean(src.is_external_web_fare),
     bookingUrl: src.booking_url || '',
     redirectNotice: src.redirect_notice || ''
@@ -63,113 +74,103 @@ function buildHighlightTiles() {
   const seenIds = new Set();
 
   HIGHLIGHT_TILE_DEFS.forEach((def) => {
-    const normalized = normalizeHighlightOffer(highlights[def.key]);
-    if (!normalized || seenIds.has(normalized.id)) return;
-    seenIds.add(normalized.id);
+    const rawHighlight = highlights[def.key];
+    if (!rawHighlight) return;
+
+    const src = rawHighlight.offer || rawHighlight;
+    const offerId = src?.offer_id || src?.id;
+
+    // Prefer looking up the fully normalized offer from state.offers
+    let fullOffer = (state.offers || []).find((o) => o.id === offerId);
+    if (!fullOffer && state.offers && state.offers.length > 0) {
+      // Ignore raw highlight if it doesn't match an offer in the current search table
+      return;
+    }
+    if (!fullOffer) {
+      fullOffer = normalizeHighlightOffer(rawHighlight);
+    }
+
+    if (!fullOffer || !(fullOffer.id || fullOffer.offer_id) || seenIds.has(fullOffer.id)) return;
+    seenIds.add(fullOffer.id);
 
     tiles.push({
       key: def.key,
       categoryType: 'highlight',
-      badgeLabel: def.label(normalized),
+      badgeLabel: def.label(fullOffer),
       badgeClass: def.badgeClass,
-      legsVal: String(normalized.stops),
+      legsVal: String(fullOffer.stops),
       sortVal: 'price',
-      offer: normalized
+      offer: fullOffer
     });
   });
 
   return tiles.slice(0, 6);
 }
 
+
+
 /**
  * Extracts stat tiles, preferring the API's `category_highlights` when present
  * and falling back to self-derived groups (by `legs`) based on `state.offers`.
  */
 export function buildStatTilesData() {
-  const highlightTiles = buildHighlightTiles();
-  if (highlightTiles.length) return highlightTiles;
-
   const offers = state.offers || [];
   if (!offers.length) return [];
 
   const tiles = [];
+  const seenIds = new Set();
 
-  // 1. Overall Cheapest Offer
-  let overallCheapest = [...offers].sort((a, b) => (a.price || 0) - (b.price || 0))[0];
-
-  if (overallCheapest) {
+  const addTile = (key, badgeLabel, badgeClass, stopsVal, sortVal, offer) => {
+    if (!offer || !offer.id || seenIds.has(offer.id)) return;
+    seenIds.add(offer.id);
     tiles.push({
-      key: 'overall_cheapest',
-      categoryType: 'overall',
-      badgeLabel: '⭐ Overall Cheapest',
-      badgeClass: 'badge-gold',
-      legsVal: 'all',
-      sortVal: 'price',
-      offer: overallCheapest
+      key,
+      categoryType: 'highlight',
+      badgeLabel,
+      badgeClass,
+      legsVal: stopsVal,
+      sortVal,
+      offer
     });
+  };
+
+  // 1. Overall Cheapest Offer from state.offers
+  const sortedByPrice = [...offers].sort((a, b) => (a.price || 0) - (b.price || 0));
+  if (sortedByPrice.length > 0) {
+    addTile('overall_cheapest', '⭐ Overall Cheapest', 'badge-gold', 'all', 'price', sortedByPrice[0]);
   }
 
-  // 2. Group offers by `legs` (e.g. "Non-stop", "1 stop", "2 stops")
-  const legsGroupMap = new Map();
+  // 2. Cheapest Nonstop Offer from state.offers
+  const nonstopOffers = offers.filter((o) => o.stops === 0 || (o.legs && o.legs.toLowerCase().includes('non')));
+  const sortedNonstopByPrice = [...nonstopOffers].sort((a, b) => (a.price || 0) - (b.price || 0));
+  if (sortedNonstopByPrice.length > 0) {
+    addTile('cheapest_nonstop', '✈️ Cheapest Nonstop', 'badge-green', '0', 'price', sortedNonstopByPrice[0]);
+  }
 
-  offers.forEach((offer) => {
-    let legKey = offer.legs;
-    if (!legKey) {
-      legKey = offer.stops === 0 ? 'Non-stop' : `${offer.stops} stop${offer.stops > 1 ? 's' : ''}`;
+  // 3. Fastest Nonstop Offer from state.offers
+  const sortedNonstopByDuration = [...nonstopOffers].sort((a, b) => (a.duration || 0) - (b.duration || 0));
+  if (sortedNonstopByDuration.length > 0) {
+    addTile('fastest_nonstop', '⚡ Fastest Nonstop', 'badge-blue', '0', 'duration', sortedNonstopByDuration[0]);
+  }
+
+  // 4. Cheapest 1-Stop Offer from state.offers
+  const oneStopOffers = offers.filter((o) => o.stops === 1 || (o.legs && o.legs.includes('1')));
+  const sortedOneStopByPrice = [...oneStopOffers].sort((a, b) => (a.price || 0) - (b.price || 0));
+  if (sortedOneStopByPrice.length > 0) {
+    addTile('cheapest_1stop', '🏷️ Cheapest 1-Stop', 'badge-green', '1', 'price', sortedOneStopByPrice[0]);
+  }
+
+  // 5. Merge any additional unique category_highlights from API
+  const highlightTiles = buildHighlightTiles();
+  highlightTiles.forEach((ht) => {
+    if (ht.offer && ht.offer.id && !seenIds.has(ht.offer.id)) {
+      addTile(ht.key, ht.badgeLabel, ht.badgeClass, ht.legsVal, ht.sortVal, ht.offer);
     }
-
-    if (!legsGroupMap.has(legKey)) {
-      legsGroupMap.set(legKey, []);
-    }
-    legsGroupMap.get(legKey).push(offer);
   });
 
-  // Sort groups: Non-stop first, then 1 stop, 2 stops, etc.
-  const legKeys = Array.from(legsGroupMap.keys()).sort((a, b) => {
-    const stopsA = a.toLowerCase().includes('non') ? 0 : (parseInt(a) || 1);
-    const stopsB = b.toLowerCase().includes('non') ? 0 : (parseInt(b) || 1);
-    return stopsA - stopsB;
-  });
-
-  legKeys.forEach((legKey) => {
-    const groupOffers = legsGroupMap.get(legKey);
-    if (!groupOffers || !groupOffers.length) return;
-
-    const stopsVal = legKey.toLowerCase().includes('non') ? '0' : String(groupOffers[0]?.stops ?? 1);
-
-    // Sort by price ascending
-    const sortedByPrice = [...groupOffers].sort((a, b) => (a.price || 0) - (b.price || 0));
-    // Sort by duration ascending
-    const sortedByDuration = [...groupOffers].sort((a, b) => (a.duration || 0) - (b.duration || 0));
-
-    const cheapestOffer = sortedByPrice[0];
-    const shortestOffer = sortedByDuration[0];
-
-    // Add Cheapest tile for this leg group
-    tiles.push({
-      key: `cheapest_${legKey.replace(/\s+/g, '_').toLowerCase()}`,
-      categoryType: 'cheapest',
-      badgeLabel: `🏷️ Cheapest ${legKey}`,
-      badgeClass: 'badge-green',
-      legsVal: stopsVal,
-      sortVal: 'price',
-      offer: cheapestOffer
-    });
-
-    // Add Shortest tile for this leg group
-    tiles.push({
-      key: `shortest_${legKey.replace(/\s+/g, '_').toLowerCase()}`,
-      categoryType: 'shortest',
-      badgeLabel: `⚡ Shortest ${legKey}`,
-      badgeClass: 'badge-blue',
-      legsVal: stopsVal,
-      sortVal: 'duration',
-      offer: shortestOffer
-    });
-  });
-
-  return tiles;
+  return tiles.slice(0, 6);
 }
+
 
 /**
  * Format unique leg codes helper string
@@ -235,7 +236,7 @@ export function clearTileFilters() {
   state.activeTileKey = null;
   state.filters.stops = 'all';
   state.filters.airline = 'all';
-  
+
   const maxPrice = Math.max(5000, ...state.offers.map((o) => o.price || 0));
   state.filters.price = maxPrice;
 
@@ -283,18 +284,22 @@ export function renderStatTiles() {
     
     <div class="stat-tiles-grid">
       ${tiles.map((tile) => {
-        const o = tile.offer;
-        const legCodesStr = formatLegCodes(o);
-        const routeStr = `${o.from || 'ATL'} → ${o.to || 'MCO'}`;
-        const durationStr = o.formattedDuration || (o.duration ? `${Math.floor(o.duration/60)}h ${o.duration%60}m` : 'N/A');
-        const priceStr = o.formattedPrice || money(o.price);
-        const legsStr = o.legs || (o.stops === 0 ? 'Non-stop' : `${o.stops} stop${o.stops > 1 ? 's' : ''}`);
+    const o = tile.offer;
+    const legCodesStr = formatLegCodes(o);
+    const routeStr = `${o.from || 'ATL'} → ${o.to || 'MCO'}`;
+    const durationStr = o.formattedDuration || (o.duration ? `${Math.floor(o.duration / 60)}h ${o.duration % 60}m` : 'N/A');
+    const priceStr = o.formattedPrice || money(o.price);
+    const legsStr = o.legs || (o.stops === 0 ? 'Non-stop' : `${o.stops} stop${o.stops > 1 ? 's' : ''}`);
+        const isOneWay = Boolean(o.isOneWay || (!o.inboundRouteText && !o.inboundRouteTextWithDuration));
+        const tripTypeLabel = isOneWay ? '✈️ One Way' : '🔄 Round Trip';
         const isActiveTile = Boolean(state.activeTileKey && state.activeTileKey === tile.key);
 
         return `
+
           <div class="stat-tile-card ${tile.badgeClass} ${isActiveTile ? 'is-active' : ''}" data-tile-key="${tile.key}" data-stat-tile-id="${o.id}" title="Click to view details & book ${tile.badgeLabel}">
             <div class="stat-tile-top-row">
               <span class="stat-tile-badge ${tile.badgeClass}">${tile.badgeLabel}</span>
+              <span class="stat-tile-trip-pill" style="font-size:10px;font-weight:700;background:#eff6ff;color:#1e40af;padding:2px 6px;border-radius:4px;">${tripTypeLabel}</span>
               <span class="stat-tile-price">${priceStr}</span>
             </div>
             
@@ -303,9 +308,17 @@ export function renderStatTiles() {
               <span class="stat-tile-duration">⏱️ ${durationStr}</span>
             </div>
 
+            <div style="margin-bottom: 6px; font-size: 11px; color: #475569; background: #f8fafc; padding: 6px 8px; border-radius: 6px; border: 1px solid #e2e8f0; line-height: 1.4;">
+              <div style="font-weight: 500; color: #475569;">${o.outboundRouteTextWithDuration || `${o.from} – ${o.to}`}</div>
+              ${!isOneWay && o.inboundRouteTextWithDuration ? `<div style="font-weight: 500; color: #475569; margin-top: 2px;">${o.inboundRouteTextWithDuration}</div>` : ''}
+            </div>
+
+
+
+
             <div class="stat-tile-meta-grid">
               <div class="stat-tile-meta-item">
-                <span class="meta-label">Legs</span>
+                <span class="meta-label">Stops</span>
                 <span class="meta-val">${legsStr}</span>
               </div>
               <div class="stat-tile-meta-item">
@@ -316,11 +329,13 @@ export function renderStatTiles() {
 
             <div class="stat-tile-footer">
               <span class="stat-tile-airline">${o.airline || 'Airline'} ${o.flightNumber ? '· ' + o.flightNumber : ''}</span>
+              <span class="stat-tile-select-btn" style="padding: 3px 8px; background: var(--ink); color: #fff; border-radius: 4px; font-size: 10px; font-weight: 700;">Select <b>→</b></span>
             </div>
           </div>
         `;
-      }).join('')}
+  }).join('')}
     </div>
+
 
     <div class="stat-tiles-footer-bar">
       <button type="button" class="clear-tile-filter-link" data-clear-tile-filters title="Clear filters & reset view">Clear filter</button>

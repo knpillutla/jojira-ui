@@ -388,19 +388,24 @@ export function normalizeOffer(offer, index) {
 export function normalizeSearchResponse(data) {
   if (!data) return { offers: [], searchParams: {}, categoryHighlights: {}, routeNames: { origin: '', destination: '' } };
 
+  const meta = data.meta_data || data.meta || {};
+  const innerData = data.data || data;
+
   let rawList = [];
 
-  if (Array.isArray(data.offers) && data.offers.length > 0) {
+  if (Array.isArray(innerData.offers) && innerData.offers.length > 0) {
+    rawList = innerData.offers;
+  } else if (Array.isArray(innerData.raw_offers) && innerData.raw_offers.length > 0) {
+    rawList = innerData.raw_offers;
+  } else if (Array.isArray(data.offers) && data.offers.length > 0) {
     rawList = data.offers;
   } else if (Array.isArray(data.results) && data.results.length > 0) {
     rawList = data.results;
-  } else if (Array.isArray(data.data) && data.data.length > 0) {
-    rawList = data.data;
   } else {
     rawList = [
-      ...(data.top_offers || []),
-      ...(data.cheapest_non_stop_offers || []),
-      ...(data.shortest_non_stop_offers || [])
+      ...(data.top_offers || innerData.top_offers || []),
+      ...(data.cheapest_non_stop_offers || innerData.cheapest_non_stop_offers || []),
+      ...(data.shortest_non_stop_offers || innerData.shortest_non_stop_offers || [])
     ];
   }
 
@@ -412,24 +417,28 @@ export function normalizeSearchResponse(data) {
 
   const normalizedOffers = deduplicated.map(normalizeOffer).filter((offer) => offer.price > 0);
 
+  const searchParams = meta.search_params || data.search_params || {};
+
   return {
-    search_type: data.search_type || data.meta?.search_type || (data.meta?.is_bundle ? 'bundle' : 'flights'),
-    meta: data.meta || {},
-    results: data.results || [],
-    total_bundles_found: data.total_bundles_found || 0,
-    total_results: data.total_results || 0,
+    search_type: meta.type || data.search_type || (meta.is_bundle ? 'bundle' : 'flights'),
+    meta: meta,
+    results: data.results || innerData.results || [],
+    total_bundles_found: innerData.total_offers_found || innerData.total_results || data.total_bundles_found || 0,
+    total_results: innerData.total_offers_found || innerData.total_results || data.total_results || 0,
     offers: normalizedOffers,
+
     searchParams: {
-      ...(data.search_params || {}),
-      origin: data.search_params?.origin || data.origin,
-      destination: data.search_params?.destination || data.destination,
-      target_date: data.search_params?.target_date || data.target_date || data.departure_date,
-      target_return_date: data.search_params?.target_return_date || data.target_return_date || data.return_date
+      ...searchParams,
+      origin: searchParams.origin || data.origin,
+      destination: searchParams.destination || data.destination,
+      target_date: searchParams.departure_date || searchParams.target_date || data.target_date || data.departure_date,
+      target_return_date: searchParams.return_date || searchParams.target_return_date || data.target_return_date || data.return_date
     },
-    categoryHighlights: data.category_highlights || {},
+    categoryHighlights: data.category_highlights || innerData.category_highlights || {},
     routeNames: {
       origin: data.origin_name || data.category_highlights?.overall_cheapest?.origin_name || data.top_offers?.[0]?.origin_name || '',
       destination: data.destination_name || data.category_highlights?.overall_cheapest?.destination_name || data.top_offers?.[0]?.destination_name || ''
     }
   };
 }
+

@@ -1,6 +1,7 @@
 import { state, $ } from '../core/state.js';
 import { money, duration, highlightPrice } from '../utils/formatters.js';
-import { openBookingWizard } from './bookingWizard.js';
+import { openFlightBookingWizard as openBookingWizard } from './flights/flightBookingWizard.js';
+import { getHourFromStr, initColumnFilters, updateColumnFilterPopovers } from './columnFilters.js';
 
 // Extracts just the time portion from a "MMM d, h:mm AM/PM" formatted date-time string
 // (the date is already shown in its own Dates column, so this avoids duplicating it).
@@ -17,15 +18,89 @@ function flightNumSubDetails(flightNumber, carrierName) {
   if (!showFlightNum) {
     return `<span class="gf-carrier-name">${carrierName}</span>`;
   }
-  return `<strong class="gf-flight-num">${flightNumber}</strong><span class="gf-dot-sep">·</span><span class="gf-carrier-name">${carrierName}</span>`;
+  return `<span class="gf-flight-num">${flightNumber}</span><span class="gf-dot-sep">·</span><span class="gf-carrier-name">${carrierName}</span>`;
 }
 
+
 export function sortedOffers() {
-  const filtered = state.offers.filter((offer) =>
-    (state.filters.airline === 'all' || offer.airline === state.filters.airline) &&
-    (state.filters.stops === 'all' || offer.stops === Number(state.filters.stops)) &&
-    offer.price <= state.filters.price
-  );
+  const f = state.filters;
+
+  const filtered = state.offers.filter((offer) => {
+    // 1. Single airline dropdown fallback or Multi-select airlines
+    if (f.airlines && f.airlines.length > 0) {
+      if (!f.airlines.includes(offer.airline)) return false;
+    } else if (f.airline !== 'all' && offer.airline !== f.airline) {
+      return false;
+    }
+
+    // 2. Stops filter (single select fallback or multi-select stopsList)
+    if (f.stopsList && f.stopsList.length > 0) {
+      const stopVal = offer.stops >= 2 ? '2plus' : String(offer.stops || 0);
+      if (!f.stopsList.includes(stopVal)) return false;
+    } else if (f.stops !== 'all' && offer.stops !== Number(f.stops)) {
+      return false;
+    }
+
+    // 3. Price slider & Price Ranges
+    if (offer.price > f.price) return false;
+    if (f.priceRanges && f.priceRanges.length > 0) {
+      const price = offer.price || 0;
+      const matchesBucket = f.priceRanges.some((bucket) => {
+        if (bucket === 'under100') return price < 100;
+        if (bucket === '100to200') return price >= 100 && price <= 200;
+        if (bucket === '200to500') return price > 200 && price <= 500;
+        if (bucket === 'over500') return price > 500;
+        return true;
+      });
+      if (!matchesBucket) return false;
+    }
+
+    // 4. Dates filter
+    if (f.dates && f.dates.length > 0) {
+      const dateText = offer.dateRangeText || offer.depart || '';
+      if (!f.dates.some((d) => dateText.includes(d))) return false;
+    }
+
+    // 5. Departure Time filter
+    if (f.depTimes && f.depTimes.length > 0) {
+      const depHour = getHourFromStr(offer.outboundDepartDateTime || offer.departTime || offer.depart);
+      const matchesDep = f.depTimes.some((t) => {
+        if (t === 'morning') return depHour >= 0 && depHour < 12;
+        if (t === 'afternoon') return depHour >= 12 && depHour < 18;
+        if (t === 'evening') return depHour >= 18 && depHour < 24;
+        return true;
+      });
+      if (!matchesDep) return false;
+    }
+
+    // 6. Return Time filter
+    if (f.retTimes && f.retTimes.length > 0) {
+      if (offer.isOneWay) return false;
+      const retHour = getHourFromStr(offer.inboundDepartDateTime || offer.returnDepart || '');
+      const matchesRet = f.retTimes.some((t) => {
+        if (t === 'morning') return retHour >= 0 && retHour < 12;
+        if (t === 'afternoon') return retHour >= 12 && retHour < 18;
+        if (t === 'evening') return retHour >= 18 && retHour < 24;
+        return true;
+      });
+      if (!matchesRet) return false;
+    }
+
+    // 7. Duration filter
+    if (f.durations && f.durations.length > 0) {
+      const durMins = offer.duration || 0;
+      const matchesDur = f.durations.some((d) => {
+        if (d === 'under3') return durMins < 180;
+        if (d === '3to6') return durMins >= 180 && durMins <= 360;
+        if (d === '6to9') return durMins > 360 && durMins <= 540;
+        if (d === 'over9') return durMins > 540;
+        return true;
+      });
+      if (!matchesDur) return false;
+    }
+
+    return true;
+  });
 
   const col = state.sortColumn || state.sort || 'price';
   const dir = state.sortDirection || 'asc';
@@ -53,12 +128,11 @@ export function sortedOffers() {
 }
 
 export function updateSortHeaderIcons() {
-  document.querySelectorAll('th[data-sort-col]').forEach((th) => {
-    const col = th.dataset.sortCol;
-    const icon = th.querySelector('.sort-icon');
+  document.querySelectorAll('span[data-sort-col]').forEach((span) => {
+    const col = span.dataset.sortCol;
+    const icon = span.querySelector('.sort-icon');
     const isCurrent = state.sortColumn === col;
 
-    th.classList.toggle('is-sorted', isCurrent);
     if (icon) {
       if (isCurrent) {
         icon.textContent = state.sortDirection === 'asc' ? '▲' : '▼';
@@ -70,9 +144,10 @@ export function updateSortHeaderIcons() {
 }
 
 export function initTableSorting() {
-  document.querySelectorAll('th[data-sort-col]').forEach((th) => {
-    th.addEventListener('click', () => {
-      const col = th.dataset.sortCol;
+  document.querySelectorAll('span[data-sort-col]').forEach((span) => {
+    span.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const col = span.dataset.sortCol;
       if (state.sortColumn === col) {
         state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
       } else {
@@ -84,23 +159,9 @@ export function initTableSorting() {
     });
   });
 
-  // Layout View Switcher (2-Col Grid / 3-Col Compact Grid / List)
-  // "List" renders the flights data table; there is no standalone Table option.
-  document.querySelectorAll('[data-layout-view]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const mode = btn.dataset.layoutView;
-      state.layoutView = mode === 'list' ? 'table' : mode;
-      document.querySelectorAll('[data-layout-view]').forEach((b) => b.classList.toggle('is-active', b === btn));
-      
-      renderOffers();
-
-      // Also apply grid layout mode to travel cards (Hotels, Cars, Packages)
-      document.querySelectorAll('.travel-cards-grid').forEach((grid) => {
-        grid.className = 'travel-cards-grid ' + `view-${mode}`;
-      });
-    });
-  });
+  initColumnFilters();
 }
+
 
 export function renderOffers() {
   const visible = sortedOffers();
@@ -108,6 +169,9 @@ export function renderOffers() {
   const cardsContainer = $('[data-flight-cards-container]');
   const tableWrap = $('.offer-table-wrap');
   const mode = state.layoutView || 'table';
+
+  updateColumnFilterPopovers();
+
 
   if (mode === 'table') {
     if (tableWrap) tableWrap.classList.remove('hidden');
@@ -146,8 +210,9 @@ export function renderOffers() {
                   <sup class="gf-next-day">${offer.inboundNextDayBadge}</sup>
                 </div>
                 <div class="gf-sub-details">
-                  ${offer.isSameCarrierBothWays ? `<span class="gf-flight-num">${offer.flightNumber}</span>` : flightNumSubDetails(offer.flightNumber, offer.inboundCarrierName)}
+                  ${flightNumSubDetails(offer.flightNumber, offer.inboundCarrierName || offer.outboundCarrierName || offer.airline)}
                 </div>
+
               </div>
             </div>
             `}
@@ -161,18 +226,14 @@ export function renderOffers() {
               </div>
             </div>
           </td>
-          <td>
+          <td class="stops-col-cell">
             <div class="gf-col-cell">
               <strong>${offer.stopsCountText}</strong>
               <small class="gf-layover">${offer.layoverDetailText}</small>
             </div>
           </td>
-          <td>
-            <div class="gf-col-cell">
-              <span class="gf-emissions-kg">${offer.emissionsKg}</span>
-              <small class="gf-emissions-note ${offer.isLowEmissions ? 'is-low' : ''}">${offer.emissionsNote}</small>
-            </div>
-          </td>
+
+
           <td class="price-cell">
             <div class="gf-price-wrap">
               <strong class="gf-price">${offer.formattedPrice}</strong>

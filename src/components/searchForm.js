@@ -1102,6 +1102,8 @@ export function initMultiCityLegs() {
 export function initTripTypeSelector() {
   const btns = document.querySelectorAll('[data-trip-type]');
   const returnField = document.querySelector('[name="return"]')?.closest('.field');
+  const returnInput = document.querySelector('[name="return"]');
+  const departInput = document.querySelector('[name="depart"]');
   const fieldGrid = document.querySelector('.field-grid');
   const multicityContainer = $('[data-multicity-container]');
 
@@ -1118,6 +1120,7 @@ export function initTripTypeSelector() {
 
     if (val === 'one_way') {
       if (returnField) returnField.classList.add('hidden');
+      if (returnInput) returnInput.value = '';
       if (fieldGrid) fieldGrid.classList.remove('hidden');
       if (multicityContainer) multicityContainer.classList.add('hidden');
     } else if (val === 'multi_city') {
@@ -1127,6 +1130,13 @@ export function initTripTypeSelector() {
       if (returnField) returnField.classList.remove('hidden');
       if (fieldGrid) fieldGrid.classList.remove('hidden');
       if (multicityContainer) multicityContainer.classList.add('hidden');
+
+      // Auto-default return date to start date + 7 days when switching from one way to round trip (two way)
+      if (returnInput && departInput && departInput.value) {
+        const base = new Date(`${departInput.value}T00:00:00`);
+        base.setDate(base.getDate() + 7);
+        returnInput.value = base.toISOString().split('T')[0];
+      }
     }
   };
 
@@ -1138,6 +1148,7 @@ export function initTripTypeSelector() {
 
   updateTripTypeView('round_trip');
 }
+
 
 export function initServiceTabs() {
   const tabs = document.querySelectorAll('[data-service-tab]');
@@ -1284,8 +1295,10 @@ export function initSearchForm() {
       const rawDest = document.querySelector('[name="destination"]')?.value.trim() || '';
       const originRes = resolveCityOrCode(rawOrigin);
       const destRes = resolveCityOrCode(rawDest);
-      const origin = originRes.code || rawOrigin.toUpperCase();
-      const destination = destRes.code || rawDest.toUpperCase();
+      const origin = originRes.code || rawOrigin.toUpperCase() || 'ATL';
+      const destination = destRes.code || rawDest.toUpperCase() || 'CDG';
+
+
       const depart = document.querySelector('[name="depart"]')?.value || '';
       const ret = tripType === 'one_way' ? '' : (document.querySelector('[name="return"]')?.value || '');
       const passengersCount = passengerCounts.adults + passengerCounts.children + passengerCounts.infantsInSeat + passengerCounts.infantsOnLap;

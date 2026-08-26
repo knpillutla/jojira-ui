@@ -1,8 +1,13 @@
 import { renderTravelStatTiles, wireTravelStatTileClicks } from '../../utils/travelStatTiles.js';
+import { normalizeHotelApiResponse } from '../../api/travelApi.js';
+import { openStayBookingWizard, initStayBookingEvents } from './stayBookingWizard.js';
 
-export function renderHotelResults(data) {
+export function renderHotelResults(raw) {
+  initStayBookingEvents();
   const container = document.querySelector('[data-hotel-results]');
   if (!container) return;
+
+  const data = (raw && raw.hotels) ? raw : normalizeHotelApiResponse(raw);
 
   if (!data || !data.hotels || data.hotels.length === 0) {
     container.innerHTML = `<p class="muted">No hotels found matching your dates and destination.</p>`;
@@ -34,8 +39,8 @@ export function renderHotelResults(data) {
           </div>
           <div class="travel-card-footer">
             <div class="price-box">
-              <span class="price-amount">$${h.price_per_night}</span>
-              <span class="price-period">/ night · Total $${h.total_price}</span>
+              <span class="price-amount">$${h.total_price}</span>
+              <span class="price-period">Total ($${h.price_per_night}/night)</span>
             </div>
             <button type="button" class="primary-button btn-select-room" data-hotel-id="${h.id}">Reserve Room</button>
           </div>
@@ -56,7 +61,7 @@ export function renderHotelResults(data) {
         <button type="button" class="view-btn ${currentMode==='list'?'is-active':''}" data-layout-view="list" title="List View" aria-label="List View">☰</button>
         <button type="button" class="view-btn ${currentMode==='grid-1'?'is-active':''}" data-layout-view="grid-1" title="1-Column Tiles" aria-label="1-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="12" rx="1"/></svg></button>
         <button type="button" class="view-btn ${currentMode==='grid-2'?'is-active':''}" data-layout-view="grid-2" title="2-Column Tiles" aria-label="2-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="6" height="12" rx="1"/><rect x="9" y="2" width="6" height="12" rx="1"/></svg></button>
-        <button type="button" class="view-btn ${currentMode==='grid-3'?'is-active':''}" data-layout-view="grid-3" title="3-Column Tiles" aria-label="3-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="4" height="12" rx="1"/><rect x="6" y="2" width="4" height="12" rx="1"/><rect x="11.5" y="2" width="4" height="12" rx="1"/></svg></button>
+        <button type="button" class="view-btn ${currentMode==='grid-3'?'is-active':''}" data-layout-view="grid-3" title="3-Column Tiles" aria-label="3-Column Tiles"><svg width="0.5" y="2" width="4" height="12" rx="1"/><rect x="6" y="2" width="4" height="12" rx="1"/><rect x="11.5" y="2" width="4" height="12" rx="1"/></svg></button>
         <button type="button" class="view-btn ${currentMode==='grid-4'?'is-active':''}" data-layout-view="grid-4" title="4-Column Tiles (Show Maximum Tiles)" aria-label="4-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="3" height="12" rx="1"/><rect x="4.5" y="2" width="3" height="12" rx="1"/><rect x="8.5" y="2" width="3" height="12" rx="1"/><rect x="12.5" y="2" width="3" height="12" rx="1"/></svg></button>
       </div>
     </div>
@@ -65,6 +70,33 @@ export function renderHotelResults(data) {
     </div>
   `;
 
+  const bindReserveButtons = () => {
+    container.querySelectorAll('.btn-select-room').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const hotelId = btn.dataset.hotelId;
+        const hotelItem = data.hotels.find((h) => h.id === hotelId) || data.hotels[0];
+        if (hotelItem) {
+          openStayBookingWizard(hotelItem);
+        }
+      });
+    });
+  };
+
+  bindReserveButtons();
+
+  // Wire clicks on stat tiles to launch hotel booking wizard
+  container.querySelectorAll('[data-travel-tile-target]').forEach((tile) => {
+    tile.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const targetId = tile.getAttribute('data-travel-tile-target');
+      const hotelItem = data.hotels.find((h) => h.id === targetId) || data.hotels[0];
+      if (hotelItem) {
+        openStayBookingWizard(hotelItem);
+      }
+    });
+  });
+
   container.querySelectorAll('[data-layout-view]').forEach(btn => {
     btn.addEventListener('click', () => {
       const mode = btn.dataset.layoutView;
@@ -72,13 +104,13 @@ export function renderHotelResults(data) {
       if (grid) {
         grid.className = `travel-cards-grid view-${mode}`;
         grid.innerHTML = mode === 'list' ? listRowsHtml : cardsHtml;
+        bindReserveButtons();
       }
       container.querySelectorAll('[data-layout-view]').forEach(b => b.classList.toggle('is-active', b === btn));
     });
   });
-
-  wireTravelStatTileClicks(container, 'hotel-card-id');
 }
+
 
 // Compact single-line rows (used in List view) with a small thumbnail so many more fit on screen
 function buildHotelListRowsHtml(hotels) {

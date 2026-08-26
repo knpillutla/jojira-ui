@@ -34,37 +34,30 @@ export async function searchFlights(searchPayload) {
     let endpoint = '';
     let body = {};
 
+    const tripType = searchPayload.tripType || (searchPayload.return ? 'round_trip' : 'one_way');
+    const isOneWay = tripType === 'one_way';
+
     if (searchPayload.searchType === 'natural' || searchPayload.prompt) {
       endpoint = '/api/v1/flights/search-natural-language';
       body = {
         prompt: searchPayload.prompt || ''
       };
-    } else if (searchPayload.searchType === 'exact') {
+    } else {
       endpoint = '/api/v1/flights/search';
       body = {
-        origin: searchPayload.origin || '',
-        destination: searchPayload.destination || '',
+        trip_type: isOneWay ? 'one_way' : 'round_trip',
+        origin: searchPayload.origin || 'ATL',
+        destination: searchPayload.destination || 'CDG',
         departure_date: searchPayload.depart || '',
-        return_date: searchPayload.return || '',
-        cabin_class: searchPayload.cabinClass || 'economy',
+        return_date: isOneWay ? null : (searchPayload.return || null),
         passengers_count: searchPayload.passengersCount || 1,
-        force_refresh: false
-      };
-    } else {
-      endpoint = '/api/v1/flights/search-optimized';
-      body = {
-        origin: searchPayload.origin || '',
-        destination: searchPayload.destination || '',
-        target_date: searchPayload.depart || '',
-        target_return_date: searchPayload.return || '',
-        min_duration_days: searchPayload.minDuration || 4,
-        max_duration_days: searchPayload.maxDuration || 7,
-        flex_days: searchPayload.flexDays !== undefined ? searchPayload.flexDays : 3,
         cabin_class: searchPayload.cabinClass || 'economy',
-        passengers_count: searchPayload.passengersCount || 1,
-        favorite_airline: searchPayload.favoriteAirline || undefined
+        favorite_airline: searchPayload.favoriteAirline || null,
+        force_refresh: false,
+        prompt: null
       };
     }
+
 
     const fullUrl = `${apiBase}${endpoint}`;
     console.log(`📡 [API REQUEST] POST ${fullUrl}`, body);

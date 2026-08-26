@@ -1,12 +1,30 @@
 import { renderTravelStatTiles, wireTravelStatTileClicks } from '../../utils/travelStatTiles.js';
+import { normalizeCarApiResponse } from '../../api/travelApi.js';
+import { openCarBookingWizard, initCarBookingEvents } from './carBookingWizard.js';
 
-export function renderCarResults(data) {
+export function renderCarResults(raw) {
+  initCarBookingEvents();
   const container = document.querySelector('[data-car-results]');
   if (!container) return;
+
+  const data = (raw && raw.cars) ? raw : normalizeCarApiResponse(raw);
 
   if (!data || !data.cars || data.cars.length === 0) {
     container.innerHTML = `<p class="muted">No car rentals available for the selected dates.</p>`;
     return;
+  }
+
+  const form = document.getElementById('car-search-form');
+  const pickupVal = form?.querySelector('[name="car_pickup"]')?.value || '2026-09-15';
+  const dropoffVal = form?.querySelector('[name="car_dropoff"]')?.value || '2026-09-22';
+  let rentalDays = 7;
+  if (pickupVal && dropoffVal) {
+    const start = new Date(pickupVal);
+    const end = new Date(dropoffVal);
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+      const diff = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
+      if (diff > 0) rentalDays = diff;
+    }
   }
 
   const cardsHtml = data.cars.map((c) => {
@@ -21,7 +39,7 @@ export function renderCarResults(data) {
           <div class="travel-card-header">
             <div>
               <h3 class="travel-card-title">${c.model}</h3>
-              <p class="travel-card-sub">Provided by <strong>${c.supplier}</strong> · ${c.transmission} · 👤 ${c.seats} Seats</p>
+              <p class="travel-card-sub">Provided by <strong>${c.supplier}</strong> · ⏱️ <strong>${rentalDays} Days</strong> · ${c.transmission} · 👤 ${c.seats} Seats</p>
             </div>
             <div class="rating-badge">
               <strong>${c.rating}</strong>
@@ -32,8 +50,8 @@ export function renderCarResults(data) {
           </div>
           <div class="travel-card-footer">
             <div class="price-box">
-              <span class="price-amount">$${c.price_per_day}</span>
-              <span class="price-period">/ day · Total $${c.total_price}</span>
+              <span class="price-amount">$${c.total_price}</span>
+              <span class="price-period">${rentalDays} Days Total ($${c.price_per_day}/day)</span>
             </div>
             <button type="button" class="primary-button btn-book-car" data-car-id="${c.id}">Rent Car</button>
           </div>
@@ -43,13 +61,13 @@ export function renderCarResults(data) {
   }).join('');
 
   const currentMode = (document.querySelector('[data-layout-view].is-active')?.dataset?.layoutView) || 'grid-2';
-  const listRowsHtml = buildCarListRowsHtml(data.cars);
-  const tiles = buildCarStatTiles(data.cars);
+  const listRowsHtml = buildCarListRowsHtml(data.cars, rentalDays);
+  const tiles = buildCarStatTiles(data.cars, rentalDays);
 
   container.innerHTML = `
     ${renderTravelStatTiles(tiles, 'car-card-id')}
     <div class="results-heading-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
-      <h4>Car Rentals near ${data.pickup_location} (${data.total_found} vehicles available)</h4>
+      <h4>Car Rentals near ${data.pickup_location} (${data.total_found} vehicles available for ${rentalDays} Days)</h4>
       <div class="view-layout-toggle" role="radiogroup" aria-label="Layout view options">
         <button type="button" class="view-btn ${currentMode==='list'?'is-active':''}" data-layout-view="list" title="List View" aria-label="List View">☰</button>
         <button type="button" class="view-btn ${currentMode==='grid-1'?'is-active':''}" data-layout-view="grid-1" title="1-Column Tiles" aria-label="1-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="12" rx="1"/></svg></button>
@@ -63,6 +81,33 @@ export function renderCarResults(data) {
     </div>
   `;
 
+  const bindRentButtons = () => {
+    container.querySelectorAll('.btn-book-car').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const carId = btn.dataset.carId;
+        const carItem = data.cars.find((c) => c.id === carId) || data.cars[0];
+        if (carItem) {
+          openCarBookingWizard(carItem);
+        }
+      });
+    });
+  };
+
+  bindRentButtons();
+
+  // Wire clicks on stat tiles to launch booking wizard
+  container.querySelectorAll('[data-travel-tile-target]').forEach((tile) => {
+    tile.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const targetId = tile.getAttribute('data-travel-tile-target');
+      const carItem = data.cars.find((c) => c.id === targetId) || data.cars[0];
+      if (carItem) {
+        openCarBookingWizard(carItem);
+      }
+    });
+  });
+
   container.querySelectorAll('[data-layout-view]').forEach(btn => {
     btn.addEventListener('click', () => {
       const mode = btn.dataset.layoutView;
@@ -70,30 +115,32 @@ export function renderCarResults(data) {
       if (grid) {
         grid.className = `travel-cards-grid view-${mode}`;
         grid.innerHTML = mode === 'list' ? listRowsHtml : cardsHtml;
+        bindRentButtons();
       }
       container.querySelectorAll('[data-layout-view]').forEach(b => b.classList.toggle('is-active', b === btn));
     });
   });
-
-  wireTravelStatTileClicks(container, 'car-card-id');
 }
 
 // Compact single-line rows (used in List view) with a small thumbnail so many more fit on screen
-function buildCarListRowsHtml(cars) {
+function buildCarListRowsHtml(cars, rentalDays = 7) {
   return cars.map((c) => `
     <div class="list-row" data-car-card-id="${c.id}">
       <span class="list-row-icon" style="background-image:url('${c.image}')"></span>
       <span class="list-row-title">${c.model}</span>
-      <span class="list-row-meta">${c.category} · ${c.supplier}</span>
+      <span class="list-row-meta">${c.category} · ${c.supplier} · ⏱️ ${rentalDays} Days</span>
       <span class="list-row-meta">${c.rating} ★</span>
-      <span class="list-row-price">$${c.price_per_day}/day</span>
+      <span class="list-row-price" style="text-align:right;">
+        <strong style="font-size:14px;color:var(--deep-navy);display:block;">$${c.total_price} Total (${rentalDays} Days)</strong>
+        <small style="font-size:11px;color:var(--muted)">$${c.price_per_day}/day</small>
+      </span>
       <button type="button" class="primary-button btn-book-car" data-car-id="${c.id}">Rent</button>
     </div>
   `).join('');
 }
 
 // Cheapest / Top Rated / Best Value tiles derived straight from the car results
-function buildCarStatTiles(cars) {
+function buildCarStatTiles(cars, rentalDays = 7) {
   if (!cars || !cars.length) return [];
 
   const cheapest = [...cars].sort((a, b) => (a.price_per_day || 0) - (b.price_per_day || 0))[0];
@@ -116,10 +163,12 @@ function buildCarStatTiles(cars) {
       badgeLabel,
       badgeClass,
       title: item.model,
-      meta: `${item.category} · ${item.supplier}`,
-      price: `$${item.price_per_day}/day`
+      meta: `${item.category} · ${item.supplier} · ⏱️ ${rentalDays} Days`,
+      price: `$${item.total_price} (${rentalDays} Days Total)`
     });
   });
 
   return tiles;
 }
+
+

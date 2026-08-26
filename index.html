@@ -471,7 +471,16 @@
             </div>
           </div>
         </div>
-        <div class="filter-drawer" data-filter-drawer><label>Airline <select data-airline-filter><option value="all">All airlines</option></select></label><label>Stops <select data-stops-filter><option value="all">Any stops</option><option value="0">Nonstop</option><option value="1">1 stop</option><option value="2">2 stops</option></select></label><label>Max price <input type="range" min="250" max="800" value="800" data-price-filter /><output data-price-output>$800</output></label><button type="button" class="text-button" data-clear-filters>Clear all</button></div>
+        <div class="filter-drawer" data-filter-drawer>
+          <label>Dates <select data-dates-filter><option value="all">All dates</option></select></label>
+          <label>Airline <select data-airline-filter><option value="all">All airlines</option></select></label>
+          <label>Departure <select data-dep-time-filter><option value="all">Any time</option><option value="morning">🌅 Morning (Before 12 PM)</option><option value="afternoon">☀️ Afternoon (12 PM - 6 PM)</option><option value="evening">🌙 Evening (After 6 PM)</option></select></label>
+          <label>Return <select data-ret-time-filter><option value="all">Any time</option><option value="morning">🌅 Morning (Before 12 PM)</option><option value="afternoon">☀️ Afternoon (12 PM - 6 PM)</option><option value="evening">🌙 Evening (After 6 PM)</option></select></label>
+          <label>Duration <select data-duration-filter><option value="all">Any duration</option><option value="under3">⚡ Under 3 hours</option><option value="3to6">⏱️ 3 to 6 hours</option><option value="6to9">⏱️ 6 to 9 hours</option><option value="over9">⏱️ 9+ hours</option></select></label>
+          <label>Stops <select data-stops-filter><option value="all">Any stops</option><option value="0">Nonstop</option><option value="1">1 stop</option><option value="2">2+ stops</option></select></label>
+          <label>Max price <input type="range" min="50" max="5000" value="5000" data-price-filter /><output data-price-output>$5000</output></label>
+          <button type="button" class="text-button" data-clear-filters>Clear all</button>
+        </div>
         
         <div class="flight-cards-grid hidden" data-flight-cards-container style="margin-bottom: 24px;"></div>
 
@@ -484,13 +493,13 @@
                 <th data-sort-col="flight" class="sortable-th">Return <span class="sort-icon">↕</span></th>
                 <th data-sort-col="duration" class="sortable-th">Duration <span class="sort-icon">↕</span></th>
                 <th data-sort-col="stops" class="sortable-th">Stops <span class="sort-icon">↕</span></th>
-                <th data-sort-col="emissions" class="sortable-th">Emissions <span class="sort-icon">↕</span></th>
                 <th data-sort-col="price" class="sortable-th price-heading">Price <span class="sort-icon">▲</span></th>
                 <th class="action-heading"></th>
                 <th class="expand-heading"></th>
               </tr>
             </thead>
             <tbody data-offers></tbody>
+
           </table>
         </div>
         <p class="table-footnote">Prices include estimated taxes and fees. Final price confirmed before payment.</p>
@@ -578,6 +587,128 @@
         </footer>
       </div>
     </div>
+
+    <!-- Dedicated Car Rental Booking Modal Overlay -->
+    <div class="booking-modal-overlay hidden" data-car-booking-modal role="dialog" aria-modal="true" aria-label="Car rental booking wizard">
+      <div class="booking-modal-card">
+        <header class="booking-header">
+          <div class="booking-title-bar">
+            <h3>Reserve your car rental</h3>
+            <button type="button" class="close-button" data-close-car-booking aria-label="Close car booking modal">✕</button>
+          </div>
+          <div class="booking-stepper">
+            <div class="step-item is-active" data-car-step-indicator="1"><span class="step-num">1</span><span class="step-label">Review</span></div>
+            <div class="step-line"></div>
+            <div class="step-item" data-car-step-indicator="2"><span class="step-num">2</span><span class="step-label">Driver</span></div>
+            <div class="step-line"></div>
+            <div class="step-item" data-car-step-indicator="3"><span class="step-num">3</span><span class="step-label">Payment</span></div>
+          </div>
+        </header>
+
+        <div class="booking-body">
+          <!-- Step 1: Car Review & Metadata -->
+          <div class="booking-step-content" data-car-booking-step="1">
+            <div class="step-car-summary" data-car-summary></div>
+          </div>
+
+          <!-- Step 2: Driver Details -->
+          <div class="booking-step-content hidden" data-car-booking-step="2">
+            <h4>Driver & Contact Information</h4>
+            <form id="car-driver-form" class="passenger-form">
+              <div class="form-row">
+                <label class="form-field field-small"><span>Title</span><select name="title"><option value="mr">Mr</option><option value="ms">Ms</option><option value="mrs">Mrs</option><option value="dr">Dr</option></select></label>
+                <label class="form-field"><span>First name *</span><input name="first_name" required placeholder="Jane" value="Jane" /></label>
+                <label class="form-field"><span>Last name *</span><input name="last_name" required placeholder="Doe" value="Doe" /></label>
+              </div>
+              <div class="form-row">
+                <label class="form-field"><span>Email address *</span><input name="email" type="email" required placeholder="jane.doe@example.com" value="jane.doe@example.com" /></label>
+                <label class="form-field"><span>Phone number *</span><input name="phone_number" required placeholder="+15551234567" value="+15551234567" /></label>
+              </div>
+              <div class="form-row">
+                <label class="form-field field-small"><span>Driver Age *</span><input name="driver_age" type="number" min="18" max="99" required value="30" /></label>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 3: Payment & Summary -->
+          <div class="booking-step-content hidden" data-car-booking-step="3">
+            <h4>Payment & Finalize</h4>
+            <div class="payment-error-alert hidden" data-car-payment-error role="alert"></div>
+            <div class="payment-methods-header">Select Payment Method</div>
+            <div class="payment-methods-list" data-car-payment-methods-list></div>
+            <div class="price-breakdown-card" data-car-price-breakdown></div>
+          </div>
+        </div>
+
+        <footer class="booking-footer">
+          <button type="button" class="text-button" data-car-booking-back>Back</button>
+          <div class="footer-right">
+            <span class="booking-total-display" data-car-booking-total></span>
+            <button type="button" class="primary-button" data-car-booking-next><span>Continue to Driver Details</span> <b>→</b></button>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Dedicated Stays / Hotel Booking Modal Overlay -->
+    <div class="booking-modal-overlay hidden" data-stay-booking-modal role="dialog" aria-modal="true" aria-label="Hotel stay booking wizard">
+      <div class="booking-modal-card">
+        <header class="booking-header">
+          <div class="booking-title-bar">
+            <h3>Reserve your hotel stay</h3>
+            <button type="button" class="close-button" data-close-stay-booking aria-label="Close hotel booking modal">✕</button>
+          </div>
+          <div class="booking-stepper">
+            <div class="step-item is-active" data-stay-step-indicator="1"><span class="step-num">1</span><span class="step-label">Review</span></div>
+            <div class="step-line"></div>
+            <div class="step-item" data-stay-step-indicator="2"><span class="step-num">2</span><span class="step-label">Guest</span></div>
+            <div class="step-line"></div>
+            <div class="step-item" data-stay-step-indicator="3"><span class="step-num">3</span><span class="step-label">Payment</span></div>
+          </div>
+        </header>
+
+        <div class="booking-body">
+          <!-- Step 1: Hotel Review & Details -->
+          <div class="booking-step-content" data-stay-booking-step="1">
+            <div class="step-hotel-summary" data-stay-summary></div>
+          </div>
+
+          <!-- Step 2: Primary Guest Details -->
+          <div class="booking-step-content hidden" data-stay-booking-step="2">
+            <h4>Primary Guest Information</h4>
+            <form id="stay-guest-form" class="passenger-form">
+              <div class="form-row">
+                <label class="form-field field-small"><span>Title</span><select name="title"><option value="ms">Ms</option><option value="mr">Mr</option><option value="mrs">Mrs</option><option value="dr">Dr</option></select></label>
+                <label class="form-field"><span>First name *</span><input name="first_name" required placeholder="Jane" value="Jane" /></label>
+                <label class="form-field"><span>Last name *</span><input name="last_name" required placeholder="Doe" value="Doe" /></label>
+              </div>
+              <div class="form-row">
+                <label class="form-field"><span>Email address *</span><input name="email" type="email" required placeholder="jane.doe@example.com" value="jane.doe@example.com" /></label>
+                <label class="form-field"><span>Phone number *</span><input name="phone_number" required placeholder="+15551234567" value="+15551234567" /></label>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 3: Payment & Summary -->
+          <div class="booking-step-content hidden" data-stay-booking-step="3">
+            <h4>Payment & Finalize</h4>
+            <div class="payment-error-alert hidden" data-stay-payment-error role="alert"></div>
+            <div class="payment-methods-header">Select Payment Method</div>
+            <div class="payment-methods-list" data-stay-payment-methods-list></div>
+            <div class="price-breakdown-card" data-stay-price-breakdown></div>
+          </div>
+        </div>
+
+        <footer class="booking-footer">
+          <button type="button" class="text-button" data-stay-booking-back>Back</button>
+          <div class="footer-right">
+            <span class="booking-total-display" data-stay-booking-total></span>
+            <button type="button" class="primary-button" data-stay-booking-next><span>Continue to Guest Details</span> <b>→</b></button>
+          </div>
+        </footer>
+      </div>
+    </div>
+
 
     <!-- Payment Processing Popup Modal Overlay -->
     <div class="payment-progress-overlay hidden" data-payment-progress-modal role="dialog" aria-modal="true" aria-label="Processing Payment">
