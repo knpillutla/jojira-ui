@@ -49,4 +49,14 @@ export function initHotelSearch() {
       }
     }
   });
+
+  // Popular searches presets
+  document.querySelectorAll('[data-hotel-preset]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const locationVal = chip.getAttribute('data-preset-location') || '';
+      const locInput = form.querySelector('[name="hotel_location"]');
+      if (locInput) locInput.value = locationVal;
+      form.querySelector('button[type="submit"]')?.click();
+    });
+  });
 }

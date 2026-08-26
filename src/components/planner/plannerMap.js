@@ -12,12 +12,19 @@ export function initOrUpdateMap(itineraryData, selectedDayFilter = 'all') {
     return;
   }
 
+  const DEFAULT_CENTER = [48.8566, 2.3522];
+  const center = Array.isArray(itineraryData.map_center) &&
+    Number.isFinite(itineraryData.map_center[0]) &&
+    Number.isFinite(itineraryData.map_center[1])
+    ? itineraryData.map_center
+    : DEFAULT_CENTER;
+
   // Initialize Leaflet map if not already created
   if (!mapInstance) {
     mapInstance = L.map('trip-map', {
       zoomControl: true,
       scrollWheelZoom: true
-    }).setView(itineraryData.map_center || [48.8566, 2.3522], itineraryData.map_zoom || 13);
+    }).setView(center, itineraryData.map_zoom || 13);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -119,7 +126,7 @@ export function initOrUpdateMap(itineraryData, selectedDayFilter = 'all') {
 export function panToActivityMarker(activityId, lat, lng) {
   if (!mapInstance) return;
 
-  if (lat && lng) {
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
     mapInstance.flyTo([lat, lng], 15, { duration: 1.2 });
   }
 

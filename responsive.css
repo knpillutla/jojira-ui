@@ -20,8 +20,15 @@
 }
 
 /* ==========================================================================
-   Interactive Layout Grid & View Switcher (Table / 2-Col / 3-Col / List)
+   Interactive Layout Grid & View Switcher (2-Col / 3-Col / List)
    ========================================================================== */
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
 .view-layout-toggle {
   display: inline-flex;
   align-items: center;
@@ -33,11 +40,15 @@
 }
 
 .view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
   background: transparent;
-  padding: 5px 9px;
+  width: 30px;
+  height: 26px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--muted);
   cursor: pointer;
@@ -63,6 +74,11 @@
   margin-top: 16px;
 }
 
+/* 1-Column Tiles View */
+.travel-cards-grid.view-grid-1, .flight-cards-grid.view-grid-1 {
+  grid-template-columns: 1fr !important;
+}
+
 /* 2-Column Tiles View */
 .travel-cards-grid.view-grid-2, .flight-cards-grid.view-grid-2 {
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important;
@@ -74,12 +90,51 @@
   gap: 12px !important;
 }
 
+/* 4-Column Tiles View (Maximum density grid) */
+.travel-cards-grid.view-grid-4, .flight-cards-grid.view-grid-4 {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important;
+  gap: 10px !important;
+}
+
 /* List View */
 .travel-cards-grid.view-list, .flight-cards-grid.view-list {
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
+  gap: 6px !important;
 }
+
+/* Compact list rows (used when the List layout is active) show a small icon/thumbnail
+   next to the text so many more rows fit on screen at once. */
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-size: 12px;
+}
+.list-row:hover { border-color: var(--mint-strong); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.list-row-icon {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+}
+.list-row-title { flex: 1 1 auto; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list-row-meta { flex: 0 0 auto; color: var(--muted); white-space: nowrap; }
+.list-row-price { flex: 0 0 auto; font-weight: 700; color: var(--coral); white-space: nowrap; }
 
 /* Flight Tile Cards */
 .flight-tile-card {

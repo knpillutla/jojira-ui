@@ -2,6 +2,24 @@ import { state, $ } from '../core/state.js';
 import { money, duration, highlightPrice } from '../utils/formatters.js';
 import { openBookingWizard } from './bookingWizard.js';
 
+// Extracts just the time portion from a "MMM d, h:mm AM/PM" formatted date-time string
+// (the date is already shown in its own Dates column, so this avoids duplicating it).
+function timeOnly(dateTimeStr) {
+  if (!dateTimeStr) return '';
+  const parts = dateTimeStr.split(', ');
+  return parts.length > 1 ? parts[parts.length - 1] : dateTimeStr;
+}
+
+// Avoids showing the airline name twice when the flight number field is just a
+// duplicate of the carrier name (common with mock/scraped data lacking real numbers).
+function flightNumSubDetails(flightNumber, carrierName) {
+  const showFlightNum = flightNumber && flightNumber.trim().toLowerCase() !== (carrierName || '').trim().toLowerCase();
+  if (!showFlightNum) {
+    return `<span class="gf-carrier-name">${carrierName}</span>`;
+  }
+  return `<strong class="gf-flight-num">${flightNumber}</strong><span class="gf-dot-sep">·</span><span class="gf-carrier-name">${carrierName}</span>`;
+}
+
 export function sortedOffers() {
   const filtered = state.offers.filter((offer) =>
     (state.filters.airline === 'all' || offer.airline === state.filters.airline) &&
@@ -66,11 +84,12 @@ export function initTableSorting() {
     });
   });
 
-  // Layout View Switcher (Table / 2-Col Grid / 3-Col Compact Grid / List)
+  // Layout View Switcher (2-Col Grid / 3-Col Compact Grid / List)
+  // "List" renders the flights data table; there is no standalone Table option.
   document.querySelectorAll('[data-layout-view]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const mode = btn.dataset.layoutView;
-      state.layoutView = mode;
+      state.layoutView = mode === 'list' ? 'table' : mode;
       document.querySelectorAll('[data-layout-view]').forEach((b) => b.classList.toggle('is-active', b === btn));
       
       renderOffers();
@@ -98,31 +117,40 @@ export function renderOffers() {
       offersEl.innerHTML = visible.map((offer) => `
         <tr data-offer-id="${offer.id}">
           <td>
+            <div class="gf-col-cell">
+              <strong>${offer.dateRangeText}</strong>
+              <small class="gf-layover">${offer.isOneWay ? 'One way' : 'Round trip'}</small>
+            </div>
+          </td>
+          <td>
             <div class="gf-flight-cell">
-              <span class="airline-logo ${offer.tone}">${offer.code.slice(0, 2)}</span>
+              <span class="airline-logo ${offer.tone}">${(offer.outboundCarrierCode || offer.code).slice(0, 2)}</span>
               <div class="gf-time-carrier">
-                <div class="gf-times-list">
-                  <div class="gf-times-line">
-                    ${offer.inboundDepartDateTime ? '<span class="gf-leg-badge">Out</span>' : ''}
-                    <strong>${offer.outboundDepartDateTime || offer.depart}${offer.outboundArriveDateTime ? ' – ' + offer.outboundArriveDateTime : ''}</strong>
-                    <sup class="gf-next-day">${offer.nextDayBadge}</sup>
-                  </div>
-                  ${offer.inboundDepartDateTime ? `
-                  <div class="gf-times-line">
-                    <span class="gf-leg-badge">Ret</span>
-                    <strong>${offer.inboundDepartDateTime}${offer.inboundArriveDateTime ? ' – ' + offer.inboundArriveDateTime : ''}</strong>
-                  </div>
-                  ` : ''}
+                <div class="gf-times-line">
+                  <strong>${timeOnly(offer.outboundDepartDateTime) || offer.depart}${offer.outboundArriveDateTime ? ' – ' + timeOnly(offer.outboundArriveDateTime) : ''}</strong>
+                  <sup class="gf-next-day">${offer.nextDayBadge}</sup>
                 </div>
                 <div class="gf-sub-details">
-                  <strong class="gf-flight-num">${offer.flightNumber}</strong>
-                  <span class="gf-dot-sep">·</span>
-                  <span class="gf-carrier-name">${offer.airline}</span>
-                  <span class="gf-dot-sep">·</span>
-                  <span class="gf-stop-codes">${offer.stopCodesText}</span>
+                  ${flightNumSubDetails(offer.flightNumber, offer.outboundCarrierName)}
                 </div>
               </div>
             </div>
+          </td>
+          <td>
+            ${offer.isOneWay ? '<span class="muted">One way</span>' : `
+            <div class="gf-flight-cell">
+              ${offer.isSameCarrierBothWays ? '' : `<span class="airline-logo ${offer.tone}">${(offer.inboundCarrierCode || offer.code).slice(0, 2)}</span>`}
+              <div class="gf-time-carrier">
+                <div class="gf-times-line">
+                  <strong>${timeOnly(offer.inboundDepartDateTime)}${offer.inboundArriveDateTime ? ' – ' + timeOnly(offer.inboundArriveDateTime) : ''}</strong>
+                  <sup class="gf-next-day">${offer.inboundNextDayBadge}</sup>
+                </div>
+                <div class="gf-sub-details">
+                  ${offer.isSameCarrierBothWays ? `<span class="gf-flight-num">${offer.flightNumber}</span>` : flightNumSubDetails(offer.flightNumber, offer.inboundCarrierName)}
+                </div>
+              </div>
+            </div>
+            `}
           </td>
           <td>
             <div class="gf-col-cell">
@@ -157,22 +185,74 @@ export function renderOffers() {
               <b>${offer.isExternalWebFare ? '↗' : '→'}</b>
             </button>
           </td>
+          <td class="expand-cell">
+            <button type="button" class="expand-toggle-btn" data-expand-toggle="${offer.id}" aria-expanded="false" aria-label="Show more details">
+              <span class="chevron-icon">▼</span>
+            </button>
+          </td>
         </tr>
-      `).join('') || '<tr><td colspan="6" class="empty-state">No flights match these filters. Try widening your search.</td></tr>';
+        <tr class="offer-detail-row hidden" data-detail-row="${offer.id}">
+          <td colspan="9">
+            <div class="offer-detail-panel">
+              <div class="offer-detail-grid">
+                <div class="offer-detail-block">
+                  <h5>Outbound</h5>
+                  <p>${offer.outboundRouteTextWithDuration || offer.outboundRouteText}</p>
+                  ${offer.layoverDetailText && offer.layoverDetailText !== 'Direct' ? `<p class="muted">Layover: ${offer.layoverDetailText}</p>` : ''}
+                </div>
+                ${!offer.isOneWay ? `
+                <div class="offer-detail-block">
+                  <h5>Return</h5>
+                  <p>${offer.inboundRouteTextWithDuration || offer.inboundRouteText}</p>
+                </div>` : ''}
+                <div class="offer-detail-block">
+                  <h5>Fare Type</h5>
+                  <p>${offer.isExternalWebFare ? `External web fare via ${offer.airline || 'the airline'}` : 'Bookable fare'}</p>
+                </div>
+                <div class="offer-detail-block">
+                  <h5>Emissions</h5>
+                  <p>${offer.emissionsKg || 'N/A'}${offer.emissionsNote ? ' · ' + offer.emissionsNote : ''}</p>
+                </div>
+              </div>
+              <button type="button" class="text-button expand-collapse-link" data-expand-toggle="${offer.id}">▲ Collapse</button>
+            </div>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="9" class="empty-state">No flights match these filters. Try widening your search.</td></tr>';
     }
   } else {
-    // Render Card Tiles (2-Col Grid, 3-Col Compact Grid, or List View)
+    // Render Card Tiles (1/2/3/4-Col Grid, or compact List View)
     if (tableWrap) tableWrap.classList.add('hidden');
     if (cardsContainer) {
       cardsContainer.classList.remove('hidden');
       cardsContainer.className = `flight-cards-grid view-${mode}`;
 
+      if (mode === 'list') {
+        // Compact single-line rows with a small round airline icon so many more fit on screen
+        cardsContainer.innerHTML = visible.map((offer) => `
+          <div class="list-row" data-offer-id="${offer.id}">
+            <span class="list-row-icon ${offer.tone}">${(offer.outboundCarrierCode || offer.code).slice(0, 2)}</span>
+            <span class="list-row-title">${offer.from} → ${offer.to}</span>
+            <span class="list-row-meta">${timeOnly(offer.outboundDepartDateTime) || offer.depart}</span>
+            <span class="list-row-meta">${offer.formattedDuration} · ${offer.stopsCountText}</span>
+            <span class="list-row-price">${offer.formattedPrice}</span>
+            <button class="select-button ${offer.isExternalWebFare ? 'is-external' : ''}" type="button" data-select-offer="${offer.id}">
+              <span>${offer.isExternalWebFare ? 'Book' : 'Select'}</span>
+              <b>${offer.isExternalWebFare ? '↗' : '→'}</b>
+            </button>
+          </div>
+        `).join('') || '<p class="muted">No flights match these filters.</p>';
+        $('[data-result-count]').textContent = `${visible.length} flight${visible.length === 1 ? '' : 's'}`;
+        wireOfferInteractions();
+        return;
+      }
+
       cardsContainer.innerHTML = visible.map((offer) => `
         <div class="flight-tile-card" data-offer-id="${offer.id}">
           <div class="flight-tile-header">
             <div class="flight-tile-carrier">
-              <span class="airline-logo ${offer.tone}">${offer.code.slice(0, 2)}</span>
-              <span>${offer.airline}</span>
+              <span class="airline-logo ${offer.tone}">${(offer.outboundCarrierCode || offer.code).slice(0, 2)}</span>
+              <span>${offer.outboundCarrierName}</span>
             </div>
             <span class="badge-ai" style="font-size:11px;">${offer.flightNumber}</span>
           </div>
@@ -187,7 +267,7 @@ export function renderOffers() {
             </p>
             ${offer.inboundDepartDateTime ? `
               <p class="flight-tile-route" style="margin-top:4px;">
-                <strong>Ret:</strong> ${offer.inboundDepartDateTime} (${offer.inboundRouteText})
+                <strong>Ret:</strong> ${offer.isSameCarrierBothWays ? '' : `${offer.inboundCarrierName} · `}${offer.inboundDepartDateTime}<sup class="gf-next-day">${offer.inboundNextDayBadge}</sup> (${offer.inboundRouteText})
               </p>
             ` : ''}
           </div>
@@ -208,7 +288,11 @@ export function renderOffers() {
   }
 
   $('[data-result-count]').textContent = `${visible.length} flight${visible.length === 1 ? '' : 's'}`;
+  wireOfferInteractions();
+}
 
+// Wires up select/expand/row-click listeners shared by the table view, card grid, and list view
+function wireOfferInteractions() {
   document.querySelectorAll('[data-select-offer]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -216,12 +300,33 @@ export function renderOffers() {
     });
   });
 
-  document.querySelectorAll('.offer-table tr[data-offer-id], .flight-tile-card[data-offer-id]').forEach((card) => {
+  document.querySelectorAll('.offer-table tr[data-offer-id], .flight-tile-card[data-offer-id], .list-row[data-offer-id]').forEach((card) => {
     card.addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
       selectOffer(card.dataset.offerId);
     });
   });
+
+  document.querySelectorAll('[data-expand-toggle]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleOfferDetailRow(btn.dataset.expandToggle);
+    });
+  });
+}
+
+// Toggles the hidden detail row for an offer and flips the row's chevron icon
+function toggleOfferDetailRow(offerId) {
+  const detailRow = document.querySelector(`[data-detail-row="${offerId}"]`);
+  if (!detailRow) return;
+
+  const isExpanding = detailRow.classList.contains('hidden');
+  detailRow.classList.toggle('hidden', !isExpanding);
+
+  const rowToggleBtn = document.querySelector(`.expand-toggle-btn[data-expand-toggle="${offerId}"]`);
+  rowToggleBtn?.setAttribute('aria-expanded', String(isExpanding));
+  const chevron = rowToggleBtn?.querySelector('.chevron-icon');
+  if (chevron) chevron.textContent = isExpanding ? '▲' : '▼';
 }
 
 export function showFrontierRedirectModal(offer) {

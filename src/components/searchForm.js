@@ -163,6 +163,21 @@ export function clearRecentSearches() {
   renderRecentSearches();
 }
 
+// Removes a single recent-search entry (matched by deep equality) from the cookie store
+export function deleteRecentSearch(item) {
+  if (!item) return;
+  const existing = getRecentSearches();
+  const targetStr = JSON.stringify(item);
+  const updated = existing.filter((i) => JSON.stringify(i) !== targetStr);
+
+  if (updated.length > 0) {
+    document.cookie = `${recentSearchCookie}=${encodeURIComponent(JSON.stringify(updated))}; max-age=259200; path=/; SameSite=Lax`;
+  } else {
+    document.cookie = `${recentSearchCookie}=; max-age=0; path=/; SameSite=Lax`;
+  }
+  renderRecentSearches();
+}
+
 export function getRecentSearches() {
   const value = getCookie(recentSearchCookie);
   if (!value) return [];
@@ -182,10 +197,65 @@ export function switchSearchTab(tabName) {
   $('[data-enhanced-duration]')?.classList.toggle('hidden', tabName !== 'enhanced');
 }
 
+// Switches the active top-level service tab (ai-search/flights/hotels/cars/packages/ai-planner)
+// so getActiveServiceTab() reflects reality when AI natural-language search reroutes tabs.
+export function switchServiceTab(target) {
+  const targetTab = document.querySelector(`[data-service-tab="${target}"]`);
+  if (!targetTab) return;
+
+  document.querySelectorAll('[data-service-tab]').forEach((t) => {
+    t.classList.toggle('is-active', t === targetTab);
+    t.setAttribute('aria-selected', t === targetTab ? 'true' : 'false');
+  });
+
+  document.querySelectorAll('[data-service-content]').forEach((c) => {
+    c.classList.toggle('hidden', c.dataset.serviceContent !== target);
+  });
+
+  const resultsSection = document.getElementById('results');
+  if (resultsSection) {
+    resultsSection.style.display = (target === 'flights' || target === 'ai-search') ? 'block' : 'none';
+  }
+}
+
+// Original location of the recent-searches section (before #results), used as the
+// fallback anchor for the flights/ai-search tabs which share the #results section.
+let recentSearchesDefaultParent = null;
+let recentSearchesDefaultNextSibling = null;
+
+function repositionRecentSearches(activeTab) {
+  const card = $('[data-recent-searches]');
+  if (!card) return;
+
+  if (!recentSearchesDefaultParent) {
+    recentSearchesDefaultParent = card.parentElement;
+    recentSearchesDefaultNextSibling = card.nextElementSibling;
+  }
+
+  const anchorSelectorByTab = {
+    hotels: '[data-hotel-results]',
+    cars: '[data-car-results]',
+    packages: '[data-bundle-results]',
+    'ai-planner': '#ai-planner-view'
+  };
+
+  const anchorSelector = anchorSelectorByTab[activeTab];
+  const anchor = anchorSelector ? $(anchorSelector) : null;
+
+  if (anchor && anchor.parentElement) {
+    anchor.parentElement.insertBefore(card, anchor);
+  } else if (recentSearchesDefaultParent) {
+    // flights / ai-search: restore to default position above #results
+    recentSearchesDefaultParent.insertBefore(card, recentSearchesDefaultNextSibling);
+  }
+}
+
 export function renderRecentSearches() {
   const activeTab = getActiveServiceTab();
   const allList = getRecentSearches();
   const list = allList.filter((item) => (item.serviceTab || 'flights') === activeTab);
+
+  repositionRecentSearches(activeTab);
 
   const card = $('[data-recent-searches]');
   const ul = $('[data-recent-list]');
@@ -211,6 +281,7 @@ export function renderRecentSearches() {
           <div class="recent-card-meta">
             <span class="recent-date-tag">${metaText}</span>
             <span class="recent-search-arrow">→</span>
+            <button type="button" class="recent-delete-btn" data-remove-recent-index="${index}" title="Remove this search" aria-label="Remove this search">✕</button>
           </div>
         </div>
       `;
@@ -226,6 +297,7 @@ export function renderRecentSearches() {
           <div class="recent-card-meta">
             <span class="recent-date-tag">${formatDateLabel(item.checkIn, item.checkOut)}</span>
             <span class="recent-search-arrow">→</span>
+            <button type="button" class="recent-delete-btn" data-remove-recent-index="${index}" title="Remove this search" aria-label="Remove this search">✕</button>
           </div>
         </div>
       `;
@@ -241,6 +313,7 @@ export function renderRecentSearches() {
           <div class="recent-card-meta">
             <span class="recent-date-tag">${formatDateLabel(item.pickupDate, item.dropoffDate)}</span>
             <span class="recent-search-arrow">→</span>
+            <button type="button" class="recent-delete-btn" data-remove-recent-index="${index}" title="Remove this search" aria-label="Remove this search">✕</button>
           </div>
         </div>
       `;
@@ -256,6 +329,7 @@ export function renderRecentSearches() {
           <div class="recent-card-meta">
             <span class="recent-date-tag">${formatDateLabel(item.depart, item.return)}</span>
             <span class="recent-search-arrow">→</span>
+            <button type="button" class="recent-delete-btn" data-remove-recent-index="${index}" title="Remove this search" aria-label="Remove this search">✕</button>
           </div>
         </div>
       `;
@@ -272,10 +346,20 @@ export function renderRecentSearches() {
         <div class="recent-card-meta">
           <span class="recent-date-tag">${dateRangeLabel}</span>
           <span class="recent-search-arrow">→</span>
+          <button type="button" class="recent-delete-btn" data-remove-recent-index="${index}" title="Remove this search" aria-label="Remove this search">✕</button>
         </div>
       </div>
     `;
   }).join('');
+
+  ul.querySelectorAll('[data-remove-recent-index]').forEach((delBtn) => {
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = Number(delBtn.dataset.removeRecentIndex);
+      const item = list[idx];
+      if (item) deleteRecentSearch(item);
+    });
+  });
 
   ul.querySelectorAll('[data-recent-index]').forEach((chip) => {
     chip.addEventListener('click', () => {
@@ -356,26 +440,67 @@ export function renderRecentSearches() {
         const submitBtn = document.querySelector('#bundle-search-form button[type="submit"]');
         if (submitBtn) submitBtn.click();
       } else {
-        // Flights Tab
-        const origInput = document.querySelector('#flight-search-form [name="origin"]');
-        const destInput = document.querySelector('#flight-search-form [name="destination"]');
-        const depInput = document.querySelector('#flight-search-form [name="depart"]');
-        const retInput = document.querySelector('#flight-search-form [name="return"]');
+        // Flights Tab: restore every field & sub-tab exactly as it was searched
+        if (item.type === 'exact' || item.type === 'enhanced') {
+          switchSearchTab(item.type);
+        }
 
-        if (origInput) origInput.value = item.origin || '';
-        if (destInput) destInput.value = item.destination || '';
-        if (depInput) depInput.value = item.depart || '';
-        if (retInput) retInput.value = item.return || '';
+        const form = document.getElementById('flight-search-form');
+        if (form) {
+          const origInput = form.querySelector('[name="origin"]');
+          const destInput = form.querySelector('[name="destination"]');
+          const depInput = form.querySelector('[name="depart"]');
+          const retInput = form.querySelector('[name="return"]');
+          const cabinSelect = form.querySelector('[name="cabin_class"]');
+          const nonstopInput = form.querySelector('[name="nonstop"]');
+          const minDurSelect = form.querySelector('[name="min_duration"]');
+          const maxDurSelect = form.querySelector('[name="max_duration"]');
+          const flexDaysSelect = form.querySelector('[name="flex_days"]');
+          const favoriteAirlineInput = form.querySelector('[name="favorite_airline"]');
 
-        updateFieldHelpers(item.origin || '', item.destination || '');
+          if (origInput) origInput.value = item.origin || '';
+          if (destInput) destInput.value = item.destination || '';
+          if (depInput) depInput.value = item.depart || '';
+          if (retInput) retInput.value = item.return || '';
+          if (cabinSelect) cabinSelect.value = item.cabinClass || 'economy';
+          if (nonstopInput) nonstopInput.checked = !!item.nonstop;
+          if (minDurSelect && item.minDuration !== undefined) minDurSelect.value = String(item.minDuration);
+          if (maxDurSelect && item.maxDuration !== undefined) maxDurSelect.value = String(item.maxDuration);
+          if (flexDaysSelect && item.flexDays !== undefined) flexDaysSelect.value = String(item.flexDays);
+          if (favoriteAirlineInput) favoriteAirlineInput.value = item.favoriteAirline || '';
 
-        handleFlightSearch({
-          searchType: item.type || 'exact',
-          origin: item.origin || '',
-          destination: item.destination || '',
-          depart: item.depart || '',
-          return: item.return || ''
-        });
+          updateFieldHelpers(item.origin || '', item.destination || '');
+
+          // Auto-select the matching trip-type radio (round trip / one way / multi-city)
+          const tripTypeBtn = document.querySelector(`[data-trip-type="${item.tripType || 'round_trip'}"]`);
+          if (tripTypeBtn) tripTypeBtn.click();
+
+          if (item.tripType === 'multi_city' && Array.isArray(item.legs) && item.legs.length) {
+            const addLegBtn = $('[data-add-multicity-leg]');
+            while (document.querySelectorAll('.multicity-leg-row').length < item.legs.length && addLegBtn) {
+              addLegBtn.click();
+            }
+            item.legs.forEach((leg, i) => {
+              const legOriginInput = form.querySelector(`[name="leg_origin_${i}"]`);
+              const legDestInput = form.querySelector(`[name="leg_destination_${i}"]`);
+              const legDepartInput = form.querySelector(`[name="leg_depart_${i}"]`);
+              if (legOriginInput) legOriginInput.value = leg.origin || '';
+              if (legDestInput) legDestInput.value = leg.destination || '';
+              if (legDepartInput) legDepartInput.value = leg.depart || '';
+            });
+          }
+
+          if (item.passengers) {
+            passengerCounts.adults = item.passengers.adults || 1;
+            passengerCounts.children = item.passengers.children || 0;
+            passengerCounts.infantsInSeat = item.passengers.infantsInSeat || 0;
+            passengerCounts.infantsOnLap = item.passengers.infantsOnLap || 0;
+            updatePassengerDisplay();
+          }
+        }
+
+        const submitBtn = document.querySelector('#flight-search-form button[type="submit"]');
+        if (submitBtn) submitBtn.click();
       }
     });
   });
@@ -534,7 +659,16 @@ export async function handleFlightSearch(searchPayload) {
       depart: departDate,
       return: returnDate,
       prompt: searchPayload.prompt || '',
-      type: searchPayload.prompt ? 'natural' : 'exact'
+      type: searchPayload.prompt ? 'natural' : (searchPayload.searchType || 'exact'),
+      tripType: searchPayload.tripType || 'round_trip',
+      legs: searchPayload.legs || undefined,
+      passengers: searchPayload.passengers || undefined,
+      cabinClass: searchPayload.cabinClass || 'economy',
+      nonstop: !!searchPayload.nonstop,
+      minDuration: searchPayload.minDuration,
+      maxDuration: searchPayload.maxDuration,
+      flexDays: searchPayload.flexDays,
+      favoriteAirline: searchPayload.favoriteAirline || ''
     });
 
     $('.results-heading')?.classList.remove('hidden');
@@ -700,6 +834,102 @@ export function clearWholePage() {
   showInitialTrendingMode();
 }
 
+// Defaults every date field across all tabs to (today + 20) start / (today + 27) end
+export function setDefaultDateFields() {
+  const toDateInput = (date) => date.toISOString().split('T')[0];
+
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() + 20);
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() + 27);
+
+  const startStr = toDateInput(startDate);
+  const endStr = toDateInput(endDate);
+
+  const startFieldNames = ['depart', 'hotel_checkin', 'car_pickup', 'bundle_depart', 'leg_depart_0'];
+  const endFieldNames = ['return', 'hotel_checkout', 'car_dropoff', 'bundle_return', 'leg_depart_1'];
+
+  startFieldNames.forEach((name) => {
+    const el = document.querySelector(`[name="${name}"]`);
+    if (el) el.value = startStr;
+  });
+  endFieldNames.forEach((name) => {
+    const el = document.querySelector(`[name="${name}"]`);
+    if (el) el.value = endStr;
+  });
+
+  updatePresetChipDates(startDate, endDate);
+}
+
+// Injects the same default date range (today+20 / today+27) into every popular/trending
+// preset chip so users see & search real dates instead of open-ended examples.
+function updatePresetChipDates(startDate, endDate) {
+  const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  const shortLabel = (d) => `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}`;
+  const longLower = (d) => `${MONTHS_LONG[d.getMonth()].toLowerCase()} ${d.getDate()}`;
+
+  const dateRangeShort = `${shortLabel(startDate)} - ${shortLabel(endDate)}`;
+
+  // Hotels/Cars/Packages: append the date range as a small suffix on each chip label
+  document.querySelectorAll('[data-hotel-preset], [data-car-preset], [data-bundle-preset]').forEach((chip) => {
+    chip.querySelector('.preset-chip-dates')?.remove();
+    const datesEl = document.createElement('small');
+    datesEl.className = 'preset-chip-dates';
+    datesEl.textContent = ` · ${dateRangeShort}`;
+    chip.appendChild(datesEl);
+  });
+
+  // AI Search trending prompts: rewrite the underlying prompt text to include real dates
+  document.querySelectorAll('[data-ai-prompt-chip]').forEach((chip) => {
+    const template = chip.dataset.promptTemplate || chip.getAttribute('data-ai-prompt-chip');
+    if (!chip.dataset.promptTemplate) chip.dataset.promptTemplate = template;
+    const withDates = template.includes('{dates}')
+      ? template.replace('{dates}', `from ${longLower(startDate)} to ${longLower(endDate)}`)
+      : `${template} from ${longLower(startDate)} to ${longLower(endDate)}`;
+    chip.setAttribute('data-ai-prompt-chip', withDates);
+
+    const datesEl = chip.querySelector('.preset-chip-dates') || document.createElement('small');
+    datesEl.className = 'preset-chip-dates';
+    datesEl.textContent = ` · ${dateRangeShort}`;
+    if (!chip.contains(datesEl)) chip.appendChild(datesEl);
+  });
+}
+
+// Keeps an end-date field's calendar defaulted to (start date + 7 days) so it opens
+// on the same month with that date pre-selected, while respecting manual user edits.
+function linkStartEndDateField(startName, endName) {
+  const startEl = document.querySelector(`[name="${startName}"]`);
+  const endEl = document.querySelector(`[name="${endName}"]`);
+  if (!startEl || !endEl) return;
+
+  const plusSevenDays = (dateStr) => {
+    const base = dateStr ? new Date(`${dateStr}T00:00:00`) : new Date();
+    base.setDate(base.getDate() + 7);
+    return base.toISOString().split('T')[0];
+  };
+
+  startEl.addEventListener('change', () => {
+    if (!endEl.value || endEl.value <= startEl.value) {
+      endEl.value = plusSevenDays(startEl.value);
+    }
+  });
+
+  endEl.addEventListener('focus', () => {
+    if (!endEl.value) {
+      endEl.value = plusSevenDays(startEl.value);
+    }
+  });
+}
+
+export function initEndDateDefaults() {
+  linkStartEndDateField('depart', 'return');
+  linkStartEndDateField('hotel_checkin', 'hotel_checkout');
+  linkStartEndDateField('car_pickup', 'car_dropoff');
+  linkStartEndDateField('bundle_depart', 'bundle_return');
+}
+
 export function showInitialTrendingMode() {
   const resultsSection = $('#results');
   if (resultsSection) {
@@ -712,6 +942,13 @@ export function showInitialTrendingMode() {
   $('.table-toolbar')?.classList.add('hidden');
   $('.offer-table-wrap')?.classList.add('hidden');
   $('.table-footnote')?.classList.add('hidden');
+
+  // Trending Flights only belongs on the Flights tab; AI Search has its own
+  // "Trending prompts" chips inside its search panel instead.
+  if (getActiveServiceTab() !== 'flights') {
+    $('[data-stat-tiles-container]')?.classList.add('hidden');
+    return;
+  }
 
   renderTrendingSearches((trendingItem) => {
     const originInput = document.querySelector('[name="origin"]');
@@ -909,6 +1146,12 @@ export function initServiceTabs() {
       });
 
       renderRecentSearches();
+
+      // Re-evaluate trending flights vs trending prompts when hopping between
+      // the ai-search/flights tabs, as long as no search has run yet.
+      if ((target === 'flights' || target === 'ai-search') && !state.offers.length) {
+        showInitialTrendingMode();
+      }
     });
   });
 }
@@ -920,10 +1163,12 @@ export function initSearchForm() {
   initServiceTabs();
   initTripTypeSelector();
   initMultiCityLegs();
+  initEndDateDefaults();
 
   $('[data-clear-page]')?.addEventListener('click', (e) => {
     if (e) e.preventDefault();
     clearWholePage();
+    setDefaultDateFields();
   });
 
   $('[data-clear-recent]')?.addEventListener('click', clearRecentSearches);
@@ -940,6 +1185,7 @@ export function initSearchForm() {
     });
   }
 
+  // Trending prompts chips inside the AI Search panel (span flights/hotels/cars/packages)
   document.querySelectorAll('[data-ai-prompt-chip]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const promptVal = btn.getAttribute('data-ai-prompt-chip');

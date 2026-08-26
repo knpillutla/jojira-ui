@@ -1,4 +1,4 @@
-import { initSearchForm, renderRecentSearches, clearWholePage } from '../components/searchForm.js';
+import { initSearchForm, renderRecentSearches, clearWholePage, setDefaultDateFields } from '../components/searchForm.js';
 import { initBookingEvents } from '../components/bookingWizard.js';
 import { initHotelSearch } from '../components/hotels/hotelSearch.js';
 import { initCarSearch } from '../components/cars/carSearch.js';
@@ -55,6 +55,9 @@ function initApp() {
 
   // On page load/hard refresh: clear out flight search data & results, preserving recent searches
   clearWholePage();
+
+  // Default every date field (all tabs) to today+20 / today+27
+  setDefaultDateFields();
 }
 
 if (document.readyState === 'loading') {

@@ -47,4 +47,14 @@ export function initCarSearch() {
       }
     }
   });
+
+  // Popular searches presets
+  document.querySelectorAll('[data-car-preset]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const locationVal = chip.getAttribute('data-preset-location') || '';
+      const locInput = form.querySelector('[name="car_location"]');
+      if (locInput) locInput.value = locationVal;
+      form.querySelector('button[type="submit"]')?.click();
+    });
+  });
 }

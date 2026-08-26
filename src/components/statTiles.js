@@ -1,31 +1,101 @@
 import { state, $ } from '../core/state.js';
-import { money } from '../utils/formatters.js';
-import { selectOffer, renderOffers, updateSortHeaderIcons } from './offerTable.js';
+import { money, parseMoneyVal, formatDateShort } from '../utils/formatters.js';
+import { selectOffer, renderOffers, updateSortHeaderIcons, showFrontierRedirectModal } from './offerTable.js';
+
+// Priority-ordered map of category_highlights keys -> tile presentation.
+// Earlier entries win when multiple keys point at the same underlying offer.
+const HIGHLIGHT_TILE_DEFS = [
+  { key: 'overall_cheapest', badgeClass: 'badge-gold', label: () => '⭐ Overall Cheapest' },
+  { key: 'overall_lowest', badgeClass: 'badge-gold', label: () => '⭐ Overall Cheapest' },
+  { key: 'lowest_fare_deal', badgeClass: 'badge-gold', label: () => '🔥 Lowest Fare Deal' },
+  { key: 'lowest_non_stop', badgeClass: 'badge-green', label: () => '✈️ Cheapest Nonstop' },
+  { key: 'cheapest_non_stop', badgeClass: 'badge-green', label: () => '✈️ Cheapest Nonstop' },
+  { key: 'shortest_flight', badgeClass: 'badge-blue', label: () => '⚡ Fastest Flight' },
+  { key: 'shortest_non_stop', badgeClass: 'badge-blue', label: () => '⚡ Fastest Nonstop' },
+  { key: 'fastest_express_flight', badgeClass: 'badge-blue', label: () => '⚡ Fastest Nonstop' },
+  { key: 'lowest_1_stop', badgeClass: 'badge-green', label: () => '🏷️ Cheapest 1-Stop' },
+  { key: 'lowest_1_connection', badgeClass: 'badge-green', label: () => '🏷️ Cheapest 1-Stop' },
+  { key: 'lowest_2_stop', badgeClass: 'badge-green', label: () => '🏷️ Cheapest 2-Stop' },
+  { key: 'lowest_2_connection', badgeClass: 'badge-green', label: () => '🏷️ Cheapest 2-Stop' },
+  { key: 'preferred_airline_lowest', badgeClass: 'badge-purple', label: (n) => `💺 Cheapest on ${n.favoriteAirline || 'Preferred Airline'}` },
+  { key: 'favorite_airline_lowest', badgeClass: 'badge-purple', label: (n) => `💺 Cheapest on ${n.favoriteAirline || 'Preferred Airline'}` },
+  { key: 'preferred_airline_fastest', badgeClass: 'badge-purple', label: (n) => `⏱️ Fastest on ${n.favoriteAirline || 'Preferred Airline'}` },
+  { key: 'favorite_airline_shortest', badgeClass: 'badge-purple', label: (n) => `⏱️ Fastest on ${n.favoriteAirline || 'Preferred Airline'}` }
+];
+
+// Flattens a category_highlights entry into a display-ready offer, unwrapping the
+// nested `{ favorite_airline, offer }` shape used by preferred/favorite airline keys.
+function normalizeHighlightOffer(raw) {
+  if (!raw) return null;
+  const favoriteAirline = raw.favorite_airline;
+  const src = raw.offer || raw;
+  if (!src || !(src.offer_id || src.id)) return null;
+
+  const priceNum = typeof src.total_amount === 'number' ? src.total_amount : parseMoneyVal(src.price);
+  const stops = Number(src.max_stops ?? 0);
+
+  return {
+    id: src.offer_id || src.id,
+    airline: src.airline || '',
+    flightNumber: src.flight_number || src.outbound_flight_number || '',
+    from: src.origin_code || '',
+    to: src.destination_code || '',
+    price: priceNum,
+    formattedPrice: money(priceNum),
+    duration: src.duration_minutes || src.total_duration_minutes || 0,
+    formattedDuration: src.total_duration || src.duration || '',
+    stops,
+    legs: src.legs || (stops === 0 ? 'Non-stop' : `${stops} stop${stops > 1 ? 's' : ''}`),
+    legCodes: src.leg_codes || '',
+    legNames: src.leg_names || '',
+    favoriteAirline,
+    isExternalWebFare: Boolean(src.is_external_web_fare),
+    bookingUrl: src.booking_url || '',
+    redirectNotice: src.redirect_notice || ''
+  };
+}
+
+// Builds tiles directly from the API's `category_highlights` payload, deduping
+// entries that point at the same underlying offer so we don't show repeat tiles.
+function buildHighlightTiles() {
+  const highlights = state.categoryHighlights || {};
+  const tiles = [];
+  const seenIds = new Set();
+
+  HIGHLIGHT_TILE_DEFS.forEach((def) => {
+    const normalized = normalizeHighlightOffer(highlights[def.key]);
+    if (!normalized || seenIds.has(normalized.id)) return;
+    seenIds.add(normalized.id);
+
+    tiles.push({
+      key: def.key,
+      categoryType: 'highlight',
+      badgeLabel: def.label(normalized),
+      badgeClass: def.badgeClass,
+      legsVal: String(normalized.stops),
+      sortVal: 'price',
+      offer: normalized
+    });
+  });
+
+  return tiles.slice(0, 6);
+}
 
 /**
- * Extracts stat tiles based on `state.offers` and optional `state.categoryHighlights`.
- * Stat tiles include:
- *  - Overall Cheapest
- *  - Grouped by `legs` (e.g. "Non-stop", "1 stop", "2 stops"):
- *      - Cheapest offer for each leg group
- *      - Shortest offer for each leg group
+ * Extracts stat tiles, preferring the API's `category_highlights` when present
+ * and falling back to self-derived groups (by `legs`) based on `state.offers`.
  */
 export function buildStatTilesData() {
+  const highlightTiles = buildHighlightTiles();
+  if (highlightTiles.length) return highlightTiles;
+
   const offers = state.offers || [];
   if (!offers.length) return [];
 
   const tiles = [];
-  const highlights = state.categoryHighlights || {};
 
   // 1. Overall Cheapest Offer
-  let overallCheapest = null;
-  if (highlights.overall_cheapest) {
-    const highlightId = highlights.overall_cheapest.offer_id || highlights.overall_cheapest.id;
-    overallCheapest = offers.find((o) => o.id === highlightId) || null;
-  }
-  if (!overallCheapest) {
-    overallCheapest = [...offers].sort((a, b) => (a.price || 0) - (b.price || 0))[0];
-  }
+  let overallCheapest = [...offers].sort((a, b) => (a.price || 0) - (b.price || 0))[0];
 
   if (overallCheapest) {
     tiles.push({
@@ -135,7 +205,9 @@ function formatLegCodes(offer) {
 }
 
 /**
- * Handles tile click: highlights tile, selects offer in table, and opens booking details popup modal
+ * Handles tile click: highlights tile, selects offer in table, and opens booking details popup modal.
+ * Highlight tiles may reference an offer that isn't in the current table (e.g. an
+ * external web fare); in that case open its redirect modal directly instead of no-oping.
  */
 export function handleTileClick(tile) {
   if (!tile || !tile.offer?.id) return;
@@ -147,8 +219,12 @@ export function handleTileClick(tile) {
   const cardEl = document.querySelector(`.stat-tile-card[data-tile-key="${tile.key}"]`);
   cardEl?.classList.add('is-active');
 
-  // Directly select offer to open booking details popup modal
-  selectOffer(tile.offer.id);
+  const existsInTable = (state.offers || []).some((o) => o.id === tile.offer.id);
+  if (existsInTable) {
+    selectOffer(tile.offer.id);
+  } else if (tile.offer.isExternalWebFare) {
+    showFrontierRedirectModal(tile.offer);
+  }
 }
 
 /**
@@ -365,6 +441,10 @@ export function renderTrendingSearches(onSelectTrending) {
             <div class="stat-tile-meta-item">
               <span class="meta-label">Route</span>
               <span class="meta-val">${item.origin} → ${item.destination}</span>
+            </div>
+            <div class="stat-tile-meta-item">
+              <span class="meta-label">Dates</span>
+              <span class="meta-val">${formatDateShort(item.depart)} - ${formatDateShort(item.return)}</span>
             </div>
             <div class="stat-tile-meta-item">
               <span class="meta-label">Legs</span>

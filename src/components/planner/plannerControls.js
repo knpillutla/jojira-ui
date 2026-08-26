@@ -20,6 +20,22 @@ export function initPlannerControls() {
     let styleVal = formData.get('planner_style') || '';
     let budgetVal = formData.get('planner_budget') || '';
 
+    // Destination/duration/style/budget are optional hints; only the AI prompt is required
+    const errorEl = document.querySelector('[data-planner-search-error]');
+    if (!promptVal) {
+      if (errorEl) {
+        errorEl.textContent = 'Please describe your trip in the AI search box above to generate an itinerary.';
+        errorEl.classList.add('is-visible');
+        errorEl.classList.remove('hidden');
+      }
+      return;
+    }
+    if (errorEl) {
+      errorEl.textContent = '';
+      errorEl.classList.remove('is-visible');
+      errorEl.classList.add('hidden');
+    }
+
     // If destination is not specified in hint field, infer from prompt or fallback to Paris
     if (!destVal && promptVal) {
       const p = promptVal.toLowerCase();
@@ -58,6 +74,17 @@ export function initPlannerControls() {
     await loadItinerary(payload);
   });
 
+  // Clear the validation error as soon as the user starts typing a prompt
+  const promptField = form.querySelector('[name="planner_prompt"]');
+  promptField?.addEventListener('input', () => {
+    const errorEl = document.querySelector('[data-planner-search-error]');
+    if (promptField.value.trim() && errorEl) {
+      errorEl.textContent = '';
+      errorEl.classList.remove('is-visible');
+      errorEl.classList.add('hidden');
+    }
+  });
+
   // Preset prompt chip buttons (e.g. "Paris 4-Day", "Tokyo Express")
   document.querySelectorAll('[data-planner-preset]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -71,6 +98,13 @@ export function initPlannerControls() {
       if (promptInput) promptInput.value = `${days}-day highlights trip to ${dest}`;
       if (destInput) destInput.value = dest;
       if (daysSelect) daysSelect.value = String(days);
+
+      const errorEl = document.querySelector('[data-planner-search-error]');
+      if (errorEl) {
+        errorEl.textContent = '';
+        errorEl.classList.remove('is-visible');
+        errorEl.classList.add('hidden');
+      }
 
       loadItinerary({
         prompt: `${days}-day highlights trip to ${dest}`,

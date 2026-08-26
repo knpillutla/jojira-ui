@@ -69,14 +69,17 @@
                   <input id="standalone-ai-query" name="ai_prompt" placeholder="e.g. cheapest nonstop roundtrip from Atlanta to Paris in October for 7 days" style="border:0; outline:0; flex:1; font-size:13px; font-weight:600; width:100%;" />
                   <button type="submit" class="primary-button" style="padding:6px 16px;"><span>Search</span><b>→</b></button>
                 </div>
-                <div class="input-hint-row" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                  <span style="font-size:11px; color:var(--muted); font-weight:600;">Popular prompts:</span>
-                  <button type="button" class="preset-chip" data-ai-prompt-chip="cheapest roundtrip from atlanta to orlando from october 17 to october 24">✈️ ATL → Orlando in Oct</button>
-                  <button type="button" class="preset-chip" data-ai-prompt-chip="nonstop flight from london to new york under $700">🇬🇧 London → New York Nonstop</button>
-                  <button type="button" class="preset-chip" data-ai-prompt-chip="roundtrip from paris to tokyo in november">🇯🇵 Paris → Tokyo in Nov</button>
-                </div>
               </div>
             </form>
+            <div class="trending-prompts-section" style="padding:10px 6px 6px; border-top:1px dashed var(--line); margin-top:6px;">
+              <span style="display:block; font-size:11px; font-weight:700; color:var(--muted); margin-bottom:8px;">🔥 Trending prompts</span>
+              <div class="input-hint-row" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <button type="button" class="preset-chip" data-ai-prompt-chip="cheapest roundtrip from atlanta to orlando {dates}">✈️ ATL → Orlando</button>
+                <button type="button" class="preset-chip" data-ai-prompt-chip="hotels in tokyo {dates} under $200 a night">🏨 Tokyo Hotels Under $200</button>
+                <button type="button" class="preset-chip" data-ai-prompt-chip="rent a car in miami {dates}">🚗 Miami Car Rental</button>
+                <button type="button" class="preset-chip" data-ai-prompt-chip="flight and hotel package to cancun {dates}">🌴 Cancun Flight + Hotel</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -246,10 +249,16 @@
                   <span>Destination / City</span><strong>📍</strong>
                   <input name="hotel_location" placeholder="City or Landmark (e.g. Paris)" value="Paris" autocomplete="off" />
                 </label>
-                <label class="field"><span>Check-in</span><strong>▣</strong><input name="hotel_checkin" type="date" value="2026-10-01" /></label>
-                <label class="field"><span>Check-out</span><strong>▣</strong><input name="hotel_checkout" type="date" value="2026-10-08" /></label>
+                <label class="field"><span>Check-in</span><strong>▣</strong><input name="hotel_checkin" type="date" value="" /></label>
+                <label class="field"><span>Check-out</span><strong>▣</strong><input name="hotel_checkout" type="date" value="" /></label>
                 <label class="field"><span>Guests</span><strong>👤</strong><select name="hotel_guests"><option value="1">1 Guest</option><option value="2" selected>2 Guests</option><option value="3">3 Guests</option><option value="4">4+ Guests</option></select></label>
                 <label class="field"><span>Rooms</span><strong>🔑</strong><select name="hotel_rooms"><option value="1" selected>1 Room</option><option value="2">2 Rooms</option></select></label>
+              </div>
+              <div class="input-hint-row" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <span style="font-size:11px; color:var(--muted); font-weight:600;">Popular searches:</span>
+                <button type="button" class="preset-chip" data-hotel-preset data-preset-location="Paris">🇫🇷 Paris</button>
+                <button type="button" class="preset-chip" data-hotel-preset data-preset-location="New York">🇺🇸 New York</button>
+                <button type="button" class="preset-chip" data-hotel-preset data-preset-location="Tokyo">🇯🇵 Tokyo</button>
               </div>
               <div class="search-actions" style="margin-top:16px;">
                 <div class="actions-left"></div>
@@ -271,9 +280,15 @@
                   <span>Pickup Location</span><strong>🚗</strong>
                   <input name="car_location" placeholder="Airport or City (e.g. Paris CDG Airport)" value="Paris CDG Airport" autocomplete="off" />
                 </label>
-                <label class="field"><span>Pickup Date</span><strong>▣</strong><input name="car_pickup" type="date" value="2026-10-01" /></label>
-                <label class="field"><span>Drop-off Date</span><strong>▣</strong><input name="car_dropoff" type="date" value="2026-10-08" /></label>
+                <label class="field"><span>Pickup Date</span><strong>▣</strong><input name="car_pickup" type="date" value="" /></label>
+                <label class="field"><span>Drop-off Date</span><strong>▣</strong><input name="car_dropoff" type="date" value="" /></label>
                 <label class="field"><span>Category</span><strong>⚡</strong><select name="car_category"><option value="all" selected>All Vehicles</option><option value="ev">Electric / Tesla</option><option value="suv">SUVs</option><option value="luxury">Luxury Sedans</option><option value="economy">Economy Hatchbacks</option></select></label>
+              </div>
+              <div class="input-hint-row" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <span style="font-size:11px; color:var(--muted); font-weight:600;">Popular searches:</span>
+                <button type="button" class="preset-chip" data-car-preset data-preset-location="Paris CDG Airport">🇫🇷 Paris CDG</button>
+                <button type="button" class="preset-chip" data-car-preset data-preset-location="Los Angeles LAX Airport">🇺🇸 LAX Airport</button>
+                <button type="button" class="preset-chip" data-car-preset data-preset-location="Miami Airport">🇺🇸 Miami Airport</button>
               </div>
               <div class="search-actions" style="margin-top:16px;">
                 <div class="actions-left"></div>
@@ -299,9 +314,15 @@
                   <span>Destination</span><strong>🌴</strong>
                   <input name="bundle_destination" placeholder="To city (e.g. Paris)" value="CDG" autocomplete="off" />
                 </label>
-                <label class="field"><span>Depart</span><strong>▣</strong><input name="bundle_depart" type="date" value="2026-10-01" /></label>
-                <label class="field"><span>Return</span><strong>▣</strong><input name="bundle_return" type="date" value="2026-10-08" /></label>
+                <label class="field"><span>Depart</span><strong>▣</strong><input name="bundle_depart" type="date" value="" /></label>
+                <label class="field"><span>Return</span><strong>▣</strong><input name="bundle_return" type="date" value="" /></label>
                 <label class="field"><span>Travelers</span><strong>👤</strong><select name="bundle_travelers"><option value="1">1 Person</option><option value="2" selected>2 People</option><option value="4">4 People</option></select></label>
+              </div>
+              <div class="input-hint-row" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <span style="font-size:11px; color:var(--muted); font-weight:600;">Popular searches:</span>
+                <button type="button" class="preset-chip" data-bundle-preset data-preset-origin="ATL" data-preset-destination="CDG">🇫🇷 Atlanta → Paris</button>
+                <button type="button" class="preset-chip" data-bundle-preset data-preset-origin="JFK" data-preset-destination="CUN">🌴 New York → Cancun</button>
+                <button type="button" class="preset-chip" data-bundle-preset data-preset-origin="LAX" data-preset-destination="HNL">🌺 Los Angeles → Honolulu</button>
               </div>
               <div class="search-actions" style="margin-top:16px;">
                 <div class="actions-left"><span class="badge-savings">⚡ Save up to 35% by bundling</span></div>
@@ -377,6 +398,7 @@
                 </div>
               </div>
             </form>
+            <p class="search-error" data-planner-search-error role="alert" aria-live="polite"></p>
           </div>
 
           <!-- Split-View AI Planner Interface -->
@@ -422,20 +444,24 @@
 
       <section class="results-section" id="results">
         <div class="results-heading"><div><p class="eyebrow">Curated for you</p><h2><span data-origin-city></span> <span>→</span> <span data-destination-city></span></h2><p class="muted" data-result-summary>Search for a route to see available flights</p></div><button class="date-button" type="button"></button></div>
+        <div class="stat-tiles-container hidden" data-stat-tiles-container></div>
         <div class="table-toolbar">
           <div class="toolbar-left">
             <span class="result-count" data-result-count></span>
             <button class="filter-button" type="button" data-filter-toggle>☷ <span>Filters</span><b>0</b></button>
           </div>
 
-          <div class="view-layout-toggle" role="radiogroup" aria-label="Layout view options">
-            <button type="button" class="view-btn is-active" data-layout-view="table" title="Table View">📊 Table</button>
-            <button type="button" class="view-btn" data-layout-view="grid-2" title="2-Column Tiles">📱 2 Cols</button>
-            <button type="button" class="view-btn" data-layout-view="grid-3" title="3-Column Tiles (Show Maximum Tiles)">📱 3 Cols</button>
-            <button type="button" class="view-btn" data-layout-view="list" title="List View">📜 List</button>
-          </div>
+          <div class="toolbar-right">
+            <label class="sort-control">Sort by <select data-sort-select><option value="cheapest">Price</option><option value="shortest">Duration</option><option value="depart">Departure</option></select></label>
 
-          <label class="sort-control">Sort by <select data-sort-select><option value="cheapest">Price</option><option value="shortest">Duration</option><option value="depart">Departure</option></select></label>
+            <div class="view-layout-toggle" role="radiogroup" aria-label="Layout view options">
+              <button type="button" class="view-btn is-active" data-layout-view="list" title="List View (shows table)" aria-label="List View">☰</button>
+              <button type="button" class="view-btn" data-layout-view="grid-1" title="1-Column Tiles" aria-label="1-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="12" rx="1"/></svg></button>
+              <button type="button" class="view-btn" data-layout-view="grid-2" title="2-Column Tiles" aria-label="2-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="6" height="12" rx="1"/><rect x="9" y="2" width="6" height="12" rx="1"/></svg></button>
+              <button type="button" class="view-btn" data-layout-view="grid-3" title="3-Column Tiles" aria-label="3-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="4" height="12" rx="1"/><rect x="6" y="2" width="4" height="12" rx="1"/><rect x="11.5" y="2" width="4" height="12" rx="1"/></svg></button>
+              <button type="button" class="view-btn" data-layout-view="grid-4" title="4-Column Tiles (Show Maximum Tiles)" aria-label="4-Column Tiles"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0.5" y="2" width="3" height="12" rx="1"/><rect x="4.5" y="2" width="3" height="12" rx="1"/><rect x="8.5" y="2" width="3" height="12" rx="1"/><rect x="12.5" y="2" width="3" height="12" rx="1"/></svg></button>
+            </div>
+          </div>
         </div>
         <div class="filter-drawer" data-filter-drawer><label>Airline <select data-airline-filter><option value="all">All airlines</option></select></label><label>Stops <select data-stops-filter><option value="all">Any stops</option><option value="0">Nonstop</option><option value="1">1 stop</option><option value="2">2 stops</option></select></label><label>Max price <input type="range" min="250" max="800" value="800" data-price-filter /><output data-price-output>$800</output></label><button type="button" class="text-button" data-clear-filters>Clear all</button></div>
         
@@ -445,12 +471,15 @@
           <table class="offer-table">
             <thead>
               <tr>
-                <th data-sort-col="flight" class="sortable-th">Flight <span class="sort-icon">↕</span></th>
+                <th data-sort-col="depart" class="sortable-th">Dates <span class="sort-icon">↕</span></th>
+                <th data-sort-col="flight" class="sortable-th">Departure <span class="sort-icon">↕</span></th>
+                <th data-sort-col="flight" class="sortable-th">Return <span class="sort-icon">↕</span></th>
                 <th data-sort-col="duration" class="sortable-th">Duration <span class="sort-icon">↕</span></th>
                 <th data-sort-col="stops" class="sortable-th">Stops <span class="sort-icon">↕</span></th>
                 <th data-sort-col="emissions" class="sortable-th">Emissions <span class="sort-icon">↕</span></th>
                 <th data-sort-col="price" class="sortable-th price-heading">Price <span class="sort-icon">▲</span></th>
-                <th></th>
+                <th class="action-heading"></th>
+                <th class="expand-heading"></th>
               </tr>
             </thead>
             <tbody data-offers></tbody>

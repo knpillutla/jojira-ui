@@ -49,4 +49,17 @@ export function initBundleSearch() {
       }
     }
   });
+
+  // Popular searches presets
+  document.querySelectorAll('[data-bundle-preset]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const originVal = chip.getAttribute('data-preset-origin') || '';
+      const destVal = chip.getAttribute('data-preset-destination') || '';
+      const originInput = form.querySelector('[name="bundle_origin"]');
+      const destInput = form.querySelector('[name="bundle_destination"]');
+      if (originInput) originInput.value = originVal;
+      if (destInput) destInput.value = destVal;
+      form.querySelector('button[type="submit"]')?.click();
+    });
+  });
 }

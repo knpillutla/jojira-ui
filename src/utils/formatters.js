@@ -127,15 +127,18 @@ export function normalizeOffer(offer, index) {
   const arriveTime = formatTimeOnly(rawArrive);
   const dateRangeText = (rawDepart && rawReturnDepart && !isOneWay) ? `${formatDateShort(rawDepart)} – ${formatDateShort(rawReturnDepart)}` : (rawDepart ? formatDateShort(rawDepart) : '');
 
-  // Check if arrival is next day
-  let nextDayBadge = '';
-  if (rawDepart && rawArrive) {
-    const dDay = rawDepart.split('T')[0];
-    const aDay = rawArrive.split('T')[0];
-    if (dDay && aDay && aDay > dDay) {
-      nextDayBadge = '⁺¹';
-    }
+  // Show "+N" when arrival lands N calendar days after departure (covers overnight/multi-day flights)
+  function daysAheadBadge(startStr, endStr) {
+    if (!startStr || !endStr) return '';
+    const startDay = startStr.split('T')[0];
+    const endDay = endStr.split('T')[0];
+    if (!startDay || !endDay) return '';
+    const diffDays = Math.round((new Date(endDay) - new Date(startDay)) / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? `+${diffDays}` : '';
   }
+
+  const nextDayBadge = daysAheadBadge(rawDepart, rawArrive);
+  const inboundNextDayBadge = isOneWay ? '' : daysAheadBadge(rawReturnDepart, rawReturnArrive);
 
   // Carrier Names and Logos
   const carriers = new Set();
@@ -153,6 +156,13 @@ export function normalizeOffer(offer, index) {
   const carriersArray = Array.from(carriers);
   const carriersText = carriersArray.length > 0 ? carriersArray.slice(0, 3).join(' · ') : (offer.airline || '');
   const codeVal = offer.code || offer.flight_number || Array.from(carrierCodes).join('/') || (offer.airline ? offer.airline.slice(0, 2) : '');
+
+  // Per-leg carrier (Departure vs Return) so we can avoid repeating the same airline twice
+  const outboundCarrierName = segments[0]?.marketing_carrier?.name || offer.airline || carriersText || '';
+  const outboundCarrierCode = getIataCode(segments[0]?.marketing_carrier?.iata_code, codeVal);
+  const inboundCarrierName = isOneWay ? '' : (returnSegments[0]?.marketing_carrier?.name || offer.return_airline || outboundCarrierName);
+  const inboundCarrierCode = isOneWay ? '' : getIataCode(returnSegments[0]?.marketing_carrier?.iata_code, outboundCarrierCode);
+  const isSameCarrierBothWays = isOneWay || !inboundCarrierName || outboundCarrierName === inboundCarrierName;
 
   // Route & Duration
   const originCode = getIataCode(offer.origin_code || offer.from || offer.origin || offer.slices?.[0]?.origin?.iata_code, '');
@@ -332,6 +342,12 @@ export function normalizeOffer(offer, index) {
     inboundArriveDateTime,
     dateRangeText,
     nextDayBadge,
+    inboundNextDayBadge,
+    outboundCarrierName,
+    outboundCarrierCode,
+    inboundCarrierName,
+    inboundCarrierCode,
+    isSameCarrierBothWays,
     depart: outboundDepartDateTime || formatDateTime(rawDepart),
     arrive: outboundArriveDateTime || formatDateTime(rawArrive),
     from: originCode,
