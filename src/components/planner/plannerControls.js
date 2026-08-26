@@ -97,19 +97,73 @@ async function loadItinerary(payload) {
     `;
   }
 
-  try {
-    const data = await generateAiItinerary(payload);
-    currentItineraryData = data;
-    currentDayFilter = 'all';
 
-    renderTripSummaryHeader(data);
-    renderDayFilterPills(data);
-    renderPlannerItinerary(data, currentDayFilter);
-    initOrUpdateMap(data, currentDayFilter);
-  } catch (err) {
-    if (itineraryContainer) {
-      itineraryContainer.innerHTML = `<p class="search-error">Failed to generate AI trip itinerary. Please try again.</p>`;
-    }
+    console.log('🧠 [AI PLANNER] loadItinerary called with payload:', payload);
+    try {
+      let data = await generateAiItinerary(payload);
+      console.log('✅ [AI PLANNER] API response data:', data);
+
+      if (!data || !data.itinerary) {
+        console.error('❌ [AI PLANNER] Missing itinerary in response data');
+      }
+
+      // Transform backend response to expected frontend format
+      const total_days = (data.itinerary && data.itinerary.length) || 0;
+      const total_attractions = data.itinerary ? data.itinerary.reduce((acc, day) => acc + (day.activities?.length || 0), 0) : 0;
+      const estimated_budget = data.budget_estimate || 'N/A';
+
+      const days = (data.itinerary || []).map(day => ({
+        day: day.day_number || 1,
+        themeColor: '#ff6b6b', // default coral color
+        activities: day.activities || []
+      }));
+
+      // Assign transformed properties to data for rendering compatibility
+      data.total_days = total_days;
+      data.total_attractions = total_attractions;
+      data.estimated_budget = estimated_budget;
+      data.days = days;
+
+
+      // Log transformed data fields
+      console.log('🧠 [AI PLANNER] total_days:', total_days);
+      console.log('🧠 [AI PLANNER] total_attractions:', total_attractions);
+      console.log('🧠 [AI PLANNER] estimated_budget:', estimated_budget);
+
+      currentItineraryData = data;
+      currentDayFilter = 'all';
+
+      renderTripSummaryHeader(data);
+      renderDayFilterPills(data);
+      renderPlannerItinerary(data, currentDayFilter);
+      initOrUpdateMap(data, currentDayFilter);
+    } catch (err) {
+      console.error('❌ [AI PLANNER] Error in loadItinerary:', err);
+      if (itineraryContainer) {
+        itineraryContainer.innerHTML = `
+          <div class="error-panel" role="alert" aria-live="assertive">
+            <div class="error-icon">⚠️</div>
+            <div class="error-message">
+              <h3>Failed to generate AI trip itinerary</h3>
+              <p>Please try again or check your internet connection.</p>
+            </div>
+          </div>
+        `;
+      }
+
+      const mapContainer = document.getElementById('planner-route-map');
+      if (mapContainer) {
+        mapContainer.innerHTML = `
+          <div class="map-error-placeholder" aria-hidden="true">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="10" stroke="#ff4d4f" stroke-width="2"/>
+              <line x1="12" y1="8" x2="12" y2="12" stroke="#ff4d4f" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="12" cy="16" r="1" fill="#ff4d4f"/>
+            </svg>
+            <p>No map data available</p>
+          </div>
+        `;
+      }
   }
 }
 

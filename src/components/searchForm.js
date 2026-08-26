@@ -380,10 +380,6 @@ export function renderRecentSearches() {
     });
   });
 }
-      }
-    });
-  });
-}
 
 export async function handleFlightSearch(searchPayload) {
   const lineProgress = $('[data-line-progress]');

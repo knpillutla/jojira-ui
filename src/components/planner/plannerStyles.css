@@ -1,0 +1,136 @@
+/* Day pill buttons for day filtering */
+.day-pill {
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  padding: 6px 14px;
+  margin: 3px;
+  font-weight: 600;
+  color: #444;
+  background-color: #f4f4f4;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+.day-pill.is-active {
+  background-color: var(--pill-color, #ff6b6b);
+  color: white;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.15);
+}
+
+/* Badge showing the day number with distinct background color */
+.day-header-badge {
+  color: white;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  display: inline-block;
+  margin-right: 10px;
+}
+
+/* Colored border on day section header */
+.day-section-header {
+  border-left-width: 4px;
+  border-left-style: solid;
+  padding-left: 12px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+}
+
+/* Step number with background color matching day */
+.activity-step-num {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  text-align: center;
+  min-width: 28px;
+}
+
+/* Map pin custom color using CSS variable */
+.custom-map-pin {
+  position: relative;
+  min-width: 36px;
+  min-height: 44px;
+  text-align: center;
+  pointer-events: auto;
+}
+.custom-map-pin .pin-badge {
+  background-color: var(--pin-color, #ff6b6b);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 2px 6px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+.custom-map-pin .pin-icon {
+  font-size: 22px;
+}
+
+/* Route map polyline stroke colors will be set by JS dynamically matching dayColor */
+
+/* Activity card styling */
+.activity-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 0 6px rgb(0 0 0 / 0.06);
+  margin-bottom: 12px;
+  padding: 12px;
+  cursor: pointer;
+  transition: box-shadow 0.3s ease;
+}
+.activity-card:hover {
+  box-shadow: 0 0 10px rgb(0 0 0 / 0.1);
+}
+
+/* Other activity content styles */
+.activity-time-col {
+  min-width: 80px;
+  font-weight: 700;
+  color: #555;
+}
+
+.activity-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.activity-location {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.activity-desc {
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.category-chip, .duration-chip, .cost-chip {
+  display: inline-block;
+  font-size: 12px;
+  margin-right: 10px;
+  background-color: #eee;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #444;
+}
+
+.btn-locate-map {
+  border: none;
+  background-color: transparent;
+  font-size: 16px;
+  cursor: pointer;
+}
+.btn-locate-map:hover {
+  color: #ff6b6b;
+}
+
+/* Error and map placeholders reuse from previous patch can be styled in global styles if needed */
+
+
