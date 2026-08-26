@@ -2,7 +2,11 @@ import { state, $, recentSearchCookie, cookieConsentCookie, getCookie } from '..
 import { money } from '../utils/formatters.js';
 import { searchFlights } from '../api/flightApi.js';
 import { renderOffers, populateAirlines, updateRouteHeading, initTableSorting } from './offerTable.js';
-import { renderStatTiles, clearTileFilters } from './statTiles.js';
+import { renderStatTiles, clearTileFilters, renderTrendingSearches } from './statTiles.js';
+import { renderBundleResults } from './bundles/bundleResults.js';
+import { renderHotelResults } from './hotels/hotelResults.js';
+import { renderCarResults } from './cars/carResults.js';
+import { generateMockHotels, generateMockCars, generateMockBundles } from '../api/travelApi.js';
 
 let citiesDatabase = [];
 
@@ -117,56 +121,45 @@ function formatDateLabel(depart, returnDate, legacyDate) {
   return dFormatted || rFormatted || '';
 }
 
-export function saveRecentSearch(data, destinationCode, departDateVal, returnDateVal) {
-  let origin = '';
-  let destination = '';
-  let departDate = '';
-  let returnDate = '';
-  let prompt = '';
-  let type = 'exact';
+export function getActiveServiceTab() {
+  const activeTabEl = document.querySelector('[data-service-tab].is-active');
+  return activeTabEl ? activeTabEl.dataset.serviceTab : 'ai-search';
+}
 
-  if (typeof data === 'string') {
-    origin = data;
-    destination = destinationCode || '';
-    departDate = departDateVal || '';
-    returnDate = returnDateVal || '';
-  } else if (data && typeof data === 'object') {
-    origin = data.origin || '';
-    destination = data.destination || '';
-    departDate = data.depart || '';
-    returnDate = data.return || '';
-    prompt = data.prompt || '';
-    type = data.type || (prompt ? 'natural' : 'exact');
-  }
-
-  if (!origin && !destination && !prompt) return;
+export function saveRecentSearch(data) {
+  if (!data) return;
+  const activeTab = data.serviceTab || getActiveServiceTab();
+  const newItem = { ...data, serviceTab: activeTab };
 
   const existing = getRecentSearches();
+  
+  // Filter out duplicates for the active tab
   const filtered = existing.filter((item) => {
-    if (type === 'natural' && prompt) {
-      return item.prompt !== prompt;
+    if ((item.serviceTab || 'flights') !== activeTab) return true;
+    if (newItem.prompt && item.prompt) {
+      return item.prompt.toLowerCase() !== newItem.prompt.toLowerCase();
     }
-    return !(item.origin === origin && item.destination === destination && item.depart === departDate);
+    const origMatch = (item.origin || item.location || '').toLowerCase() === (newItem.origin || newItem.location || '').toLowerCase();
+    const destMatch = (item.destination || '').toLowerCase() === (newItem.destination || '').toLowerCase();
+    return !(origMatch && destMatch);
   });
 
-  const newItem = {
-    origin,
-    destination,
-    depart: departDate || '',
-    return: returnDate || '',
-    prompt: prompt || '',
-    type: type || (prompt ? 'natural' : 'exact')
-  };
+  const updated = [newItem, ...filtered].slice(0, 20);
 
-  const updated = [newItem, ...filtered].slice(0, 6);
-
-  // Keep recent search cookies for 3 days (3 * 24 * 3600 = 259,200 seconds)
   document.cookie = `${recentSearchCookie}=${encodeURIComponent(JSON.stringify(updated))}; max-age=259200; path=/; SameSite=Lax`;
   renderRecentSearches();
 }
 
 export function clearRecentSearches() {
-  document.cookie = `${recentSearchCookie}=; max-age=0; path=/; SameSite=Lax`;
+  const activeTab = getActiveServiceTab();
+  const existing = getRecentSearches();
+  const updated = existing.filter((item) => (item.serviceTab || 'flights') !== activeTab);
+  
+  if (updated.length > 0) {
+    document.cookie = `${recentSearchCookie}=${encodeURIComponent(JSON.stringify(updated))}; max-age=259200; path=/; SameSite=Lax`;
+  } else {
+    document.cookie = `${recentSearchCookie}=; max-age=0; path=/; SameSite=Lax`;
+  }
   renderRecentSearches();
 }
 
@@ -190,7 +183,10 @@ export function switchSearchTab(tabName) {
 }
 
 export function renderRecentSearches() {
-  const list = getRecentSearches();
+  const activeTab = getActiveServiceTab();
+  const allList = getRecentSearches();
+  const list = allList.filter((item) => (item.serviceTab || 'flights') === activeTab);
+
   const card = $('[data-recent-searches]');
   const ul = $('[data-recent-list]');
 
@@ -203,25 +199,72 @@ export function renderRecentSearches() {
 
   card.classList.remove('hidden');
   ul.innerHTML = list.map((item, index) => {
-    if (item.type === 'natural' || item.prompt) {
-      const routeSub = (item.origin && item.destination) ? `${item.origin} → ${item.destination}` : 'Ask naturally';
+    if (activeTab === 'ai-search' || activeTab === 'ai-planner' || item.prompt) {
+      const titleText = item.prompt || `${item.destination || item.location} (${item.days || 4} days)`;
+      const metaText = item.destination || item.location || 'AI Search';
       return `
-        <div class="recent-search-card is-natural" data-recent-index="${index}" title="Click to rerun natural search: &quot;${item.prompt}&quot;">
+        <div class="recent-search-card is-natural" data-recent-index="${index}" title="Click to populate & run: &quot;${titleText}&quot;">
           <div class="recent-card-route">
-            <span class="recent-plane-icon">💬</span>
-            <strong class="recent-prompt-text">"${item.prompt}"</strong>
+            <span class="recent-plane-icon">${activeTab === 'ai-planner' ? '✨' : '🧠'}</span>
+            <strong class="recent-prompt-text">"${titleText}"</strong>
           </div>
           <div class="recent-card-meta">
-            <span class="recent-date-tag">${routeSub}</span>
+            <span class="recent-date-tag">${metaText}</span>
             <span class="recent-search-arrow">→</span>
           </div>
         </div>
       `;
     }
 
-    const dateRangeLabel = formatDateLabel(item.depart, item.return, item.date);
+    if (activeTab === 'hotels') {
+      return `
+        <div class="recent-search-card" data-recent-index="${index}" title="Click to populate & search hotels in ${item.location}">
+          <div class="recent-card-route">
+            <span class="recent-plane-icon">🏨</span>
+            <strong>${item.location || 'Paris'}</strong>
+          </div>
+          <div class="recent-card-meta">
+            <span class="recent-date-tag">${formatDateLabel(item.checkIn, item.checkOut)}</span>
+            <span class="recent-search-arrow">→</span>
+          </div>
+        </div>
+      `;
+    }
+
+    if (activeTab === 'cars') {
+      return `
+        <div class="recent-search-card" data-recent-index="${index}" title="Click to populate & search cars in ${item.location}">
+          <div class="recent-card-route">
+            <span class="recent-plane-icon">🚗</span>
+            <strong>${item.location || 'Airport'}</strong>
+          </div>
+          <div class="recent-card-meta">
+            <span class="recent-date-tag">${formatDateLabel(item.pickupDate, item.dropoffDate)}</span>
+            <span class="recent-search-arrow">→</span>
+          </div>
+        </div>
+      `;
+    }
+
+    if (activeTab === 'packages') {
+      return `
+        <div class="recent-search-card" data-recent-index="${index}" title="Click to populate & search packages for ${item.origin} → ${item.destination}">
+          <div class="recent-card-route">
+            <span class="recent-plane-icon">🌴</span>
+            <strong>${item.origin} → ${item.destination}</strong>
+          </div>
+          <div class="recent-card-meta">
+            <span class="recent-date-tag">${formatDateLabel(item.depart, item.return)}</span>
+            <span class="recent-search-arrow">→</span>
+          </div>
+        </div>
+      `;
+    }
+
+    // Flights (Default)
+    const dateRangeLabel = formatDateLabel(item.depart, item.return);
     return `
-      <div class="recent-search-card" data-recent-index="${index}" title="Click to execute search for ${item.origin} → ${item.destination}">
+      <div class="recent-search-card" data-recent-index="${index}" title="Click to populate & search flights for ${item.origin} → ${item.destination}">
         <div class="recent-card-route">
           <span class="recent-plane-icon">✈️</span>
           <strong>${item.origin} → ${item.destination}</strong>
@@ -240,20 +283,89 @@ export function renderRecentSearches() {
       const item = list[idx];
       if (!item) return;
 
-      if (item.prompt) {
-        switchSearchTab('natural');
+      if (activeTab === 'ai-search') {
+        const input = document.getElementById('standalone-ai-query');
+        if (input) input.value = item.prompt || '';
+        if (item.prompt) {
+          handleFlightSearch({ searchType: 'natural', prompt: item.prompt });
+        }
+      } else if (activeTab === 'ai-planner') {
+        const form = document.getElementById('ai-planner-form');
+        if (form) {
+          const promptInput = form.querySelector('[name="planner_prompt"]');
+          const destInput = form.querySelector('[name="planner_destination"]');
+          const daysSelect = form.querySelector('[name="planner_days"]');
+          const styleSelect = form.querySelector('[name="planner_style"]');
+          const budgetSelect = form.querySelector('[name="planner_budget"]');
 
-        const promptInput = document.querySelector('#natural-query');
-        if (promptInput) promptInput.value = item.prompt;
+          if (promptInput) promptInput.value = item.prompt || '';
+          if (destInput) destInput.value = item.destination || '';
+          if (daysSelect) daysSelect.value = String(item.days || 4);
+          if (styleSelect) styleSelect.value = item.style || '';
+          if (budgetSelect) budgetSelect.value = item.budget || '';
+        }
+        const submitBtn = document.querySelector('#ai-planner-form button[type="submit"]');
+        if (submitBtn) submitBtn.click();
+      } else if (activeTab === 'hotels') {
+        const form = document.getElementById('hotel-search-form');
+        if (form) {
+          const locInput = form.querySelector('[name="hotel_location"]');
+          const checkInInput = form.querySelector('[name="hotel_checkin"]');
+          const checkOutInput = form.querySelector('[name="hotel_checkout"]');
+          const guestsSelect = form.querySelector('[name="hotel_guests"]');
+          const roomsSelect = form.querySelector('[name="hotel_rooms"]');
 
-        handleFlightSearch({ searchType: 'natural', prompt: item.prompt });
+          if (locInput) locInput.value = item.location || '';
+          if (checkInInput) checkInInput.value = item.checkIn || '';
+          if (checkOutInput) checkOutInput.value = item.checkOut || '';
+          if (guestsSelect) guestsSelect.value = String(item.guests || 2);
+          if (roomsSelect) roomsSelect.value = String(item.rooms || 1);
+        }
+        const submitBtn = document.querySelector('#hotel-search-form button[type="submit"]');
+        if (submitBtn) submitBtn.click();
+      } else if (activeTab === 'cars') {
+        const form = document.getElementById('car-search-form');
+        if (form) {
+          const locInput = form.querySelector('[name="car_location"]');
+          const pickInput = form.querySelector('[name="car_pickup"]');
+          const dropInput = form.querySelector('[name="car_dropoff"]');
+          const catSelect = form.querySelector('[name="car_category"]');
+
+          if (locInput) locInput.value = item.location || '';
+          if (pickInput) pickInput.value = item.pickupDate || '';
+          if (dropInput) dropInput.value = item.dropoffDate || '';
+          if (catSelect) catSelect.value = item.category || 'all';
+        }
+        const submitBtn = document.querySelector('#car-search-form button[type="submit"]');
+        if (submitBtn) submitBtn.click();
+      } else if (activeTab === 'packages') {
+        const form = document.getElementById('bundle-search-form');
+        if (form) {
+          const origInput = form.querySelector('[name="bundle_origin"]');
+          const destInput = form.querySelector('[name="bundle_destination"]');
+          const depInput = form.querySelector('[name="bundle_depart"]');
+          const retInput = form.querySelector('[name="bundle_return"]');
+          const travSelect = form.querySelector('[name="bundle_travelers"]');
+
+          if (origInput) origInput.value = item.origin || '';
+          if (destInput) destInput.value = item.destination || '';
+          if (depInput) depInput.value = item.depart || '';
+          if (retInput) retInput.value = item.return || '';
+          if (travSelect) travSelect.value = String(item.travelers || 2);
+        }
+        const submitBtn = document.querySelector('#bundle-search-form button[type="submit"]');
+        if (submitBtn) submitBtn.click();
       } else {
-        switchSearchTab(item.type || 'exact');
+        // Flights Tab
+        const origInput = document.querySelector('#flight-search-form [name="origin"]');
+        const destInput = document.querySelector('#flight-search-form [name="destination"]');
+        const depInput = document.querySelector('#flight-search-form [name="depart"]');
+        const retInput = document.querySelector('#flight-search-form [name="return"]');
 
-        if (document.querySelector('[name="origin"]')) document.querySelector('[name="origin"]').value = item.origin || '';
-        if (document.querySelector('[name="destination"]')) document.querySelector('[name="destination"]').value = item.destination || '';
-        if (document.querySelector('[name="depart"]')) document.querySelector('[name="depart"]').value = item.depart || '';
-        if (document.querySelector('[name="return"]')) document.querySelector('[name="return"]').value = item.return || '';
+        if (origInput) origInput.value = item.origin || '';
+        if (destInput) destInput.value = item.destination || '';
+        if (depInput) depInput.value = item.depart || '';
+        if (retInput) retInput.value = item.return || '';
 
         updateFieldHelpers(item.origin || '', item.destination || '');
 
@@ -264,6 +376,10 @@ export function renderRecentSearches() {
           depart: item.depart || '',
           return: item.return || ''
         });
+      }
+    });
+  });
+}
       }
     });
   });
@@ -295,6 +411,97 @@ export async function handleFlightSearch(searchPayload) {
 
   try {
     const normalized = await searchFlights(searchPayload);
+    const searchType = normalized.search_type || normalized.meta?.search_type || (normalized.meta?.is_bundle ? 'bundle' : 'flights');
+
+    // 1. BUNDLES / VACATION PACKAGES ROUTING
+    if (searchType === 'bundle' || normalized.meta?.is_bundle) {
+      if (lineProgress) lineProgress.classList.add('hidden');
+      switchServiceTab('packages');
+
+      const origin = normalized.searchParams?.origin || searchPayload.origin || 'ATL';
+      const destination = normalized.searchParams?.destination || searchPayload.destination || 'CDG';
+
+      let bundleData = null;
+      if (normalized.results && normalized.results.length > 0 && normalized.results[0].total_package_price) {
+        bundleData = {
+          origin: origin,
+          destination: destination,
+          total_found: normalized.total_bundles_found || normalized.results.length,
+          packages: normalized.results.map((res, i) => {
+            const savingsAmt = res.bundle_savings || 40;
+            const origPrice = res.individual_price_sum || 750;
+            const pct = Math.round((savingsAmt / origPrice) * 100) || 25;
+            return {
+              id: res.bundle_id || `pkg-${i+1}`,
+              title: normalized.meta?.bundle_for || `Vacation Package ${i+1}`,
+              savings_percentage: pct,
+              savings_amount: savingsAmt,
+              total_bundle_price: res.total_package_price,
+              individual_price_sum: origPrice,
+              inclusions: [
+                `Flight: ${res.flight_offer?.airline || 'Roundtrip Flight'} (${res.flight_offer?.price || ''})`,
+                `Hotel: ${res.hotel_stay?.accommodation?.name || 'Luxury Hotel Stay'}`
+              ],
+              flight_details: {
+                airline: res.flight_offer?.airline || 'Major Airline',
+                stops: res.flight_offer?.legs || 'Non-stop',
+                cabin: normalized.searchParams?.cabin_class || 'economy'
+              },
+              hotel_details: {
+                name: res.hotel_stay?.accommodation?.name || 'Grand Hotel Paris Centre',
+                stars: res.hotel_stay?.accommodation?.rating || 5,
+                rating: res.hotel_stay?.accommodation?.rating || 4.8,
+                nights: 7
+              },
+              image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80'
+            };
+          })
+        };
+      } else {
+        bundleData = generateMockBundles(origin, destination);
+      }
+
+      renderBundleResults(bundleData);
+      saveRecentSearch({
+        origin, destination, prompt: searchPayload.prompt || '', type: 'natural'
+      });
+      return;
+    }
+
+    // 2. HOTELS ROUTING
+    if (searchType === 'hotels') {
+      if (lineProgress) lineProgress.classList.add('hidden');
+      switchServiceTab('hotels');
+      const location = normalized.searchParams?.destination || searchPayload.destination || 'Paris';
+      const hotelData = (normalized.results && normalized.results.length > 0 && normalized.results[0].name)
+        ? normalized
+        : generateMockHotels(location, searchPayload.depart, searchPayload.return);
+      renderHotelResults(hotelData);
+      saveRecentSearch({
+        origin: location, destination: location, prompt: searchPayload.prompt || '', type: 'natural'
+      });
+      return;
+    }
+
+    // 3. CAR RENTALS ROUTING
+    if (searchType === 'cars') {
+      if (lineProgress) lineProgress.classList.add('hidden');
+      switchServiceTab('cars');
+      const location = normalized.searchParams?.destination || searchPayload.destination || 'Paris CDG Airport';
+      const carData = (normalized.results && normalized.results.length > 0 && normalized.results[0].model)
+        ? normalized
+        : generateMockCars(location, 'all');
+      renderCarResults(carData);
+      saveRecentSearch({
+        origin: location, destination: location, prompt: searchPayload.prompt || '', type: 'natural'
+      });
+      return;
+    }
+
+    // 4. FLIGHTS ROUTING (Default)
+    if (lineProgress) lineProgress.classList.add('hidden');
+    if (resultsSection) resultsSection.classList.remove('hidden');
+
     state.offers = normalized.offers;
     state.categoryHighlights = normalized.categoryHighlights;
     state.routeNames = normalized.routeNames;
@@ -333,6 +540,11 @@ export async function handleFlightSearch(searchPayload) {
       prompt: searchPayload.prompt || '',
       type: searchPayload.prompt ? 'natural' : 'exact'
     });
+
+    $('.results-heading')?.classList.remove('hidden');
+    $('.table-toolbar')?.classList.remove('hidden');
+    $('.offer-table-wrap')?.classList.remove('hidden');
+    $('.table-footnote')?.classList.remove('hidden');
 
     $('[data-booking-confirmation-section]')?.classList.add('hidden');
     if (resultsSection) {
@@ -479,9 +691,6 @@ export function clearWholePage() {
 
   renderStatTiles();
 
-  const resultsSection = $('#results');
-  if (resultsSection) resultsSection.classList.add('hidden');
-
   const errorEl = $('[data-search-error]');
   if (errorEl) {
     errorEl.textContent = '';
@@ -490,6 +699,43 @@ export function clearWholePage() {
   }
 
   $('[data-booking-confirmation-section]')?.classList.add('hidden');
+
+  // Show Top 3 Trending Searches and keep table hidden on initial page load
+  showInitialTrendingMode();
+}
+
+export function showInitialTrendingMode() {
+  const resultsSection = $('#results');
+  if (resultsSection) {
+    resultsSection.classList.remove('hidden');
+    resultsSection.style.display = 'block';
+  }
+
+  // Hide empty table elements on initial page load
+  $('.results-heading')?.classList.add('hidden');
+  $('.table-toolbar')?.classList.add('hidden');
+  $('.offer-table-wrap')?.classList.add('hidden');
+  $('.table-footnote')?.classList.add('hidden');
+
+  renderTrendingSearches((trendingItem) => {
+    const originInput = document.querySelector('[name="origin"]');
+    const destInput = document.querySelector('[name="destination"]');
+    const departInput = document.querySelector('[name="depart"]');
+    const returnInput = document.querySelector('[name="return"]');
+
+    if (originInput) originInput.value = trendingItem.origin;
+    if (destInput) destInput.value = trendingItem.destination;
+    if (departInput) departInput.value = trendingItem.depart;
+    if (returnInput) returnInput.value = trendingItem.return;
+
+    handleFlightSearch({
+      searchType: 'exact',
+      origin: trendingItem.origin,
+      destination: trendingItem.destination,
+      depart: trendingItem.depart,
+      return: trendingItem.return
+    });
+  });
 }
 
 export async function initCityAutocomplete() {
@@ -665,6 +911,8 @@ export function initServiceTabs() {
           c.classList.add('hidden');
         }
       });
+
+      renderRecentSearches();
     });
   });
 }
@@ -683,6 +931,29 @@ export function initSearchForm() {
   });
 
   $('[data-clear-recent]')?.addEventListener('click', clearRecentSearches);
+
+  const standaloneAiForm = document.getElementById('standalone-ai-search-form');
+  if (standaloneAiForm) {
+    standaloneAiForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const promptInput = standaloneAiForm.querySelector('[name="ai_prompt"]');
+      const promptVal = promptInput ? promptInput.value.trim() : '';
+      if (promptVal) {
+        handleFlightSearch({ searchType: 'natural', prompt: promptVal });
+      }
+    });
+  }
+
+  document.querySelectorAll('[data-ai-prompt-chip]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const promptVal = btn.getAttribute('data-ai-prompt-chip');
+      const input = document.getElementById('standalone-ai-query');
+      if (input) input.value = promptVal;
+      if (promptVal) {
+        handleFlightSearch({ searchType: 'natural', prompt: promptVal });
+      }
+    });
+  });
 
   document.querySelectorAll('[data-search-tab]').forEach((tab) => tab.addEventListener('click', () => {
     document.querySelectorAll('[data-search-tab]').forEach((item) => item.classList.toggle('is-active', item === tab));

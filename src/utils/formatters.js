@@ -397,6 +397,11 @@ export function normalizeSearchResponse(data) {
   const normalizedOffers = deduplicated.map(normalizeOffer).filter((offer) => offer.price > 0);
 
   return {
+    search_type: data.search_type || data.meta?.search_type || (data.meta?.is_bundle ? 'bundle' : 'flights'),
+    meta: data.meta || {},
+    results: data.results || [],
+    total_bundles_found: data.total_bundles_found || 0,
+    total_results: data.total_results || 0,
     offers: normalizedOffers,
     searchParams: {
       ...(data.search_params || {}),

@@ -270,3 +270,126 @@ export function renderStatTiles() {
     });
   });
 }
+
+/**
+ * Top 3 Curated Trending Searches data shown when the web page is opened.
+ */
+export const TRENDING_SEARCHES = [
+  {
+    id: 'trend_1',
+    rank: '🔥 #1 Trending',
+    badgeClass: 'badge-gold',
+    origin: 'ATL',
+    originName: 'Atlanta',
+    destination: 'MCO',
+    destinationName: 'Orlando',
+    depart: '2026-10-17',
+    return: '2026-10-24',
+    airline: 'Frontier Airlines',
+    flightNumber: 'F9 3976',
+    price: 38.00,
+    formattedPrice: '$38.00',
+    duration: '3h 29m',
+    legs: 'Non-stop',
+    tag: 'Direct Web Fare'
+  },
+  {
+    id: 'trend_2',
+    rank: '⭐ #2 Best Value',
+    badgeClass: 'badge-green',
+    origin: 'LHR',
+    originName: 'London Heathrow',
+    destination: 'JFK',
+    destinationName: 'New York JFK',
+    depart: '2026-09-22',
+    return: '2026-09-29',
+    airline: 'Virgin Atlantic',
+    flightNumber: 'VS 3',
+    price: 608.33,
+    formattedPrice: '$608.33',
+    duration: '7h 50m',
+    legs: 'Non-stop',
+    tag: '7-Day Return Deal'
+  },
+  {
+    id: 'trend_3',
+    rank: '⚡ #3 Popular Route',
+    badgeClass: 'badge-blue',
+    origin: 'CDG',
+    originName: 'Paris CDG',
+    destination: 'HND',
+    destinationName: 'Tokyo Haneda',
+    depart: '2026-11-05',
+    return: '2026-11-12',
+    airline: 'Air France',
+    flightNumber: 'AF 274',
+    price: 740.00,
+    formattedPrice: '$740.00',
+    duration: '12h 45m',
+    legs: '1 Stop',
+    tag: 'Autumn Special'
+  }
+];
+
+/**
+ * Renders Top 3 Trending Searches on initial page load with table hidden.
+ */
+export function renderTrendingSearches(onSelectTrending) {
+  const container = $('[data-stat-tiles-container]');
+  if (!container) return;
+
+  container.classList.remove('hidden');
+
+  container.innerHTML = `
+    <div class="stat-tiles-header-bar">
+      <div class="stat-tiles-title-group">
+        <span class="stat-tiles-section-title">🔥 Top 3 Trending Searches</span>
+        <span class="stat-tiles-hint">Most popular flight deals right now — click any card to search & view details</span>
+      </div>
+    </div>
+
+    <div class="stat-tiles-grid">
+      ${TRENDING_SEARCHES.map((item) => `
+        <div class="stat-tile-card ${item.badgeClass} trending-card" data-trending-id="${item.id}" style="cursor:pointer;" title="Click to search ${item.origin} → ${item.destination}">
+          <div class="stat-tile-top-row">
+            <span class="stat-tile-badge ${item.badgeClass}">${item.rank}</span>
+            <span class="stat-tile-price">${item.formattedPrice}</span>
+          </div>
+
+          <div class="stat-tile-route-row">
+            <strong class="stat-tile-route">${item.originName} → ${item.destinationName}</strong>
+            <span class="stat-tile-duration">⏱️ ${item.duration}</span>
+          </div>
+
+          <div class="stat-tile-meta-grid">
+            <div class="stat-tile-meta-item">
+              <span class="meta-label">Route</span>
+              <span class="meta-val">${item.origin} → ${item.destination}</span>
+            </div>
+            <div class="stat-tile-meta-item">
+              <span class="meta-label">Legs</span>
+              <span class="meta-val highlight-leg">${item.legs}</span>
+            </div>
+          </div>
+
+          <div class="stat-tile-footer">
+            <span class="stat-tile-airline">${item.airline} · ${item.flightNumber}</span>
+            <span class="stat-tile-tag" style="margin-left:auto; font-size:10px; font-weight:700; color:var(--coral);">${item.tag}</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  TRENDING_SEARCHES.forEach((item) => {
+    const cardEl = container.querySelector(`[data-trending-id="${item.id}"]`);
+    if (cardEl) {
+      cardEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof onSelectTrending === 'function') {
+          onSelectTrending(item);
+        }
+      });
+    }
+  });
+}

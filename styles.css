@@ -737,6 +737,529 @@
   color: var(--ink);
 }
 
+/* ==========================================================================
+   Travel Cards Grid (Hotels, Cars, Bundles)
+   ========================================================================== */
+.travel-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  margin-top: 16px;
+}
+
+.travel-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.travel-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+}
+
+.travel-card-image {
+  height: 180px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  background-color: var(--mint-soft);
+}
+
+.hotel-stars-badge, .car-category-badge, .bundle-savings-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(18, 38, 32, 0.85);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.bundle-savings-badge {
+  background: var(--coral);
+}
+
+.travel-card-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.travel-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.travel-card-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+
+.travel-card-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.rating-badge {
+  background: var(--mint-soft);
+  color: var(--teal-dark);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.amenities-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 0;
+}
+
+.amenity-chip, .car-feature {
+  background: #f1f5f3;
+  color: var(--navy);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.travel-card-footer {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.price-box {
+  display: flex;
+  flex-direction: column;
+}
+
+.price-amount {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--coral);
+}
+
+.price-period {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.price-original {
+  font-size: 12px;
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.badge-savings {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--coral);
+}
+
+/* ==========================================================================
+   AI Trip Planner & Leaflet Split View Layout
+   ========================================================================== */
+.badge-ai {
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.preset-chip {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-chip:hover {
+  border-color: var(--coral);
+  color: var(--coral);
+  transform: scale(1.03);
+}
+
+.trip-header-card {
+  background: linear-gradient(135deg, #122620, #1c3b32);
+  color: #ffffff;
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 6px 20px rgba(18, 38, 32, 0.15);
+}
+
+.trip-header-title h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.trip-header-title p {
+  font-size: 13px;
+  color: #a3c2b8;
+}
+
+.planner-day-filters-bar {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.day-pill {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 8px 16px;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.day-pill:hover, .day-pill.is-active {
+  background: var(--navy);
+  color: #ffffff;
+  border-color: var(--navy);
+  box-shadow: 0 4px 12px rgba(18, 38, 32, 0.12);
+}
+
+.pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Split Layout */
+.planner-split-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.planner-itinerary-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.day-section {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.day-section-header {
+  border-left: 4px solid var(--coral);
+  padding-left: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.day-header-badge {
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.day-header-info h3 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.day-stats-muted {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.day-activities-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.activity-card {
+  display: flex;
+  gap: 14px;
+  background: #fcfdfe;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.activity-card:hover, .activity-card.is-map-highlighted {
+  border-color: var(--coral);
+  box-shadow: 0 4px 16px rgba(244, 124, 97, 0.15);
+  background: #fffafa;
+  transform: translateX(4px);
+}
+
+.activity-time-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 65px;
+}
+
+.activity-time {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.activity-step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.activity-icon {
+  font-size: 18px;
+}
+
+.activity-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.activity-location {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.activity-desc {
+  font-size: 12px;
+  color: var(--ink);
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+
+.activity-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.category-chip, .duration-chip {
+  background: var(--mint-soft);
+  color: var(--teal-dark);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.cost-chip {
+  font-size: 12px;
+  color: var(--coral);
+  font-weight: 700;
+}
+
+.btn-locate-map {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--line);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--navy);
+  cursor: pointer;
+}
+
+.btn-locate-map:hover {
+  background: var(--navy);
+  color: #ffffff;
+}
+
+/* Map Pane */
+.planner-map-pane {
+  position: sticky;
+  top: 80px;
+}
+
+.map-container-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.map-card-header {
+  padding: 14px 18px;
+  background: #f8faf9;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.map-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.map-subtitle {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.leaflet-map-frame {
+  height: 540px;
+  width: 100%;
+  background: #e5e7eb;
+}
+
+/* Custom Leaflet Pin Styling */
+.custom-leaflet-marker-wrap {
+  background: transparent;
+  border: none;
+}
+
+.custom-map-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.pin-badge {
+  background: var(--pin-color, #ff6b6b);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  margin-bottom: 2px;
+}
+
+.pin-icon {
+  font-size: 20px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.map-popup-card {
+  padding: 4px;
+}
+
+.popup-header {
+  padding-left: 8px;
+  margin-bottom: 6px;
+}
+
+.popup-time {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.popup-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 2px 0;
+}
+
+.popup-desc {
+  font-size: 11px;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.popup-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.popup-badge {
+  font-size: 10px;
+  background: var(--mint-soft);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.popup-cost {
+  font-size: 11px;
+  color: var(--coral);
+}
+
+
 
 
 

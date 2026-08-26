@@ -19,6 +19,149 @@
   .offer-table td { padding-top: 11px; padding-bottom: 11px; }
 }
 
+/* ==========================================================================
+   Interactive Layout Grid & View Switcher (Table / 2-Col / 3-Col / List)
+   ========================================================================== */
+.view-layout-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(240, 243, 246, 0.85);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.view-btn {
+  border: 0;
+  background: transparent;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.view-btn:hover {
+  color: var(--navy);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.view-btn.is-active {
+  background: var(--white);
+  color: var(--coral);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* Card Tiles Grid Configurations */
+.travel-cards-grid, .flight-cards-grid {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+/* 2-Column Tiles View */
+.travel-cards-grid.view-grid-2, .flight-cards-grid.view-grid-2 {
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important;
+}
+
+/* 3-Column Tiles View (High-density - Show maximum tiles) */
+.travel-cards-grid.view-grid-3, .flight-cards-grid.view-grid-3 {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
+  gap: 12px !important;
+}
+
+/* List View */
+.travel-cards-grid.view-list, .flight-cards-grid.view-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+/* Flight Tile Cards */
+.flight-tile-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.flight-tile-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+}
+
+.flight-tile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.flight-tile-carrier {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.flight-tile-times {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+
+.flight-tile-route {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.flight-tile-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  margin-top: 10px;
+}
+
+/* Auto-Adjusting & Responsive Search Form Grids */
+.field-grid {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  margin: 6px 0 !important;
+  align-items: stretch !important;
+}
+
+.field {
+  flex: 1 1 140px !important;
+  min-width: 125px !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.field.field-location {
+  flex: 1.4 1 180px !important;
+  min-width: 160px !important;
+}
+
+.swap-button {
+  flex: 0 0 20px !important;
+  align-self: center !important;
+  margin: 0 -2px !important;
+}
+
 .search-progress { padding: 42px 24px !important; text-align: center; }
 .search-error {
   display: none;
@@ -443,6 +586,31 @@
   transform: scale(1.1);
 }
 
+/* New Indicator Badge for AI Tabs */
+.tab-badge-new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5px 5.5px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f47c61 0%, #e65c40 100%);
+  color: #ffffff;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(244, 124, 97, 0.35);
+  margin-left: 3px;
+  vertical-align: middle;
+}
+
+.search-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .placeholder-service-card {
   padding: 36px 24px;
   text-align: center;
@@ -558,8 +726,22 @@
   color: var(--coral);
 }
 
-@media (max-width: 768px) {
-  .leg-fields-grid {
+@media (max-width: 960px) {
+  .planner-split-layout {
     grid-template-columns: 1fr;
   }
+  .planner-map-pane {
+    position: relative;
+    top: 0;
+    order: -1;
+  }
+  .leaflet-map-frame {
+    height: 380px;
+  }
+  .trip-header-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
 }
+

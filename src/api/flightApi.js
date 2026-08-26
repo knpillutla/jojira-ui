@@ -1,7 +1,10 @@
 import { LATEST_SEARCH_RESULTS as latestResults } from '../utils/latestResults.js';
 import { normalizeSearchResponse } from '../utils/formatters.js';
+import { getCachedSearch, setCachedSearch } from '../utils/clientCache.js';
 
-const apiBase = window.location.port === '4173' ? 'http://127.0.0.1:8000' : '';
+const apiBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port !== '8000'
+  ? 'http://127.0.0.1:8000'
+  : '';
 
 export async function fetchInitialSearchResults() {
   const resp = await fetch('/latest_results.json');
@@ -15,6 +18,16 @@ export async function fetchInitialSearchResults() {
 export async function searchFlights(searchPayload) {
   const startTime = performance.now();
   console.log('🚀 [API START] Executing Flight Search with Payload:', searchPayload);
+
+  const cacheKey = (searchPayload.searchType === 'natural' || searchPayload.prompt)
+    ? `flights_natural_${(searchPayload.prompt || '').trim().toLowerCase()}`
+    : `flights_${searchPayload.origin || ''}_${searchPayload.destination || ''}_${searchPayload.depart || ''}_${searchPayload.return || ''}`;
+
+  const cached = getCachedSearch(cacheKey);
+  if (cached) {
+    console.log('⚡ [FLIGHTS CACHE HIT] Returning cached flight search results without hitting API');
+    return cached;
+  }
 
   let rawData = null;
   try {
@@ -93,6 +106,7 @@ export async function searchFlights(searchPayload) {
   }
 
   const normalized = normalizeSearchResponse(rawData);
+  setCachedSearch(cacheKey, normalized);
   const duration = (performance.now() - startTime).toFixed(2);
   console.log(`🏁 [API END] Search completed in ${duration}ms. Normalized offers (${normalized.offers.length}):`, normalized);
   return normalized;

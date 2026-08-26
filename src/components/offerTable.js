@@ -65,77 +65,147 @@ export function initTableSorting() {
       renderOffers();
     });
   });
+
+  // Layout View Switcher (Table / 2-Col Grid / 3-Col Compact Grid / List)
+  document.querySelectorAll('[data-layout-view]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.layoutView;
+      state.layoutView = mode;
+      document.querySelectorAll('[data-layout-view]').forEach((b) => b.classList.toggle('is-active', b === btn));
+      
+      renderOffers();
+
+      // Also apply grid layout mode to travel cards (Hotels, Cars, Packages)
+      document.querySelectorAll('.travel-cards-grid').forEach((grid) => {
+        grid.className = 'travel-cards-grid ' + `view-${mode}`;
+      });
+    });
+  });
 }
 
 export function renderOffers() {
   const visible = sortedOffers();
   const offersEl = $('[data-offers]');
-  if (!offersEl) return;
+  const cardsContainer = $('[data-flight-cards-container]');
+  const tableWrap = $('.offer-table-wrap');
+  const mode = state.layoutView || 'table';
 
-  offersEl.innerHTML = visible.map((offer) => `
-    <tr data-offer-id="${offer.id}">
-      <td>
-        <div class="gf-flight-cell">
-          <span class="airline-logo ${offer.tone}">${offer.code.slice(0, 2)}</span>
-          <div class="gf-time-carrier">
-            <div class="gf-times-list">
-              <div class="gf-times-line">
-                ${offer.inboundDepartDateTime ? '<span class="gf-leg-badge">Out</span>' : ''}
-                <strong>${offer.outboundDepartDateTime || offer.depart}${offer.outboundArriveDateTime ? ' – ' + offer.outboundArriveDateTime : ''}</strong>
-                <sup class="gf-next-day">${offer.nextDayBadge}</sup>
+  if (mode === 'table') {
+    if (tableWrap) tableWrap.classList.remove('hidden');
+    if (cardsContainer) cardsContainer.classList.add('hidden');
+
+    if (offersEl) {
+      offersEl.innerHTML = visible.map((offer) => `
+        <tr data-offer-id="${offer.id}">
+          <td>
+            <div class="gf-flight-cell">
+              <span class="airline-logo ${offer.tone}">${offer.code.slice(0, 2)}</span>
+              <div class="gf-time-carrier">
+                <div class="gf-times-list">
+                  <div class="gf-times-line">
+                    ${offer.inboundDepartDateTime ? '<span class="gf-leg-badge">Out</span>' : ''}
+                    <strong>${offer.outboundDepartDateTime || offer.depart}${offer.outboundArriveDateTime ? ' – ' + offer.outboundArriveDateTime : ''}</strong>
+                    <sup class="gf-next-day">${offer.nextDayBadge}</sup>
+                  </div>
+                  ${offer.inboundDepartDateTime ? `
+                  <div class="gf-times-line">
+                    <span class="gf-leg-badge">Ret</span>
+                    <strong>${offer.inboundDepartDateTime}${offer.inboundArriveDateTime ? ' – ' + offer.inboundArriveDateTime : ''}</strong>
+                  </div>
+                  ` : ''}
+                </div>
+                <div class="gf-sub-details">
+                  <strong class="gf-flight-num">${offer.flightNumber}</strong>
+                  <span class="gf-dot-sep">·</span>
+                  <span class="gf-carrier-name">${offer.airline}</span>
+                  <span class="gf-dot-sep">·</span>
+                  <span class="gf-stop-codes">${offer.stopCodesText}</span>
+                </div>
               </div>
-              ${offer.inboundDepartDateTime ? `
-              <div class="gf-times-line">
-                <span class="gf-leg-badge">Ret</span>
-                <strong>${offer.inboundDepartDateTime}${offer.inboundArriveDateTime ? ' – ' + offer.inboundArriveDateTime : ''}</strong>
+            </div>
+          </td>
+          <td>
+            <div class="gf-col-cell">
+              <strong>${offer.formattedDuration}</strong>
+              <div class="gf-route-lines">
+                <small class="gf-route-line">${offer.outboundRouteTextWithDuration || offer.outboundRouteText}</small>
+                ${offer.inboundRouteText ? `<small class="gf-route-line">${offer.inboundRouteTextWithDuration || offer.inboundRouteText}</small>` : ''}
               </div>
-              ` : ''}
             </div>
-            <div class="gf-sub-details">
-              <strong class="gf-flight-num">${offer.flightNumber}</strong>
-              <span class="gf-dot-sep">·</span>
-              <span class="gf-carrier-name">${offer.airline}</span>
-              <span class="gf-dot-sep">·</span>
-              <span class="gf-stop-codes">${offer.stopCodesText}</span>
+          </td>
+          <td>
+            <div class="gf-col-cell">
+              <strong>${offer.stopsCountText}</strong>
+              <small class="gf-layover">${offer.layoverDetailText}</small>
             </div>
+          </td>
+          <td>
+            <div class="gf-col-cell">
+              <span class="gf-emissions-kg">${offer.emissionsKg}</span>
+              <small class="gf-emissions-note ${offer.isLowEmissions ? 'is-low' : ''}">${offer.emissionsNote}</small>
+            </div>
+          </td>
+          <td class="price-cell">
+            <div class="gf-price-wrap">
+              <strong class="gf-price">${offer.formattedPrice}</strong>
+              <small>${offer.isOneWay ? 'one way' : 'round trip'}</small>
+            </div>
+          </td>
+          <td class="action-cell">
+            <button class="select-button ${offer.isExternalWebFare ? 'is-external' : ''}" type="button" data-select-offer="${offer.id}" title="${offer.isExternalWebFare ? (offer.redirectNotice || 'Redirects to external booking site in a new tab') : 'Select flight'}">
+              <span>${offer.isExternalWebFare ? `Book with ${offer.airline || 'Airline'}` : 'Select'}</span>
+              <b>${offer.isExternalWebFare ? '↗' : '→'}</b>
+            </button>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="6" class="empty-state">No flights match these filters. Try widening your search.</td></tr>';
+    }
+  } else {
+    // Render Card Tiles (2-Col Grid, 3-Col Compact Grid, or List View)
+    if (tableWrap) tableWrap.classList.add('hidden');
+    if (cardsContainer) {
+      cardsContainer.classList.remove('hidden');
+      cardsContainer.className = `flight-cards-grid view-${mode}`;
+
+      cardsContainer.innerHTML = visible.map((offer) => `
+        <div class="flight-tile-card" data-offer-id="${offer.id}">
+          <div class="flight-tile-header">
+            <div class="flight-tile-carrier">
+              <span class="airline-logo ${offer.tone}">${offer.code.slice(0, 2)}</span>
+              <span>${offer.airline}</span>
+            </div>
+            <span class="badge-ai" style="font-size:11px;">${offer.flightNumber}</span>
+          </div>
+
+          <div class="flight-tile-body">
+            <div class="flight-tile-times">
+              ${offer.outboundDepartDateTime || offer.depart}${offer.outboundArriveDateTime ? ' – ' + offer.outboundArriveDateTime : ''}
+              <sup class="gf-next-day">${offer.nextDayBadge}</sup>
+            </div>
+            <p class="flight-tile-route">
+              ${offer.outboundRouteTextWithDuration || offer.outboundRouteText} · ${offer.stopsCountText}
+            </p>
+            ${offer.inboundDepartDateTime ? `
+              <p class="flight-tile-route" style="margin-top:4px;">
+                <strong>Ret:</strong> ${offer.inboundDepartDateTime} (${offer.inboundRouteText})
+              </p>
+            ` : ''}
+          </div>
+
+          <div class="flight-tile-footer">
+            <div class="price-box">
+              <span class="price-amount">${offer.formattedPrice}</span>
+              <span class="price-period" style="font-size:11px; display:block; color:var(--muted);">${offer.isOneWay ? 'one way' : 'round trip'}</span>
+            </div>
+            <button class="primary-button select-button ${offer.isExternalWebFare ? 'is-external' : ''}" type="button" data-select-offer="${offer.id}">
+              <span>${offer.isExternalWebFare ? `Book with ${offer.airline}` : 'Select'}</span>
+              <b>${offer.isExternalWebFare ? '↗' : '→'}</b>
+            </button>
           </div>
         </div>
-      </td>
-      <td>
-        <div class="gf-col-cell">
-          <strong>${offer.formattedDuration}</strong>
-          <div class="gf-route-lines">
-            <small class="gf-route-line">${offer.outboundRouteTextWithDuration || offer.outboundRouteText}</small>
-            ${offer.inboundRouteText ? `<small class="gf-route-line">${offer.inboundRouteTextWithDuration || offer.inboundRouteText}</small>` : ''}
-          </div>
-        </div>
-      </td>
-      <td>
-        <div class="gf-col-cell">
-          <strong>${offer.stopsCountText}</strong>
-          <small class="gf-layover">${offer.layoverDetailText}</small>
-        </div>
-      </td>
-      <td>
-        <div class="gf-col-cell">
-          <span class="gf-emissions-kg">${offer.emissionsKg}</span>
-          <small class="gf-emissions-note ${offer.isLowEmissions ? 'is-low' : ''}">${offer.emissionsNote}</small>
-        </div>
-      </td>
-      <td class="price-cell">
-        <div class="gf-price-wrap">
-          <strong class="gf-price">${offer.formattedPrice}</strong>
-          <small>${offer.isOneWay ? 'one way' : 'round trip'}</small>
-        </div>
-      </td>
-      <td class="action-cell">
-        <button class="select-button ${offer.isExternalWebFare ? 'is-external' : ''}" type="button" data-select-offer="${offer.id}" title="${offer.isExternalWebFare ? (offer.redirectNotice || 'Redirects to external booking site in a new tab') : 'Select flight'}">
-          <span>${offer.isExternalWebFare ? `Book with ${offer.airline || 'Airline'}` : 'Select'}</span>
-          <b>${offer.isExternalWebFare ? '↗' : '→'}</b>
-        </button>
-      </td>
-    </tr>
-  `).join('') || '<tr><td colspan="6" class="empty-state">No flights match these filters. Try widening your search.</td></tr>';
+      `).join('') || '<p class="muted">No flights match these filters.</p>';
+    }
+  }
 
   $('[data-result-count]').textContent = `${visible.length} flight${visible.length === 1 ? '' : 's'}`;
 
@@ -146,9 +216,10 @@ export function renderOffers() {
     });
   });
 
-  document.querySelectorAll('.offer-table tr[data-offer-id]').forEach((row) => {
-    row.addEventListener('click', () => {
-      selectOffer(row.dataset.offerId);
+  document.querySelectorAll('.offer-table tr[data-offer-id], .flight-tile-card[data-offer-id]').forEach((card) => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      selectOffer(card.dataset.offerId);
     });
   });
 }

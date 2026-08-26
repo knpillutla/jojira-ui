@@ -6,11 +6,14 @@
     <meta name="theme-color" content="#edf4f2" />
     <meta name="description" content="Jojira makes flight search clear, quick, and human." />
     <title>Jojira | Find your next flight</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✈️</text></svg>" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css?v=3" />
     <link rel="stylesheet" href="responsive.css?v=3" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://assets.duffel.com/components/v1/duffel.js"></script>
   </head>
   <body>
@@ -25,7 +28,17 @@
     <main id="top">
       <section class="hero-shell">
         <div class="service-nav-tabs" role="tablist" aria-label="Travel services">
-          <button class="service-tab is-active" role="tab" aria-selected="true" data-service-tab="flights">
+          <button class="service-tab is-active" role="tab" aria-selected="true" data-service-tab="ai-search">
+            <span class="service-icon">🔍</span>
+            <span>AI Search</span>
+            <span class="tab-badge-new">New</span>
+          </button>
+          <button class="service-tab" role="tab" aria-selected="false" data-service-tab="ai-planner">
+            <span class="service-icon">✨</span>
+            <span>AI Travel Planner</span>
+            <span class="tab-badge-new">New</span>
+          </button>
+          <button class="service-tab" role="tab" aria-selected="false" data-service-tab="flights">
             <span class="service-icon">✈️</span>
             <span>Flights</span>
           </button>
@@ -43,12 +56,35 @@
           </button>
         </div>
 
-        <div class="service-tab-content" data-service-content="flights">
+        <!-- STANDALONE AI SEARCH SERVICE TAB (DEFAULT) -->
+        <div class="service-tab-content" data-service-content="ai-search">
+          <div class="search-panel" aria-label="AI Flight Search">
+            <form id="standalone-ai-search-form">
+              <div class="natural-search" style="padding: 12px 6px;">
+                <label for="standalone-ai-query" style="display:block; font-size:12px; font-weight:700; color:var(--navy); margin-bottom:8px;">
+                  ✨ Ask AI Search (Natural Language Flight Search)
+                </label>
+                <div class="natural-input" style="display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:8px; padding:10px 14px; background:var(--white);">
+                  <span style="font-size:16px; color:var(--coral);" aria-hidden="true">🔍</span>
+                  <input id="standalone-ai-query" name="ai_prompt" placeholder="e.g. cheapest nonstop roundtrip from Atlanta to Paris in October for 7 days" style="border:0; outline:0; flex:1; font-size:13px; font-weight:600; width:100%;" />
+                  <button type="submit" class="primary-button" style="padding:6px 16px;"><span>Search</span><b>→</b></button>
+                </div>
+                <div class="input-hint-row" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                  <span style="font-size:11px; color:var(--muted); font-weight:600;">Popular prompts:</span>
+                  <button type="button" class="preset-chip" data-ai-prompt-chip="cheapest roundtrip from atlanta to orlando from october 17 to october 24">✈️ ATL → Orlando in Oct</button>
+                  <button type="button" class="preset-chip" data-ai-prompt-chip="nonstop flight from london to new york under $700">🇬🇧 London → New York Nonstop</button>
+                  <button type="button" class="preset-chip" data-ai-prompt-chip="roundtrip from paris to tokyo in november">🇯🇵 Paris → Tokyo in Nov</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="service-tab-content hidden" data-service-content="flights">
           <div class="search-panel" aria-label="Flight search">
             <div class="search-tabs" role="tablist" aria-label="Search type">
               <button class="search-tab is-active" role="tab" aria-selected="true" data-search-tab="exact">Exact search</button>
               <button class="search-tab" role="tab" aria-selected="false" data-search-tab="enhanced">Enhanced search</button>
-              <button class="search-tab" role="tab" aria-selected="false" data-search-tab="natural">Ask naturally</button>
             </div>
             <form id="flight-search-form">
               <div class="natural-search hidden" data-natural-search>
@@ -201,48 +237,210 @@
           </div>
         </div>
 
+        <!-- HOTELS SERVICE TAB -->
         <div class="service-tab-content hidden" data-service-content="hotels">
-          <div class="placeholder-service-card">
-            <h3>🏨 Hotel Search</h3>
-            <p>Compare luxury stays, boutique hotels, and vacation rentals at guaranteed low rates.</p>
-            <span class="badge-coming-soon">Coming Soon</span>
+          <div class="search-panel" aria-label="Hotel search">
+            <form id="hotel-search-form">
+              <div class="field-grid">
+                <label class="field field-location">
+                  <span>Destination / City</span><strong>📍</strong>
+                  <input name="hotel_location" placeholder="City or Landmark (e.g. Paris)" value="Paris" autocomplete="off" />
+                </label>
+                <label class="field"><span>Check-in</span><strong>▣</strong><input name="hotel_checkin" type="date" value="2026-10-01" /></label>
+                <label class="field"><span>Check-out</span><strong>▣</strong><input name="hotel_checkout" type="date" value="2026-10-08" /></label>
+                <label class="field"><span>Guests</span><strong>👤</strong><select name="hotel_guests"><option value="1">1 Guest</option><option value="2" selected>2 Guests</option><option value="3">3 Guests</option><option value="4">4+ Guests</option></select></label>
+                <label class="field"><span>Rooms</span><strong>🔑</strong><select name="hotel_rooms"><option value="1" selected>1 Room</option><option value="2">2 Rooms</option></select></label>
+              </div>
+              <div class="search-actions" style="margin-top:16px;">
+                <div class="actions-left"></div>
+                <div class="actions-right">
+                  <button class="primary-button" type="submit"><span>Find Hotels</span><b>→</b></button>
+                </div>
+              </div>
+            </form>
           </div>
+          <div class="service-results-container" data-hotel-results style="margin-top:24px;"></div>
         </div>
 
+        <!-- CAR RENTAL SERVICE TAB -->
         <div class="service-tab-content hidden" data-service-content="cars">
-          <div class="placeholder-service-card">
-            <h3>🚗 Car Rental</h3>
-            <p>Find unbeatable car rental deals from airport locations worldwide.</p>
-            <span class="badge-coming-soon">Coming Soon</span>
+          <div class="search-panel" aria-label="Car rental search">
+            <form id="car-search-form">
+              <div class="field-grid">
+                <label class="field field-location">
+                  <span>Pickup Location</span><strong>🚗</strong>
+                  <input name="car_location" placeholder="Airport or City (e.g. Paris CDG Airport)" value="Paris CDG Airport" autocomplete="off" />
+                </label>
+                <label class="field"><span>Pickup Date</span><strong>▣</strong><input name="car_pickup" type="date" value="2026-10-01" /></label>
+                <label class="field"><span>Drop-off Date</span><strong>▣</strong><input name="car_dropoff" type="date" value="2026-10-08" /></label>
+                <label class="field"><span>Category</span><strong>⚡</strong><select name="car_category"><option value="all" selected>All Vehicles</option><option value="ev">Electric / Tesla</option><option value="suv">SUVs</option><option value="luxury">Luxury Sedans</option><option value="economy">Economy Hatchbacks</option></select></label>
+              </div>
+              <div class="search-actions" style="margin-top:16px;">
+                <div class="actions-left"></div>
+                <div class="actions-right">
+                  <button class="primary-button" type="submit"><span>Find Cars</span><b>→</b></button>
+                </div>
+              </div>
+            </form>
           </div>
+          <div class="service-results-container" data-car-results style="margin-top:24px;"></div>
         </div>
 
+        <!-- PACKAGES (BUNDLES) SERVICE TAB -->
         <div class="service-tab-content hidden" data-service-content="packages">
-          <div class="placeholder-service-card">
-            <h3>🌴 Flight + Hotel Packages</h3>
-            <p>Bundle flights and hotels to save up to 35% on your dream vacation.</p>
-            <span class="badge-coming-soon">Coming Soon</span>
+          <div class="search-panel" aria-label="Vacation packages search">
+            <form id="bundle-search-form">
+              <div class="field-grid">
+                <label class="field field-location">
+                  <span>Origin</span><strong>⌖</strong>
+                  <input name="bundle_origin" placeholder="From city (e.g. Atlanta)" value="ATL" autocomplete="off" />
+                </label>
+                <label class="field field-location">
+                  <span>Destination</span><strong>🌴</strong>
+                  <input name="bundle_destination" placeholder="To city (e.g. Paris)" value="CDG" autocomplete="off" />
+                </label>
+                <label class="field"><span>Depart</span><strong>▣</strong><input name="bundle_depart" type="date" value="2026-10-01" /></label>
+                <label class="field"><span>Return</span><strong>▣</strong><input name="bundle_return" type="date" value="2026-10-08" /></label>
+                <label class="field"><span>Travelers</span><strong>👤</strong><select name="bundle_travelers"><option value="1">1 Person</option><option value="2" selected>2 People</option><option value="4">4 People</option></select></label>
+              </div>
+              <div class="search-actions" style="margin-top:16px;">
+                <div class="actions-left"><span class="badge-savings">⚡ Save up to 35% by bundling</span></div>
+                <div class="actions-right">
+                  <button class="primary-button" type="submit"><span>Search Packages</span><b>→</b></button>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="service-results-container" data-bundle-results style="margin-top:24px;"></div>
+        </div>
+
+        <!-- AI TRIP PLANNER TAB -->
+        <div class="service-tab-content hidden" data-service-content="ai-planner">
+          <div class="search-panel ai-planner-search-panel" aria-label="AI Trip Planner">
+            <form id="ai-planner-form">
+              <!-- AI Natural Language Prompt Input Box -->
+              <div class="natural-search-bar" style="margin-bottom: 12px;">
+                <label style="display:block; font-size:11px; font-weight:700; color:var(--muted); margin-bottom:4px;">
+                  <span>✨ Ask AI Travel Planner (Describe your trip naturally)</span>
+                </label>
+                <div class="natural-input-wrap" style="display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:6px; padding:6px 10px; background:var(--white);">
+                  <span style="font-size:15px; color:var(--coral);">🧠</span>
+                  <input name="planner_prompt" placeholder="Describe your trip (e.g. 4-day romantic trip to Paris with art museums and wine tasting under $2000)..." style="border:0; outline:0; flex:1; font-size:12px; font-weight:600; width:100%;" />
+                </div>
+              </div>
+
+              <!-- Dropdown Hints (Default to None / Optional Enhancements) -->
+              <div class="field-grid">
+                <label class="field field-location">
+                  <span>Destination (Optional Hint)</span><strong>✨</strong>
+                  <input name="planner_destination" placeholder="City or country (e.g. Paris)" value="" autocomplete="off" />
+                </label>
+                <label class="field">
+                  <span>Duration</span><strong>⏳</strong>
+                  <select name="planner_days">
+                    <option value="" selected>None (Auto-detect)</option>
+                    <option value="2">2 Days Weekend</option>
+                    <option value="3">3 Days Express</option>
+                    <option value="4">4 Days Highlights</option>
+                    <option value="7">7 Days Complete</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Travel Style</span><strong>🎨</strong>
+                  <select name="planner_style">
+                    <option value="" selected>None (Auto-detect)</option>
+                    <option value="balanced">Balanced Highlights</option>
+                    <option value="culture">Art & Culture</option>
+                    <option value="foodie">Foodie & Dining</option>
+                    <option value="nature">Parks & Relaxation</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Budget Tier</span><strong>💳</strong>
+                  <select name="planner_budget">
+                    <option value="" selected>None (Auto-detect)</option>
+                    <option value="budget">Budget Friendly</option>
+                    <option value="moderate">Moderate Comfort</option>
+                    <option value="luxury">Luxury & Premium</option>
+                  </select>
+                </label>
+              </div>
+              <div class="planner-presets-row" style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <span style="font-size:12px; font-weight:600; color:var(--muted);">Popular ideas:</span>
+                <button type="button" class="preset-chip" data-planner-preset data-preset-dest="Paris" data-preset-days="4">🇫🇷 Paris 4-Day Trip</button>
+                <button type="button" class="preset-chip" data-planner-preset data-preset-dest="Tokyo" data-preset-days="2">🇯🇵 Tokyo Express</button>
+              </div>
+              <div class="search-actions" style="margin-top:16px;">
+                <div class="actions-left"><span class="badge-ai">🧠 Powered by AI & Leaflet Geo-Maps</span></div>
+                <div class="actions-right">
+                  <button class="primary-button btn-generate-planner" type="submit"><span>✨ Generate Itinerary</span><b>→</b></button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Split-View AI Planner Interface -->
+          <div id="ai-planner-view" class="ai-planner-split-container" style="margin-top:28px;">
+            <div id="planner-trip-header"></div>
+            
+            <div class="planner-day-filters-bar" id="planner-day-filters"></div>
+
+            <div class="planner-split-layout">
+              <!-- Left Column: Daily Itinerary List -->
+              <div class="planner-itinerary-pane">
+                <div id="planner-itinerary-list"></div>
+              </div>
+
+              <!-- Right Column: Interactive Leaflet Map -->
+              <div class="planner-map-pane">
+                <div class="map-container-card">
+                  <div class="map-card-header">
+                    <span class="map-title">📍 Interactive Route Map</span>
+                    <span class="map-subtitle">Pins & routes color-coded by day</span>
+                  </div>
+                  <div id="trip-map" class="leaflet-map-frame"></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        
-        <section class="recent-searches hidden" data-recent-searches aria-label="Recent searches">
-          <div class="recent-heading"><span>Recent searches</span><button type="button" class="text-button" data-clear-recent>Clear</button></div>
-          <div class="recent-list" data-recent-list></div>
-        </section>
-        <div class="line-progress-container hidden" data-line-progress role="status" aria-live="polite">
-          <div class="line-progress-bar"></div>
-          <div class="line-progress-status">
-            <span class="line-progress-spinner"></span>
-            <span data-line-progress-text>Searching live flights...</span>
-          </div>
-        </div>
+      </div>
+
+      <!-- GLOBAL RECENT SEARCHES: Appears consistently across all tabs above results/split-view -->
+      <section class="recent-searches hidden" data-recent-searches aria-label="Recent searches" style="margin-top:18px; margin-bottom:18px;">
+        <div class="recent-heading"><span>Recent searches</span><button type="button" class="text-button" data-clear-recent>Clear</button></div>
+        <div class="recent-list" data-recent-list></div>
       </section>
+
+      <div class="line-progress-container hidden" data-line-progress role="status" aria-live="polite">
+        <div class="line-progress-bar"></div>
+        <div class="line-progress-status">
+          <span class="line-progress-spinner"></span>
+          <span data-line-progress-text>Searching live flights...</span>
+        </div>
+      </div>
 
       <section class="results-section" id="results">
         <div class="results-heading"><div><p class="eyebrow">Curated for you</p><h2><span data-origin-city></span> <span>→</span> <span data-destination-city></span></h2><p class="muted" data-result-summary>Search for a route to see available flights</p></div><button class="date-button" type="button"></button></div>
-        <div class="stat-tiles-wrapper hidden" data-stat-tiles-container></div>
-        <div class="table-toolbar"><div class="toolbar-left"><span class="result-count" data-result-count></span><button class="filter-button" type="button" data-filter-toggle>☷ <span>Filters</span><b>0</b></button></div><label class="sort-control">Sort by <select data-sort-select><option value="cheapest">Price</option><option value="shortest">Duration</option><option value="depart">Departure</option></select></label></div>
+        <div class="table-toolbar">
+          <div class="toolbar-left">
+            <span class="result-count" data-result-count></span>
+            <button class="filter-button" type="button" data-filter-toggle>☷ <span>Filters</span><b>0</b></button>
+          </div>
+
+          <div class="view-layout-toggle" role="radiogroup" aria-label="Layout view options">
+            <button type="button" class="view-btn is-active" data-layout-view="table" title="Table View">📊 Table</button>
+            <button type="button" class="view-btn" data-layout-view="grid-2" title="2-Column Tiles">📱 2 Cols</button>
+            <button type="button" class="view-btn" data-layout-view="grid-3" title="3-Column Tiles (Show Maximum Tiles)">📱 3 Cols</button>
+            <button type="button" class="view-btn" data-layout-view="list" title="List View">📜 List</button>
+          </div>
+
+          <label class="sort-control">Sort by <select data-sort-select><option value="cheapest">Price</option><option value="shortest">Duration</option><option value="depart">Departure</option></select></label>
+        </div>
         <div class="filter-drawer" data-filter-drawer><label>Airline <select data-airline-filter><option value="all">All airlines</option></select></label><label>Stops <select data-stops-filter><option value="all">Any stops</option><option value="0">Nonstop</option><option value="1">1 stop</option><option value="2">2 stops</option></select></label><label>Max price <input type="range" min="250" max="800" value="800" data-price-filter /><output data-price-output>$800</output></label><button type="button" class="text-button" data-clear-filters>Clear all</button></div>
+        
+        <div class="flight-cards-grid hidden" data-flight-cards-container style="margin-bottom: 24px;"></div>
+
         <div class="offer-table-wrap">
           <table class="offer-table">
             <thead>

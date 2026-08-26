@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-08-25 19:18:12",
+  "search_prompt": "ATL -> CDG (2026-10-01)",
+  "search_params": {
+    "origin": "ATL",
+    "destination": "CDG",
+    "departure_date": "2026-10-01",
+    "return_date": "2026-10-22",
+    "cabin_class": "economy",
+    "passengers_count": 1,
+    "favorite_airline": null,
+    "force_refresh": false
+  },
+  "category_highlights": {
+    "overall_lowest": {
+      "total_amount": "250.00"
+    }
+  },
+  "performance_metrics": {
+    "latency": "100ms"
+  },
+  "cache_metrics": {
+    "hits": 1
+  },
+  "total_offers_found": 1,
+  "cheapest_non_stop_offers": [],
+  "shortest_non_stop_offers": [],
+  "top_offers": []
+}
