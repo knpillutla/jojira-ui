@@ -1,4 +1,4 @@
-import { initSearchForm, renderRecentSearches, clearWholePage, setDefaultDateFields } from '../components/searchForm.js';
+import { initSearchForm, initSearchModeSwitcher, renderRecentSearches, clearWholePage, setDefaultDateFields } from '../components/searchForm.js';
 import { initBookingEvents, hidePaymentProgress } from '../components/flights/flightBookingWizard.js';
 import { initHotelSearch } from '../components/hotels/hotelSearch.js';
 import { initStayBookingEvents } from '../components/hotels/stayBookingWizard.js';
@@ -7,47 +7,11 @@ import { initBundleSearch } from '../components/bundles/bundleSearch.js';
 import { initPlannerControls } from '../components/planner/plannerControls.js';
 import { initTableSorting } from '../components/offerTable.js';
 
-function initServiceTabSwitching() {
-
-  const tabs = document.querySelectorAll('[data-service-tab]');
-  const contents = document.querySelectorAll('[data-service-content]');
-
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const target = tab.getAttribute('data-service-tab');
-
-      tabs.forEach(t => {
-        t.classList.remove('is-active');
-        t.setAttribute('aria-selected', 'false');
-      });
-
-      tab.classList.add('is-active');
-      tab.setAttribute('aria-selected', 'true');
-
-      contents.forEach(content => {
-        if (content.getAttribute('data-service-content') === target) {
-          content.classList.remove('hidden');
-        } else {
-          content.classList.add('hidden');
-        }
-      });
-
-      const resultsSection = document.getElementById('results');
-      if (resultsSection) {
-        if (target === 'flights' || target === 'ai-search') {
-          resultsSection.style.display = 'block';
-        } else {
-          resultsSection.style.display = 'none';
-        }
-      }
-    });
-  });
-}
-
 function initApp() {
   hidePaymentProgress();
 
   initSearchForm();
+  initSearchModeSwitcher();
   initBookingEvents();
   initHotelSearch();
   initStayBookingEvents();
@@ -55,7 +19,6 @@ function initApp() {
 
   initBundleSearch();
   initPlannerControls();
-  initServiceTabSwitching();
   initTableSorting();
 
   renderRecentSearches();

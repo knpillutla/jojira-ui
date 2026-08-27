@@ -25,64 +25,74 @@
     </header>
 
     <main id="top">
-      <section class="hero-shell">
-        <div class="service-nav-tabs" role="tablist" aria-label="Travel services">
-          <button class="service-tab is-active" role="tab" aria-selected="true" data-service-tab="ai-search">
-            <span class="service-icon">🔍</span>
-            <span>AI Search</span>
-            <span class="tab-badge-new">New</span>
-          </button>
-          <button class="service-tab" role="tab" aria-selected="false" data-service-tab="ai-planner">
-            <span class="service-icon">✨</span>
-            <span>AI Travel Planner</span>
-            <span class="tab-badge-new">New</span>
-          </button>
-          <button class="service-tab" role="tab" aria-selected="false" data-service-tab="flights">
-            <span class="service-icon">✈️</span>
-            <span>Flights</span>
-          </button>
-          <button class="service-tab" role="tab" aria-selected="false" data-service-tab="hotels">
-            <span class="service-icon">🏨</span>
-            <span>Hotels</span>
-          </button>
-          <button class="service-tab" role="tab" aria-selected="false" data-service-tab="cars">
-            <span class="service-icon">🚗</span>
-            <span>Car Rental</span>
-          </button>
-          <button class="service-tab" role="tab" aria-selected="false" data-service-tab="packages">
-            <span class="service-icon">🌴</span>
-            <span>Packages</span>
-          </button>
-        </div>
+      <div class="app-sidebar-layout">
+        <!-- LEFT NAVIGATION MENU -->
+        <aside class="left-nav-sidebar" aria-label="Services Navigation">
+          <div class="left-nav-header">
+            <span class="left-nav-title">Search Menu</span>
+          </div>
+          <nav class="left-nav-menu" role="tablist" aria-label="Travel Services Navigation">
+            <button type="button" class="left-nav-item is-active" data-service-tab="ai-search" role="tab" aria-selected="true">
+              <span class="left-nav-icon">🔍</span>
+              <span class="left-nav-label">Ask AI Search</span>
+              <span class="left-nav-badge">Smart</span>
+            </button>
+            <button type="button" class="left-nav-item" data-service-tab="flights" role="tab" aria-selected="false">
+              <span class="left-nav-icon">✈️</span>
+              <span class="left-nav-label">Flights</span>
+            </button>
+            <button type="button" class="left-nav-item" data-service-tab="hotels" role="tab" aria-selected="false">
+              <span class="left-nav-icon">🏨</span>
+              <span class="left-nav-label">Hotels</span>
+            </button>
+            <button type="button" class="left-nav-item" data-service-tab="cars" role="tab" aria-selected="false">
+              <span class="left-nav-icon">🚗</span>
+              <span class="left-nav-label">Car Rentals</span>
+            </button>
+            <button type="button" class="left-nav-item" data-service-tab="packages" role="tab" aria-selected="false">
+              <span class="left-nav-icon">🌴</span>
+              <span class="left-nav-label">Vacation Packages</span>
+            </button>
+            <button type="button" class="left-nav-item" data-service-tab="ai-planner" role="tab" aria-selected="false">
+              <span class="left-nav-icon">✨</span>
+              <span class="left-nav-label">AI Travel Planner</span>
+              <span class="left-nav-badge-new">New</span>
+            </button>
+          </nav>
+        </aside>
 
-        <!-- STANDALONE AI SEARCH SERVICE TAB (DEFAULT) -->
-        <div class="service-tab-content" data-service-content="ai-search">
-          <div class="search-panel" aria-label="AI Flight Search">
-            <form id="standalone-ai-search-form">
-              <div class="natural-search" style="padding: 12px 6px;">
-                <label for="standalone-ai-query" style="display:block; font-size:12px; font-weight:700; color:var(--navy); margin-bottom:8px;">
-                  ✨ Ask AI Search (Natural Language Flight Search)
-                </label>
-                <div class="natural-input" style="display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:8px; padding:10px 14px; background:var(--white);">
-                  <span style="font-size:16px; color:var(--coral);" aria-hidden="true">🔍</span>
-                  <input id="standalone-ai-query" name="ai_prompt" placeholder="e.g. cheapest nonstop roundtrip from Atlanta to Paris in October for 7 days" style="border:0; outline:0; flex:1; font-size:13px; font-weight:600; width:100%;" />
-                  <button type="submit" class="primary-button" style="padding:6px 16px;"><span>Search</span><b>→</b></button>
+        <!-- MAIN CONTENT AREA -->
+        <section class="hero-shell main-content-pane">
+          <!-- SERVICE CONTENT 1: AI NATURAL SEARCH -->
+          <div class="service-tab-content" data-service-content="ai-search">
+            <div class="top-ai-search-bar" style="background:var(--surface); border:1px solid var(--line); padding:16px 20px; border-radius:12px; margin-bottom:14px; box-shadow:0 4px 16px rgba(0,0,0,0.04);">
+              <form id="standalone-ai-search-form">
+                <div class="natural-search" style="padding:0;">
+                  <label for="standalone-ai-query" style="display:block; font-size:13px; font-weight:700; color:var(--navy); margin-bottom:8px;">
+                    ✨ Describe your trip in plain English (Flights, Hotels, Cars, Vacation Packages)
+                  </label>
+                  <div class="natural-input" style="display:flex; align-items:center; gap:10px; border:1.5px solid #818cf8; border-radius:10px; padding:10px 16px; background:#ffffff; box-shadow:0 2px 8px rgba(99,102,241,0.08);">
+                    <span style="font-size:18px; color:#6366f1;" aria-hidden="true">🔍</span>
+                    <input id="standalone-ai-query" name="ai_prompt" placeholder="e.g. cheapest roundtrip from Atlanta to Orlando in October for 7 days" style="border:0; outline:0; flex:1; font-size:14px; font-weight:600; width:100%; color:var(--ink);" />
+                    <button type="submit" class="primary-button" style="padding:8px 20px; font-weight:700;"><span>Search AI</span><b>→</b></button>
+                  </div>
+                </div>
+              </form>
+              <div class="trending-prompts-section" style="padding:10px 0 0; margin-top:8px;">
+                <div class="input-hint-row" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                  <span style="font-size:11px; font-weight:700; color:var(--muted);">🔥 Trending prompts:</span>
+                  <button type="button" class="preset-chip" data-ai-prompt-chip="cheapest roundtrip from atlanta to orlando {dates}">✈️ ATL → Orlando</button>
+                  <button type="button" class="preset-chip" data-ai-prompt-chip="hotels in tokyo {dates} under $200 a night">🏨 Tokyo Hotels Under $200</button>
+                  <button type="button" class="preset-chip" data-ai-prompt-chip="rent a car in miami {dates}">🚗 Miami Car Rental</button>
+                  <button type="button" class="preset-chip" data-ai-prompt-chip="flight and hotel package to cancun {dates}">🌴 Cancun Flight + Hotel</button>
                 </div>
               </div>
-            </form>
-            <div class="trending-prompts-section" style="padding:10px 6px 6px; border-top:1px dashed var(--line); margin-top:6px;">
-              <span style="display:block; font-size:11px; font-weight:700; color:var(--muted); margin-bottom:8px;">🔥 Trending prompts</span>
-              <div class="input-hint-row" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                <button type="button" class="preset-chip" data-ai-prompt-chip="cheapest roundtrip from atlanta to orlando {dates}">✈️ ATL → Orlando</button>
-                <button type="button" class="preset-chip" data-ai-prompt-chip="hotels in tokyo {dates} under $200 a night">🏨 Tokyo Hotels Under $200</button>
-                <button type="button" class="preset-chip" data-ai-prompt-chip="rent a car in miami {dates}">🚗 Miami Car Rental</button>
-                <button type="button" class="preset-chip" data-ai-prompt-chip="flight and hotel package to cancun {dates}">🌴 Cancun Flight + Hotel</button>
-              </div>
             </div>
+            <div class="ai-search-results-panel" data-ai-results-panel style="margin-top:16px;"></div>
           </div>
-        </div>
 
-        <div class="service-tab-content hidden" data-service-content="flights">
+          <!-- SERVICE CONTENT 2: FLIGHTS -->
+          <div class="service-tab-content hidden" data-service-content="flights">
           <div class="search-panel" aria-label="Flight search">
             <div class="search-tabs" role="tablist" aria-label="Search type">
               <button class="search-tab is-active" role="tab" aria-selected="true" data-search-tab="exact">Exact search</button>
@@ -434,6 +444,7 @@
           </div>
         </div>
       </div>
+    </div>
 
       <!-- GLOBAL RECENT SEARCHES: Appears consistently across all tabs above results/split-view -->
       <section class="recent-searches hidden" data-recent-searches aria-label="Recent searches" style="margin-top:18px; margin-bottom:18px;">
@@ -708,6 +719,19 @@
       </div>
     </div>
 
+
+    <!-- Search Loading Popup Modal Overlay -->
+    <div class="payment-progress-overlay hidden" data-search-progress-modal role="dialog" aria-modal="true" aria-label="Loading Search Results">
+      <div class="payment-progress-card">
+        <div class="search-round-spinner-wrap">
+          <div class="round-progress-spinner"></div>
+          <span class="round-spinner-icon" data-search-progress-icon>✈️</span>
+        </div>
+        <h3 data-search-progress-title>Searching Live Options</h3>
+        <p class="progress-subtext" data-search-progress-subtext>Fetching real-time travel options...</p>
+        <div class="line-progress-bar" style="width: 100%; margin-top: 6px;"></div>
+      </div>
+    </div>
 
     <!-- Payment Processing Popup Modal Overlay -->
     <div class="payment-progress-overlay hidden" data-payment-progress-modal role="dialog" aria-modal="true" aria-label="Processing Payment">

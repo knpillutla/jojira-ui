@@ -1,6 +1,6 @@
 import { searchHotels } from '../../api/travelApi.js';
 import { renderHotelResults } from './hotelResults.js';
-import { saveRecentSearch, attachCityAutocomplete } from '../searchForm.js';
+import { saveRecentSearch, attachCityAutocomplete, showSearchProgressModal, hideSearchProgressModal } from '../searchForm.js';
 
 export function initHotelSearch() {
   const form = document.getElementById('hotel-search-form');
@@ -22,6 +22,8 @@ export function initHotelSearch() {
       guests: parseInt(formData.get('hotel_guests') || '2', 10),
       rooms: parseInt(formData.get('hotel_rooms') || '1', 10)
     };
+
+    showSearchProgressModal('Searching Hotels', `Finding available hotel stays in ${payload.location}...`, '🏨');
 
     saveRecentSearch({
       serviceTab: 'hotels',
@@ -57,9 +59,9 @@ export function initHotelSearch() {
           </div>
         `;
       }
+    } finally {
+      hideSearchProgressModal();
     }
-
-
   });
 
   // Popular searches presets

@@ -4,6 +4,8 @@ import { normalizeHotelApiResponse } from '../../api/travelApi.js';
 import { openStayBookingWizard, initStayBookingEvents } from './stayBookingWizard.js';
 
 let currentHotelData = null;
+let activeBadgeTargetId = null;
+let activeBadgePersona = null;
 let hotelFilters = {
   stars: 'all',
   minRating: 'all',
@@ -14,21 +16,27 @@ let hotelSortBy = 'cheapest';
 let hotelSortDir = 'asc';
 let isHotelFilterDrawerOpen = false;
 
-export function renderHotelResults(raw) {
+export function renderHotelResults(raw, targetContainer = null) {
   initStayBookingEvents();
-  const container = document.querySelector('[data-hotel-results]');
+  const container = targetContainer || document.querySelector('[data-hotel-results]');
   if (!container) return;
+
+  activeBadgeTargetId = null;
+  activeBadgePersona = null;
+
+  container.classList.remove('hidden');
+  container.style.display = 'block';
 
   currentHotelData = (raw && raw.hotels) ? raw : normalizeHotelApiResponse(raw);
 
   if (!currentHotelData || !currentHotelData.hotels || currentHotelData.hotels.length === 0) {
-    container.innerHTML = `<p class="muted">No hotels found matching your dates and destination.</p>`;
+    container.innerHTML = `<p class="muted" style="padding: 16px 0;">No hotels found matching your dates and destination.</p>`;
     return;
   }
 
   // Set initial max price slider based on data
   const maxDataPrice = Math.max(...currentHotelData.hotels.map(h => h.price_per_night || 0), 300);
-  if (hotelFilters.maxPrice > maxDataPrice * 1.5 || hotelFilters.maxPrice === 1000) {
+  if (!hotelFilters.maxPrice || hotelFilters.maxPrice < maxDataPrice) {
     hotelFilters.maxPrice = Math.ceil(maxDataPrice);
   }
 
@@ -39,6 +47,12 @@ function getFilteredAndSortedHotels() {
   if (!currentHotelData || !currentHotelData.hotels) return [];
 
   let result = currentHotelData.hotels.filter((h) => {
+    // Badge / Persona Filter
+    if (activeBadgeTargetId) {
+      const matchId = String(h.id) === String(activeBadgeTargetId) || String(h.hotel_id) === String(activeBadgeTargetId);
+      if (!matchId) return false;
+    }
+
     // Star rating filter
     if (hotelFilters.stars !== 'all') {
       if (Number(h.stars || 0) < Number(hotelFilters.stars)) return false;
@@ -90,6 +104,7 @@ function getFilteredAndSortedHotels() {
 
 function getActiveHotelFilterCount() {
   let count = 0;
+  if (activeBadgeTargetId) count++;
   if (hotelFilters.stars !== 'all') count++;
   if (hotelFilters.minRating !== 'all') count++;
   if (hotelFilters.amenity !== 'all') count++;
@@ -106,11 +121,11 @@ function renderHotelUI(container) {
   const preferredMode = state.tabLayouts?.hotels || getPreferredLayout('hotels') || 'list';
   const activeRenderMode = preferredMode;
 
-  const statTiles = buildHotelStatTiles(filteredHotels);
+  const statTiles = buildHotelStatTiles(currentHotelData.hotels);
   const maxDataPrice = Math.ceil(Math.max(...currentHotelData.hotels.map(h => h.price_per_night || 0), 300));
 
   container.innerHTML = `
-    ${renderTravelStatTiles(statTiles, 'hotel-card-id')}
+    ${renderTravelStatTiles(statTiles, 'hotel-card-id', activeBadgeTargetId)}
     
     <div class="results-heading-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
       <h4>Hotels in ${currentHotelData.destination} (${currentHotelData.total_found} stays found)</h4>
@@ -383,6 +398,8 @@ function bindEvents(container, filteredHotels) {
   // Clear all filters
   container.querySelector('[data-hotel-clear-filters]')?.addEventListener('click', () => {
     const maxDataPrice = Math.ceil(Math.max(...currentHotelData.hotels.map(h => h.price_per_night || 0), 300));
+    activeBadgeTargetId = null;
+    activeBadgePersona = null;
     hotelFilters = {
       stars: 'all',
       minRating: 'all',
@@ -423,10 +440,20 @@ function bindEvents(container, filteredHotels) {
     });
   });
 
+  // Badge / persona filter listener
+  if (!container._hasBadgeListener) {
+    container._hasBadgeListener = true;
+    container.addEventListener('badgeFilterSelect', (e) => {
+      activeBadgeTargetId = e.detail.targetId;
+      activeBadgePersona = e.detail.persona;
+      renderHotelUI(container);
+    });
+  }
+
   // Stat tile click wiring
-  wireTravelStatTileClicks(container, 'hotel-card-id', (cardId) => {
-    const hotelItem = currentHotelData.hotels.find(h => h.id === cardId);
-    if (hotelItem) openStayBookingWizard(hotelItem);
+  wireTravelStatTileClicks(container, 'hotel-card-id', (targetId) => {
+    activeBadgeTargetId = targetId;
+    renderHotelUI(container);
   });
 }
 

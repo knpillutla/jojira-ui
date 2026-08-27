@@ -1,7 +1,7 @@
 import { generateAiItinerary } from '../../api/travelApi.js';
 import { renderPlannerItinerary } from './plannerItinerary.js';
 import { initOrUpdateMap } from './plannerMap.js';
-import { saveRecentSearch } from '../searchForm.js';
+import { saveRecentSearch, showSearchProgressModal, hideSearchProgressModal } from '../searchForm.js';
 
 let currentItineraryData = null;
 let currentDayFilter = 'all';
@@ -53,6 +53,8 @@ export function initPlannerControls() {
       if (match) daysVal = parseInt(match[1], 10);
     }
     if (!daysVal) daysVal = 4;
+
+    showSearchProgressModal('Generating AI Itinerary', `Synthesizing ${daysVal}-day travel itinerary for ${destVal}...`, '✨');
 
     const payload = {
       prompt: promptVal || `Plan a ${daysVal}-day ${styleVal || 'balanced'} trip to ${destVal}`,
@@ -186,8 +188,6 @@ async function loadItinerary(payload) {
         `;
       }
 
-
-
       const mapContainer = document.getElementById('planner-route-map');
       if (mapContainer) {
         mapContainer.innerHTML = `
@@ -201,7 +201,9 @@ async function loadItinerary(payload) {
           </div>
         `;
       }
-  }
+    } finally {
+      hideSearchProgressModal();
+    }
 }
 
 function renderTripSummaryHeader(data) {

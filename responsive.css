@@ -597,6 +597,27 @@
 }
 
 /* Top-Level Travel Service Tabs */
+@media (max-width: 900px) {
+  .app-sidebar-layout {
+    flex-direction: column;
+    padding: 8px 12px;
+  }
+  .left-nav-sidebar {
+    width: 100%;
+    position: static;
+  }
+  .left-nav-menu {
+    flex-direction: row;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 4px;
+  }
+  .left-nav-item {
+    width: auto;
+    flex-shrink: 0;
+  }
+}
+
 .service-nav-tabs {
   display: flex;
   align-items: center;

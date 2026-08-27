@@ -3,6 +3,8 @@ import { renderTravelStatTiles, wireTravelStatTileClicks } from '../../utils/tra
 import { normalizeBundleApiResponse } from '../../api/travelApi.js';
 
 let currentBundleData = null;
+let activeBadgeTargetId = null;
+let activeBadgePersona = null;
 let bundleFilters = {
   bundleType: 'all',
   minSavings: 'all',
@@ -13,20 +15,26 @@ let bundleSortBy = 'cheapest';
 let bundleSortDir = 'asc';
 let isBundleFilterDrawerOpen = false;
 
-export function renderBundleResults(raw) {
-  const container = document.querySelector('[data-bundle-results]');
+export function renderBundleResults(raw, targetContainer = null) {
+  const container = targetContainer || document.querySelector('[data-bundle-results]');
   if (!container) return;
+
+  activeBadgeTargetId = null;
+  activeBadgePersona = null;
+
+  container.classList.remove('hidden');
+  container.style.display = 'block';
 
   currentBundleData = (raw && raw.packages) ? raw : normalizeBundleApiResponse(raw);
 
   if (!currentBundleData || !currentBundleData.packages || currentBundleData.packages.length === 0) {
-    container.innerHTML = `<p class="muted">No vacation packages available for the selected destination.</p>`;
+    container.innerHTML = `<p class="muted" style="padding: 16px 0;">No vacation packages available for the selected destination.</p>`;
     return;
   }
 
   // Set initial max price slider from data
   const maxDataPrice = Math.max(...currentBundleData.packages.map(p => p.total_bundle_price || 0), 1000);
-  if (bundleFilters.maxPrice > maxDataPrice * 1.5 || bundleFilters.maxPrice === 5000) {
+  if (!bundleFilters.maxPrice || bundleFilters.maxPrice < maxDataPrice) {
     bundleFilters.maxPrice = Math.ceil(maxDataPrice);
   }
 
@@ -37,6 +45,12 @@ function getFilteredAndSortedBundles() {
   if (!currentBundleData || !currentBundleData.packages) return [];
 
   let result = currentBundleData.packages.filter((pkg) => {
+    // Badge / Persona Filter
+    if (activeBadgeTargetId) {
+      const matchId = String(pkg.id) === String(activeBadgeTargetId) || String(pkg.bundle_id) === String(activeBadgeTargetId);
+      if (!matchId) return false;
+    }
+
     // Inclusions / Bundle Type filter
     if (bundleFilters.bundleType !== 'all') {
       const hasFlight = Boolean(pkg.flight_summary);
@@ -91,6 +105,7 @@ function getFilteredAndSortedBundles() {
 
 function getActiveBundleFilterCount() {
   let count = 0;
+  if (activeBadgeTargetId) count++;
   if (bundleFilters.bundleType !== 'all') count++;
   if (bundleFilters.minSavings !== 'all') count++;
   if (bundleFilters.minRating !== 'all') count++;
@@ -107,7 +122,7 @@ function renderBundleUI(container) {
   const preferredMode = state.tabLayouts?.packages || getPreferredLayout('packages') || 'list';
   const activeRenderMode = preferredMode;
 
-  const statTiles = buildBundleStatTiles(filteredPackages);
+  const statTiles = buildBundleStatTiles(currentBundleData.packages);
   const maxDataPrice = Math.ceil(Math.max(...currentBundleData.packages.map(p => p.total_bundle_price || 0), 1000));
 
   const types = Array.isArray(currentBundleData.bundleTypes) ? currentBundleData.bundleTypes : (typeof currentBundleData.bundleTypes === 'string' ? currentBundleData.bundleTypes.split(',') : ['flights', 'hotels', 'cars']);
@@ -118,7 +133,7 @@ function renderBundleUI(container) {
   const headingText = (headingParts.length ? headingParts.join(' + ') : 'Vacation') + ` Packages to ${currentBundleData.destination}`;
 
   container.innerHTML = `
-    ${renderTravelStatTiles(statTiles, 'bundle-card-id')}
+    ${renderTravelStatTiles(statTiles, 'bundle-card-id', activeBadgeTargetId)}
 
     <div class="results-heading-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
       <h4>${headingText} (${currentBundleData.total_found} bundles available)</h4>
@@ -359,6 +374,8 @@ function bindEvents(container, filteredPackages) {
   // Clear all filters
   container.querySelector('[data-bundle-clear-filters]')?.addEventListener('click', () => {
     const maxDataPrice = Math.ceil(Math.max(...currentBundleData.packages.map(p => p.total_bundle_price || 0), 1000));
+    activeBadgeTargetId = null;
+    activeBadgePersona = null;
     bundleFilters = {
       bundleType: 'all',
       minSavings: 'all',
@@ -399,8 +416,21 @@ function bindEvents(container, filteredPackages) {
     });
   });
 
+  // Badge / persona filter listener
+  if (!container._hasBadgeListener) {
+    container._hasBadgeListener = true;
+    container.addEventListener('badgeFilterSelect', (e) => {
+      activeBadgeTargetId = e.detail.targetId;
+      activeBadgePersona = e.detail.persona;
+      renderBundleUI(container);
+    });
+  }
+
   // Stat tile click wiring
-  wireTravelStatTileClicks(container, 'bundle-card-id');
+  wireTravelStatTileClicks(container, 'bundle-card-id', (targetId) => {
+    activeBadgeTargetId = targetId;
+    renderBundleUI(container);
+  });
 }
 
 function buildBundleStatTiles(packages) {

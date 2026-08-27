@@ -15,6 +15,101 @@ export async function fetchInitialSearchResults() {
   return normalizeSearchResponse(rawData);
 }
 
+export async function executeAiSearch(searchPayload) {
+  const startTime = performance.now();
+  console.log('🚀 [AI SEARCH START] Executing AI Search POST /api/v1/search/ai:', searchPayload);
+
+  const promptText = (searchPayload.prompt || searchPayload.query || '').trim();
+  const cacheKey = `ai_search_${promptText.toLowerCase()}`;
+
+  const cached = getCachedSearch(cacheKey);
+  if (cached && !searchPayload.forceRefresh) {
+    console.log('⚡ [AI SEARCH CACHE HIT] Returning cached AI search results');
+    return cached;
+  }
+
+  const body = {
+    prompt: promptText,
+    favorite_airline: searchPayload.favoriteAirline || null,
+    force_refresh: Boolean(searchPayload.forceRefresh),
+    selected_types: searchPayload.selectedTypes || null,
+    origin: searchPayload.origin || null,
+    destination: searchPayload.destination || null,
+    departure_date: searchPayload.depart || null,
+    return_date: searchPayload.return || null,
+    passengers_count: searchPayload.passengersCount || 1,
+    cabin_class: searchPayload.cabinClass || 'economy',
+    rooms: searchPayload.rooms || 1,
+    driver_age: searchPayload.driverAge || 30
+  };
+
+  const endpoints = [
+    `${apiBase}/api/v1/search/ai`,
+    `${apiBase}/api/v1/flights/search-natural-language`
+  ];
+
+  let rawData = null;
+  let lastError = null;
+
+  for (const url of endpoints) {
+    try {
+      console.log(`📡 [AI SEARCH REQUEST] POST ${url}`, body);
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (resp.ok && resp.headers.get('content-type')?.includes('json')) {
+        rawData = await resp.json();
+        console.log(`✅ [AI SEARCH SUCCESS] Payload from ${url}:`, rawData);
+        break;
+      } else {
+        const errText = await resp.text();
+        console.warn(`⚠️ [AI SEARCH WARN ${resp.status}] ${url}:`, errText);
+        lastError = new Error(`API Error (${resp.status}): ${errText}`);
+      }
+    } catch (e) {
+      console.warn(`⚠️ [AI SEARCH FETCH ERROR] Failed endpoint ${url}:`, e.message);
+      lastError = e;
+    }
+  }
+
+  if (!rawData) {
+    throw lastError || new Error('AI Search service unreachable. Please ensure Python Duffel API server is running.');
+  }
+
+  // Parse AISearchResponse envelope structure
+  const metaData = rawData.meta_data || rawData.meta || {};
+  const resData = rawData.data || rawData;
+  const searchType = String(metaData.search_type || resData.search_type || (resData.top_bundles?.length ? 'bundle' : 'flights')).toLowerCase();
+
+  const formattedResponse = {
+    status: rawData.status || 'success',
+    timestamp: rawData.timestamp || new Date().toISOString(),
+    meta_data: {
+      type: metaData.type || 'ai_search',
+      search_type: searchType,
+      prompt: metaData.prompt || promptText,
+      parsed_intent: metaData.parsed_intent || {},
+      geo_location: metaData.geo_location || {}
+    },
+    data: {
+      ai_summary: resData.ai_summary || resData.summary || `AI Search completed for ${promptText}.`,
+      search_type: searchType,
+      total_items: resData.total_items || resData.offers?.length || resData.top_bundles?.length || 0,
+      category_highlights: resData.category_highlights || {},
+      offers: resData.offers || resData.results || [],
+      top_bundles: resData.top_bundles || resData.bundles || []
+    }
+  };
+
+  setCachedSearch(cacheKey, formattedResponse);
+  const duration = (performance.now() - startTime).toFixed(2);
+  console.log(`🏁 [AI SEARCH END] Completed in ${duration}ms. Type: ${searchType}`, formattedResponse);
+  return formattedResponse;
+}
+
 export async function searchFlights(searchPayload) {
   const startTime = performance.now();
   console.log('🚀 [API START] Executing Flight Search with Payload:', searchPayload);
@@ -37,6 +132,9 @@ export async function searchFlights(searchPayload) {
     const tripType = searchPayload.tripType || (searchPayload.return ? 'round_trip' : 'one_way');
     const isOneWay = tripType === 'one_way';
 
+    const defaultDepartDate = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const defaultReturnDate = new Date(Date.now() + 27 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
     if (searchPayload.searchType === 'natural' || searchPayload.prompt) {
       endpoint = '/api/v1/flights/search-natural-language';
       body = {
@@ -48,8 +146,8 @@ export async function searchFlights(searchPayload) {
         trip_type: isOneWay ? 'one_way' : 'round_trip',
         origin: searchPayload.origin || 'ATL',
         destination: searchPayload.destination || 'CDG',
-        departure_date: searchPayload.depart || '',
-        return_date: isOneWay ? null : (searchPayload.return || null),
+        departure_date: searchPayload.depart || defaultDepartDate,
+        return_date: isOneWay ? null : (searchPayload.return || defaultReturnDate),
         passengers_count: searchPayload.passengersCount || 1,
         cabin_class: searchPayload.cabinClass || 'economy',
         favorite_airline: searchPayload.favoriteAirline || null,
@@ -57,7 +155,6 @@ export async function searchFlights(searchPayload) {
         prompt: null
       };
     }
-
 
     const fullUrl = `${apiBase}${endpoint}`;
     console.log(`📡 [API REQUEST] POST ${fullUrl}`, body);
@@ -80,6 +177,8 @@ export async function searchFlights(searchPayload) {
         msg = 'Backend flight search server (http://127.0.0.1:8000) is unreachable or not running. Please ensure the Python Duffel API server is running.';
       } else if (resp.status === 504 || errText.includes('504 Gateway Time-out')) {
         msg = 'Flight search backend timed out. Please try again.';
+      } else if (resp.status === 500) {
+        msg = 'The flight search backend encountered an internal server error (500). Please check departure dates or search criteria and try again.';
       } else {
         try {
           const parsed = JSON.parse(errText);

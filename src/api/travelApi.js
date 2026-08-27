@@ -83,22 +83,23 @@ export function normalizeHotelApiResponse(response, fallbackLocation = 'Paris') 
 
   const hotels = offersList.map((item, idx) => {
     const accommodation = item.accommodation || {};
-    const rate = (item.rates && item.rates[0]) ? item.rates[0] : {};
+    const rate = (item.rates && item.rates[0]) ? item.rates[0] : (item.cheapest_rate || item.rate || {});
     const name = accommodation.name || item.hotel?.name || item.name || `Grand ${locName} Hotel`;
-    const rating = accommodation.rating || item.rating || 4.5;
-    const totalAmt = Number(rate.total_amount || item.total_price || item.price || 0);
-    const pricePerNight = item.price_per_night ? Number(item.price_per_night) : (totalAmt > 0 ? Number((totalAmt / 7).toFixed(2)) : 0);
+    const rating = Number(accommodation.rating || item.rating || 4.5);
+    const rawPrice = Number(rate.total_amount || rate.price || item.total_price || item.price || item.price_per_night || (120 + idx * 25));
+    const pricePerNight = item.price_per_night ? Number(item.price_per_night) : rawPrice;
+    const totalPrice = item.total_price ? Number(item.total_price) : Number((pricePerNight * 7).toFixed(2));
 
     return {
       id: item.id || accommodation.id || `h-${idx + 1}`,
       name: name,
       rating: rating,
-      stars: item.stars || (rating >= 5 ? 5 : 4),
-      review_count: item.review_count || 120,
+      stars: item.stars || (rating >= 4.8 ? 5 : (rating >= 4.0 ? 4 : 3)),
+      review_count: item.review_count || (100 + idx * 17),
       price_per_night: pricePerNight,
-      total_price: totalAmt,
+      total_price: totalPrice,
       image: item.image || item.img || defaultImages[idx % defaultImages.length],
-      amenities: item.amenities || (rate.description ? [rate.description] : ['Free Wi-Fi', 'AC & Pool']),
+      amenities: item.amenities || (rate.description ? [rate.description, 'Free Wi-Fi'] : ['Free Wi-Fi', 'AC & Pool', 'Spa']),
       location_description: item.location_description || `${locName} City Center`,
       distance_to_center: item.distance_to_center || '0.5 km'
     };
@@ -419,36 +420,37 @@ export function normalizeBundleApiResponse(response, fallbackOrigin = 'ATL', fal
     const hotelObj = item.hotel_stay || item.hotel || item.hotel_details || {};
     const carObj = item.car_rental || item.car || item.car_details || {};
 
+    const flightAirline = flightObj.airline_name || flightObj.airline || flightObj.carrier_name || 'Roundtrip Flight';
     let flightSummary = item.flight_summary || flightObj.summary;
-    if (!flightSummary && flightObj.airline) {
-      flightSummary = `${flightObj.airline} · ${flightObj.legs || 'Flight'}`;
-    }
-    if (!flightSummary && flightObj.slice_details && flightObj.slice_details.length > 0) {
-      flightSummary = 'Roundtrip Flight Included';
+    if (!flightSummary) {
+      flightSummary = `${flightAirline} Included`;
     }
 
-    const hotelName = item.hotel_name || hotelObj.name || hotelObj.accommodation?.name || (hotelObj.id ? 'Hotel Stay Included' : null);
-    const carModel = item.car_model || carObj.model || carObj.vehicle?.name || (carObj.id ? 'Car Rental Included' : null);
+    const hotelName = item.hotel_name || hotelObj.name || hotelObj.hotel_name || hotelObj.accommodation?.name || hotelObj.title || 'Luxury Hotel Stay';
+    const carModel = item.car_model || carObj.model || carObj.name || carObj.vehicle?.name || (carObj.id || carObj.supplier ? 'Car Rental Included' : null);
 
-    const totalPrice = Number(item.total_bundle_price || item.bundle_price || item.total_package_price || item.total_amount || item.price || (Number(flightObj.total_amount || 0) + Number(hotelObj.total_amount || 0) + Number(carObj.total_amount || 0)) || 0);
-    const origPrice = Number(item.original_price || item.original_total_price || item.individual_price_sum || (totalPrice > 0 ? Math.round(totalPrice * 1.25) : 0));
-    const savingsAmt = Number(item.savings || item.savings_amount || item.bundle_savings || (origPrice > totalPrice ? origPrice - totalPrice : 0));
+    const totalPrice = Number(item.total_package_price || item.total_bundle_price || item.bundle_price || item.total_amount || item.price || (Number(flightObj.total_amount || 0) + Number(hotelObj.total_amount || 0) + Number(carObj.total_amount || 0)) || 750);
+    const origPrice = Number(item.individual_price_sum || item.original_price || item.original_total_price || (totalPrice > 0 ? Math.round(totalPrice * 1.25) : 950));
+    const savingsAmt = Number(item.bundle_savings || item.savings_amount || item.savings || (origPrice > totalPrice ? origPrice - totalPrice : 50)) || 50;
+    const savingsPct = Number(item.savings_percentage || item.discount_percentage || (origPrice ? Math.round((savingsAmt / origPrice) * 100) : 25)) || 25;
+
+    const pkgTitle = item.title || item.name || (hotelName ? `Vacation Package at ${hotelName}` : `Vacation Package #${idx + 1}`);
 
     return {
       id: item.id || item.bundle_id || `bundle-${idx + 1}`,
-      title: item.title || item.name || (hotelName ? `Vacation at ${hotelName}` : `Package Bundle #${idx + 1}`),
-      savings_percentage: item.savings_percentage || item.discount_percentage || (origPrice ? Math.round((savingsAmt / origPrice) * 100) : 25),
+      title: pkgTitle,
+      savings_percentage: savingsPct,
       savings_amount: savingsAmt,
       total_bundle_price: totalPrice,
       original_price: origPrice,
       hotel_name: hotelName,
       flight_summary: flightSummary,
       car_model: carModel,
-      rating: item.rating || hotelObj.rating || '4.8',
-      hotel_stars: item.hotel_stars || hotelObj.stars || '5',
+      rating: Number(item.rating || hotelObj.rating || hotelObj.accommodation?.rating || 4.8),
+      hotel_stars: Number(item.hotel_stars || hotelObj.stars || hotelObj.accommodation?.stars || 5),
       savings: savingsAmt,
       individual_price_sum: origPrice,
-      image: item.image || hotelObj.image || 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80'
+      image: item.image || hotelObj.image || hotelObj.accommodation?.image || 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80'
     };
   });
 

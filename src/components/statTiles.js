@@ -213,19 +213,25 @@ function formatLegCodes(offer) {
 export function handleTileClick(tile) {
   if (!tile || !tile.offer?.id) return;
 
-  state.activeTileKey = tile.key;
+  const targetId = tile.offer.id;
+  const isAlreadyActive = String(state.filters.badgeTargetId) === String(targetId);
 
-  // Highlight active tile card in UI
-  document.querySelectorAll('.stat-tile-card').forEach((c) => c.classList.remove('is-active'));
-  const cardEl = document.querySelector(`.stat-tile-card[data-tile-key="${tile.key}"]`);
-  cardEl?.classList.add('is-active');
-
-  const existsInTable = (state.offers || []).some((o) => o.id === tile.offer.id);
-  if (existsInTable) {
-    selectOffer(tile.offer.id);
-  } else if (tile.offer.isExternalWebFare) {
-    showFrontierRedirectModal(tile.offer);
+  if (isAlreadyActive) {
+    state.filters.badgeTargetId = null;
+    state.activeTileKey = null;
+  } else {
+    state.filters.badgeTargetId = targetId;
+    state.activeTileKey = tile.key;
   }
+
+  const existsInTable = (state.offers || []).some((o) => String(o.id) === String(targetId));
+  if (!existsInTable && tile.offer.isExternalWebFare) {
+    showFrontierRedirectModal(tile.offer);
+    return;
+  }
+
+  renderOffers();
+  renderStatTiles();
 }
 
 /**
@@ -234,6 +240,7 @@ export function handleTileClick(tile) {
 export function clearTileFilters() {
   console.log('↺ [CLEAR TILE FILTERS] Resetting all filters...');
   state.activeTileKey = null;
+  state.filters.badgeTargetId = null;
   state.filters.stops = 'all';
   state.filters.airline = 'all';
 

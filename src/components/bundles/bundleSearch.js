@@ -1,6 +1,6 @@
 import { searchBundles } from '../../api/travelApi.js';
 import { renderBundleResults } from './bundleResults.js';
-import { saveRecentSearch } from '../searchForm.js';
+import { saveRecentSearch, showSearchProgressModal, hideSearchProgressModal } from '../searchForm.js';
 
 export function initBundleSearch() {
   const form = document.getElementById('bundle-search-form');
@@ -26,6 +26,8 @@ export function initBundleSearch() {
       travelers: parseInt(formData.get('bundle_travelers') || '1', 10),
       bundleTypes: checkedTypes.join(',')
     };
+
+    showSearchProgressModal('Bundling Vacation Packages', `Bundling package deals for ${payload.origin} → ${payload.destination}...`, '🌴');
 
     saveRecentSearch({
       serviceTab: 'packages',
@@ -64,9 +66,9 @@ export function initBundleSearch() {
           </div>
         `;
       }
+    } finally {
+      hideSearchProgressModal();
     }
-
-
   };
 
   form.addEventListener('submit', (e) => {

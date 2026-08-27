@@ -1,6 +1,6 @@
 import { searchCars } from '../../api/travelApi.js';
 import { renderCarResults } from './carResults.js';
-import { saveRecentSearch } from '../searchForm.js';
+import { saveRecentSearch, showSearchProgressModal, hideSearchProgressModal } from '../searchForm.js';
 
 export function initCarSearch() {
   const form = document.getElementById('car-search-form');
@@ -16,6 +16,8 @@ export function initCarSearch() {
       dropoffDate: formData.get('car_dropoff') || '',
       category: formData.get('car_category') || 'all'
     };
+
+    showSearchProgressModal('Searching Car Rentals', `Finding rental car deals at ${payload.location}...`, '🚗');
 
     saveRecentSearch({
       serviceTab: 'cars',
@@ -50,9 +52,9 @@ export function initCarSearch() {
           </div>
         `;
       }
+    } finally {
+      hideSearchProgressModal();
     }
-
-
   });
 
   // Popular searches presets

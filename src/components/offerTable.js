@@ -32,6 +32,11 @@ function normalizeSortKey(key) {
 export function sortedOffers() {
   const f = state.filters;
   const filtered = state.offers.filter((offer) => {
+    if (f.badgeTargetId) {
+      const matchId = String(offer.id) === String(f.badgeTargetId) || String(offer.offer_id) === String(f.badgeTargetId);
+      if (!matchId) return false;
+    }
+
     if (f.airline !== 'all' && offer.airline !== f.airline) return false;
     if (f.stops !== 'all' && String(offer.stops) !== String(f.stops)) return false;
 
@@ -205,7 +210,7 @@ export function renderOffers() {
           </td>
           <td>
             <div class="gf-flight-cell">
-              <span class="airline-logo ${offer.tone}">${(offer.outboundCarrierCode || offer.code).slice(0, 2)}</span>
+              <span class="airline-logo ${offer.tone}">${(offer.outboundCarrierCode || offer.code || offer.airline || 'FL').slice(0, 2)}</span>
               <div class="gf-time-carrier">
                 <div class="gf-times-line">
                   <strong>${timeOnly(offer.outboundDepartDateTime) || offer.depart}${offer.outboundArriveDateTime ? ' – ' + timeOnly(offer.outboundArriveDateTime) : ''}</strong>
@@ -220,7 +225,7 @@ export function renderOffers() {
           <td>
             ${offer.isOneWay ? '<span class="muted">One way</span>' : `
             <div class="gf-flight-cell">
-              ${offer.isSameCarrierBothWays ? '' : `<span class="airline-logo ${offer.tone}">${(offer.inboundCarrierCode || offer.code).slice(0, 2)}</span>`}
+              ${offer.isSameCarrierBothWays ? '' : `<span class="airline-logo ${offer.tone}">${(offer.inboundCarrierCode || offer.code || offer.airline || 'FL').slice(0, 2)}</span>`}
               <div class="gf-time-carrier">
                 <div class="gf-times-line">
                   <strong>${timeOnly(offer.inboundDepartDateTime)}${offer.inboundArriveDateTime ? ' – ' + timeOnly(offer.inboundArriveDateTime) : ''}</strong>
@@ -309,7 +314,7 @@ export function renderOffers() {
         // Compact single-line rows with a small round airline icon so many more fit on screen
         cardsContainer.innerHTML = visible.map((offer) => `
           <div class="list-row" data-offer-id="${offer.id}">
-            <span class="list-row-icon ${offer.tone}">${(offer.outboundCarrierCode || offer.code).slice(0, 2)}</span>
+            <span class="list-row-icon ${offer.tone}">${(offer.outboundCarrierCode || offer.code || offer.airline || 'FL').slice(0, 2)}</span>
             <span class="list-row-title">${offer.from} → ${offer.to}</span>
             <span class="list-row-meta">${timeOnly(offer.outboundDepartDateTime) || offer.depart}</span>
             <span class="list-row-meta">${offer.formattedDuration} · ${offer.stopsCountText}</span>
@@ -329,7 +334,7 @@ export function renderOffers() {
         <div class="flight-tile-card" data-offer-id="${offer.id}">
           <div class="flight-tile-header">
             <div class="flight-tile-carrier">
-              <span class="airline-logo ${offer.tone}">${(offer.outboundCarrierCode || offer.code).slice(0, 2)}</span>
+              <span class="airline-logo ${offer.tone}">${(offer.outboundCarrierCode || offer.code || offer.airline || 'FL').slice(0, 2)}</span>
               <span>${offer.outboundCarrierName}</span>
             </div>
             <span class="badge-ai" style="font-size:11px;">${offer.flightNumber}</span>

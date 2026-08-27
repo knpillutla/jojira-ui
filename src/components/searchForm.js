@@ -1,12 +1,12 @@
 import { state, $, recentSearchCookie, cookieConsentCookie, getCookie } from '../core/state.js';
-import { money } from '../utils/formatters.js';
-import { searchFlights } from '../api/flightApi.js';
+import { money, normalizeOffer } from '../utils/formatters.js';
+import { searchFlights, executeAiSearch } from '../api/flightApi.js';
 import { renderOffers, populateAirlines, updateRouteHeading, initTableSorting } from './offerTable.js';
 import { renderStatTiles, clearTileFilters, renderTrendingSearches } from './statTiles.js';
 import { renderBundleResults } from './bundles/bundleResults.js';
 import { renderHotelResults } from './hotels/hotelResults.js';
 import { renderCarResults } from './cars/carResults.js';
-import { searchHotels, searchCars, searchBundles } from '../api/travelApi.js';
+import { searchHotels, searchCars, searchBundles, normalizeBundleApiResponse, normalizeHotelApiResponse, normalizeCarApiResponse } from '../api/travelApi.js';
 
 
 let citiesDatabase = [];
@@ -368,6 +368,36 @@ export function renderRecentSearches() {
       const item = list[idx];
       if (!item) return;
 
+      let icon = '✈️';
+      let title = 'Searching Live Flights';
+      let subtext = 'Fetching real-time options for your search...';
+
+      if (item.serviceTab === 'hotels' || activeTab === 'hotels') {
+        icon = '🏨';
+        title = 'Searching Hotels';
+        subtext = `Finding available hotel stays in ${item.location || 'destination'}...`;
+      } else if (item.serviceTab === 'cars' || activeTab === 'cars') {
+        icon = '🚗';
+        title = 'Searching Car Rentals';
+        subtext = `Finding rental cars in ${item.location || 'destination'}...`;
+      } else if (item.serviceTab === 'packages' || activeTab === 'packages') {
+        icon = '🌴';
+        title = 'Bundling Vacation Packages';
+        subtext = `Bundling package deals for ${item.origin || 'origin'} → ${item.destination || 'destination'}...`;
+      } else if (activeTab === 'ai-planner') {
+        icon = '✨';
+        title = 'Generating AI Itinerary';
+        subtext = `Synthesizing travel plan for ${item.destination || item.prompt || 'trip'}...`;
+      } else {
+        if (item.origin && item.destination) {
+          subtext = `Fetching live flight options for ${item.origin} → ${item.destination}...`;
+        } else if (item.prompt) {
+          subtext = `Searching AI options for "${item.prompt}"...`;
+        }
+      }
+
+      showSearchProgressModal(title, subtext, icon);
+
       if (activeTab === 'ai-search') {
         const input = document.getElementById('standalone-ai-query');
         if (input) input.value = item.prompt || '';
@@ -507,6 +537,18 @@ export function renderRecentSearches() {
   });
 }
 
+export function initSearchModeSwitcher() {
+  document.querySelectorAll('.search-mode-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const targetMode = btn.dataset.searchMode;
+      document.querySelectorAll('.search-mode-btn').forEach((b) => b.classList.toggle('is-active', b === btn));
+      document.querySelectorAll('.search-mode-content').forEach((panel) => {
+        panel.classList.toggle('hidden', panel.dataset.modePanel !== targetMode);
+      });
+    });
+  });
+}
+
 export async function handleFlightSearch(searchPayload) {
   const lineProgress = $('[data-line-progress]');
   const resultsSection = $('#results');
@@ -519,115 +561,152 @@ export async function handleFlightSearch(searchPayload) {
     errorEl.classList.remove('is-visible');
   }
 
+  const originText = searchPayload.origin || 'ATL';
+  const destText = searchPayload.destination || 'CDG';
+  const routeText = searchPayload.prompt ? `"${searchPayload.prompt}"` : `${originText} → ${destText}`;
+
+  showSearchProgressModal('Searching Live Flights', `Fetching real-time flight options for ${routeText}...`, '✈️');
+
   // Empty page content below recent searches and show line progress bar
   if (resultsSection) resultsSection.classList.add('hidden');
   if (confirmationSection) confirmationSection.classList.add('hidden');
 
   if (lineProgress) {
     lineProgress.classList.remove('hidden');
-    const originText = searchPayload.origin || 'origin';
-    const destText = searchPayload.destination || 'destination';
     const statusText = $('[data-line-progress-text]');
-    if (statusText) statusText.textContent = `Searching live flights for ${originText} → ${destText}...`;
+    if (statusText) statusText.textContent = `Searching live travel options for ${routeText}...`;
   }
 
   try {
-    const normalized = await searchFlights(searchPayload);
-    const searchType = normalized.search_type || normalized.meta?.search_type || (normalized.meta?.is_bundle ? 'bundle' : 'flights');
+    let normalized = null;
+    let aiResponse = null;
 
-    // 1. BUNDLES / VACATION PACKAGES ROUTING
-    if (searchType === 'bundle' || normalized.meta?.is_bundle) {
+    if (searchPayload.searchType === 'natural' || searchPayload.prompt) {
+      aiResponse = await executeAiSearch(searchPayload);
+      const meta = aiResponse.meta_data || {};
+      const resData = aiResponse.data || {};
+      
+      normalized = {
+        search_type: meta.search_type || resData.search_type || 'flights',
+        ai_summary: resData.ai_summary || '',
+        category_highlights: resData.category_highlights || {},
+        offers: resData.offers || [],
+        top_bundles: resData.top_bundles || [],
+        results: resData.offers || resData.top_bundles || [],
+        searchParams: meta.parsed_intent || {},
+        total_items: resData.total_items || 0,
+        rawResponse: aiResponse
+      };
+    } else {
+      normalized = await searchFlights(searchPayload);
+    }
+
+    const isAiMode = Boolean(searchPayload.searchType === 'natural' || searchPayload.prompt || document.querySelector('[data-search-mode="ai"].is-active'));
+    const rawType = normalized.search_type || normalized.meta_data?.search_type || normalized.data?.search_type || (normalized.meta?.is_bundle ? 'bundle' : 'flights');
+    const searchType = String(rawType).toLowerCase();
+    const aiResultsPanel = isAiMode ? document.querySelector('[data-ai-results-panel]') : null;
+
+    function restoreFlightResultsSection() {
+      if (resultsSection) {
+        const defaultContainer = document.querySelector('[data-service-content="flights"]') || document.querySelector('main');
+        if (defaultContainer && resultsSection.parentElement !== defaultContainer) {
+          defaultContainer.appendChild(resultsSection);
+        }
+      }
+    }
+
+    if (aiResultsPanel) {
+      restoreFlightResultsSection();
+      aiResultsPanel.innerHTML = '';
+      aiResultsPanel.classList.remove('hidden');
+    }
+
+    // Helper to hide all result panels before showing the target data table
+    function hideAllResultPanels() {
+      const panels = ['#results', '[data-hotel-results]', '[data-car-results]', '[data-bundle-results]'];
+      panels.forEach(sel => {
+        const el = document.querySelector(sel);
+        if (el) el.classList.add('hidden');
+      });
+    }
+
+    // 1. BUNDLES / VACATION PACKAGES ROUTING ("bundle" / "bundles")
+    if (searchType === 'bundle' || searchType === 'bundles' || normalized.meta?.is_bundle) {
       if (lineProgress) lineProgress.classList.add('hidden');
-      switchServiceTab('packages');
+      hideAllResultPanels();
 
       const origin = normalized.searchParams?.origin || searchPayload.origin || 'ATL';
       const destination = normalized.searchParams?.destination || searchPayload.destination || 'CDG';
 
-      let bundleData = null;
-      if (normalized.results && normalized.results.length > 0 && normalized.results[0].total_package_price) {
-        bundleData = {
-          origin: origin,
-          destination: destination,
-          total_found: normalized.total_bundles_found || normalized.results.length,
-          packages: normalized.results.map((res, i) => {
-            const savingsAmt = res.bundle_savings || 40;
-            const origPrice = res.individual_price_sum || 750;
-            const pct = Math.round((savingsAmt / origPrice) * 100) || 25;
-            return {
-              id: res.bundle_id || `pkg-${i+1}`,
-              title: normalized.meta?.bundle_for || `Vacation Package ${i+1}`,
-              savings_percentage: pct,
-              savings_amount: savingsAmt,
-              total_bundle_price: res.total_package_price,
-              individual_price_sum: origPrice,
-              inclusions: [
-                `Flight: ${res.flight_offer?.airline || 'Roundtrip Flight'} (${res.flight_offer?.price || ''})`,
-                `Hotel: ${res.hotel_stay?.accommodation?.name || 'Luxury Hotel Stay'}`
-              ],
-              flight_details: {
-                airline: res.flight_offer?.airline || 'Major Airline',
-                stops: res.flight_offer?.legs || 'Non-stop',
-                cabin: normalized.searchParams?.cabin_class || 'economy'
-              },
-              hotel_details: {
-                name: res.hotel_stay?.accommodation?.name || 'Grand Hotel Paris Centre',
-                stars: res.hotel_stay?.accommodation?.rating || 5,
-                rating: res.hotel_stay?.accommodation?.rating || 4.8,
-                nights: 7
-              },
-              image: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80'
-            };
-          })
-        };
-      } else {
-        bundleData = await searchBundles({ origin, destination });
-      }
+      const bundleData = normalizeBundleApiResponse(aiResponse || normalized, origin, destination);
+      const pkgContainer = aiResultsPanel || document.querySelector('[data-bundle-results]');
+      if (pkgContainer) pkgContainer.classList.remove('hidden');
 
-      renderBundleResults(bundleData);
+      renderBundleResults(bundleData, pkgContainer);
+
+      pkgContainer?.querySelector('.ai-executive-insights-banner')?.remove();
+
       saveRecentSearch({
-        origin, destination, prompt: searchPayload.prompt || '', type: 'natural'
+        origin, destination, prompt: searchPayload.prompt || '', type: 'natural', serviceTab: 'packages'
       });
       return;
     }
 
-    // 2. HOTELS ROUTING
-    if (searchType === 'hotels') {
+    // 2. HOTELS ROUTING ("hotels" / "stays")
+    if (searchType === 'hotels' || searchType === 'stays') {
       if (lineProgress) lineProgress.classList.add('hidden');
-      switchServiceTab('hotels');
+      hideAllResultPanels();
+
       const location = normalized.searchParams?.destination || searchPayload.destination || 'Paris';
-      const hotelData = (normalized.results && normalized.results.length > 0 && normalized.results[0].name)
-        ? normalized
-        : await searchHotels({ location, checkIn: searchPayload.depart, checkOut: searchPayload.return });
-      renderHotelResults(hotelData);
+      const hotelData = normalizeHotelApiResponse(aiResponse || normalized, location);
+      const hotelContainer = aiResultsPanel || document.querySelector('[data-hotel-results]');
+      if (hotelContainer) hotelContainer.classList.remove('hidden');
+
+      renderHotelResults(hotelData, hotelContainer);
+
+      hotelContainer?.querySelector('.ai-executive-insights-banner')?.remove();
+
       saveRecentSearch({
-        origin: location, destination: location, prompt: searchPayload.prompt || '', type: 'natural'
+        origin: location, destination: location, prompt: searchPayload.prompt || '', type: 'natural', serviceTab: 'hotels'
       });
       return;
     }
 
-    // 3. CAR RENTALS ROUTING
+    // 3. CAR RENTALS ROUTING ("cars")
     if (searchType === 'cars') {
       if (lineProgress) lineProgress.classList.add('hidden');
-      switchServiceTab('cars');
+      hideAllResultPanels();
+
       const location = normalized.searchParams?.destination || searchPayload.destination || 'Paris CDG Airport';
-      const carData = (normalized.results && normalized.results.length > 0 && normalized.results[0].model)
-        ? normalized
-        : await searchCars({ location, pickupDate: searchPayload.depart, dropoffDate: searchPayload.return, category: 'all' });
-      renderCarResults(carData);
+      const carData = normalizeCarApiResponse(aiResponse || normalized, location);
+      const carContainer = aiResultsPanel || document.querySelector('[data-car-results]');
+      if (carContainer) carContainer.classList.remove('hidden');
+
+      renderCarResults(carData, carContainer);
+
+      carContainer?.querySelector('.ai-executive-insights-banner')?.remove();
+
       saveRecentSearch({
-        origin: location, destination: location, prompt: searchPayload.prompt || '', type: 'natural'
+        origin: location, destination: location, prompt: searchPayload.prompt || '', type: 'natural', serviceTab: 'cars'
       });
       return;
     }
 
-
-    // 4. FLIGHTS ROUTING (Default)
+    // 4. FLIGHTS ROUTING (Default / "flights")
     if (lineProgress) lineProgress.classList.add('hidden');
-    if (resultsSection) resultsSection.classList.remove('hidden');
+    hideAllResultPanels();
 
-    state.offers = normalized.offers;
-    state.categoryHighlights = normalized.categoryHighlights;
-    state.routeNames = normalized.routeNames;
+    if (isAiMode && aiResultsPanel && resultsSection) {
+      aiResultsPanel.appendChild(resultsSection);
+      resultsSection.classList.remove('hidden');
+    } else if (resultsSection) {
+      restoreFlightResultsSection();
+      resultsSection.classList.remove('hidden');
+    }
+
+    state.offers = (normalized.offers || []).map((o, idx) => (o.formattedPrice ? o : normalizeOffer(o, idx)));
+    state.categoryHighlights = normalized.categoryHighlights || {};
+    state.routeNames = normalized.routeNames || {};
 
     const originCode = normalized.searchParams?.origin || searchPayload.origin || '';
     const destCode = normalized.searchParams?.destination || searchPayload.destination || '';
@@ -651,9 +730,23 @@ export async function handleFlightSearch(searchPayload) {
     if (priceOutput) priceOutput.textContent = money(maxPrice);
 
     updateFieldHelpers(originCode, destCode);
-    updateRouteHeading(originCode, destCode, departDate, normalized.routeNames.origin, normalized.routeNames.destination);
+    const originName = normalized.routeNames?.origin || originCode;
+    const destName = normalized.routeNames?.destination || destCode;
+    updateRouteHeading(originCode, destCode, departDate, originName, destName);
     populateAirlines();
     renderOffers();
+
+    resultsSection?.querySelector('.ai-executive-insights-banner')?.remove();
+
+    if (resultsSection && !resultsSection._hasBadgeListener) {
+      resultsSection._hasBadgeListener = true;
+      resultsSection.addEventListener('badgeFilterSelect', (e) => {
+        state.filters.badgeTargetId = e.detail.targetId;
+        renderOffers();
+        renderStatTiles();
+      });
+    }
+    
     renderStatTiles();
     saveRecentSearch({
       origin: originCode,
@@ -700,6 +793,60 @@ export async function handleFlightSearch(searchPayload) {
   }
  finally {
     if (lineProgress) lineProgress.classList.add('hidden');
+    hideSearchProgressModal();
+  }
+}
+
+let searchModalStartTime = 0;
+
+export function showSearchProgressModal(title = 'Searching Live Options', subtext = 'Fetching real-time travel options...', icon = '✈️') {
+  searchModalStartTime = Date.now();
+  let modal = document.querySelector('[data-search-progress-modal]');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.className = 'payment-progress-overlay hidden';
+    modal.setAttribute('data-search-progress-modal', '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Loading Search Results');
+    modal.innerHTML = `
+      <div class="payment-progress-card">
+        <div class="search-round-spinner-wrap">
+          <div class="round-progress-spinner"></div>
+          <span class="round-spinner-icon" data-search-progress-icon>✈️</span>
+        </div>
+        <h3 data-search-progress-title>Searching Live Options</h3>
+        <p class="progress-subtext" data-search-progress-subtext>Fetching real-time travel options...</p>
+        <div class="line-progress-bar" style="width: 100%; margin-top: 6px;"></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  const titleEl = modal.querySelector('[data-search-progress-title]');
+  const subtextEl = modal.querySelector('[data-search-progress-subtext]');
+  const iconEl = modal.querySelector('[data-search-progress-icon]');
+
+  if (titleEl) titleEl.textContent = title;
+  if (subtextEl) subtextEl.textContent = subtext;
+  if (iconEl) iconEl.textContent = icon;
+
+  modal.classList.remove('hidden');
+}
+
+export function hideSearchProgressModal() {
+  const modal = document.querySelector('[data-search-progress-modal]');
+  if (!modal) return;
+
+  const elapsed = Date.now() - searchModalStartTime;
+  const minDuration = 750;
+
+  if (elapsed < minDuration) {
+    setTimeout(() => {
+      modal.classList.add('hidden');
+    }, minDuration - elapsed);
+  } else {
+    modal.classList.add('hidden');
   }
 }
 
@@ -1158,11 +1305,10 @@ export function initServiceTabs() {
     tab.addEventListener('click', () => {
       const target = tab.dataset.serviceTab;
       tabs.forEach((t) => {
-        t.classList.remove('is-active');
-        t.setAttribute('aria-selected', 'false');
+        const isActive = t.dataset.serviceTab === target;
+        t.classList.toggle('is-active', isActive);
+        t.setAttribute('aria-selected', isActive ? 'true' : 'false');
       });
-      tab.classList.add('is-active');
-      tab.setAttribute('aria-selected', 'true');
 
       contents.forEach((c) => {
         if (c.dataset.serviceContent === target) {
@@ -1171,6 +1317,15 @@ export function initServiceTabs() {
           c.classList.add('hidden');
         }
       });
+
+      const resultsSection = document.getElementById('results');
+      if (resultsSection) {
+        if (target === 'flights') {
+          resultsSection.classList.remove('hidden');
+        } else {
+          resultsSection.classList.add('hidden');
+        }
+      }
 
       renderRecentSearches();
 

@@ -4,6 +4,8 @@ import { normalizeCarApiResponse } from '../../api/travelApi.js';
 import { openCarBookingWizard, initCarBookingEvents } from './carBookingWizard.js';
 
 let currentCarData = null;
+let activeBadgeTargetId = null;
+let activeBadgePersona = null;
 let carFilters = {
   category: 'all',
   transmission: 'all',
@@ -15,21 +17,27 @@ let carSortBy = 'cheapest';
 let carSortDir = 'asc';
 let isCarFilterDrawerOpen = false;
 
-export function renderCarResults(raw) {
+export function renderCarResults(raw, targetContainer = null) {
   initCarBookingEvents();
-  const container = document.querySelector('[data-car-results]');
+  const container = targetContainer || document.querySelector('[data-car-results]');
   if (!container) return;
+
+  activeBadgeTargetId = null;
+  activeBadgePersona = null;
+
+  container.classList.remove('hidden');
+  container.style.display = 'block';
 
   currentCarData = (raw && raw.cars) ? raw : normalizeCarApiResponse(raw);
 
   if (!currentCarData || !currentCarData.cars || currentCarData.cars.length === 0) {
-    container.innerHTML = `<p class="muted">No car rentals found matching your search.</p>`;
+    container.innerHTML = `<p class="muted" style="padding: 16px 0;">No car rentals found matching your search.</p>`;
     return;
   }
 
   // Calculate max price from data to set initial slider max
   const maxDataPrice = Math.max(...currentCarData.cars.map(c => c.price_per_day || 0), 200);
-  if (carFilters.maxPrice > maxDataPrice * 1.5 || carFilters.maxPrice === 500) {
+  if (!carFilters.maxPrice || carFilters.maxPrice < maxDataPrice) {
     carFilters.maxPrice = Math.ceil(maxDataPrice);
   }
 
@@ -40,6 +48,12 @@ function getFilteredAndSortedCars() {
   if (!currentCarData || !currentCarData.cars) return [];
 
   let result = currentCarData.cars.filter((c) => {
+    // Badge / Persona Filter
+    if (activeBadgeTargetId) {
+      const matchId = String(c.id) === String(activeBadgeTargetId) || String(c.car_id) === String(activeBadgeTargetId);
+      if (!matchId) return false;
+    }
+
     // Category filter
     if (carFilters.category !== 'all') {
       const catKey = c.category_key || '';
@@ -101,6 +115,7 @@ function getFilteredAndSortedCars() {
 
 function getActiveCarFilterCount() {
   let count = 0;
+  if (activeBadgeTargetId) count++;
   if (carFilters.category !== 'all') count++;
   if (carFilters.transmission !== 'all') count++;
   if (carFilters.supplier !== 'all') count++;
@@ -128,7 +143,7 @@ function renderCarUI(container) {
   const preferredMode = state.tabLayouts?.cars || getPreferredLayout('cars') || 'list';
   const activeRenderMode = preferredMode;
 
-  const statTiles = buildCarStatTiles(filteredCars, rentalDays);
+  const statTiles = buildCarStatTiles(currentCarData.cars, rentalDays);
 
   // Extract unique suppliers for dropdown
   const suppliersList = [...new Set(currentCarData.cars.map(c => c.supplier || c.supplier_name || 'Rental Supplier'))].sort();
@@ -139,7 +154,7 @@ function renderCarUI(container) {
   const maxDataPrice = Math.ceil(Math.max(...currentCarData.cars.map(c => c.price_per_day || 0), 200));
 
   container.innerHTML = `
-    ${renderTravelStatTiles(statTiles, 'car-card-id')}
+    ${renderTravelStatTiles(statTiles, 'car-card-id', activeBadgeTargetId)}
     
     <div class="results-heading-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
       <h4>Car Rentals near ${currentCarData.pickup_location} (${currentCarData.total_found} vehicles available for ${rentalDays} Days)</h4>
@@ -427,6 +442,8 @@ function bindEvents(container, filteredCars, rentalDays) {
   // Clear all filters
   container.querySelector('[data-car-clear-filters]')?.addEventListener('click', () => {
     const maxDataPrice = Math.ceil(Math.max(...currentCarData.cars.map(c => c.price_per_day || 0), 200));
+    activeBadgeTargetId = null;
+    activeBadgePersona = null;
     carFilters = {
       category: 'all',
       transmission: 'all',
@@ -468,10 +485,20 @@ function bindEvents(container, filteredCars, rentalDays) {
     });
   });
 
+  // Badge / persona filter listener
+  if (!container._hasBadgeListener) {
+    container._hasBadgeListener = true;
+    container.addEventListener('badgeFilterSelect', (e) => {
+      activeBadgeTargetId = e.detail.targetId;
+      activeBadgePersona = e.detail.persona;
+      renderCarUI(container);
+    });
+  }
+
   // Stat tile click wiring
-  wireTravelStatTileClicks(container, 'car-card-id', (cardId) => {
-    const carItem = currentCarData.cars.find(c => c.id === cardId);
-    if (carItem) openCarBookingWizard(carItem);
+  wireTravelStatTileClicks(container, 'car-card-id', (targetId) => {
+    activeBadgeTargetId = targetId;
+    renderCarUI(container);
   });
 }
 
