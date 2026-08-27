@@ -190,6 +190,79 @@ export function showMainPageBookingConfirmation() {
     return;
   }
 
+  if (offer && (offer.isPackage || offer.isBundle)) {
+    const pkg = offer.packageDetails || offer.bundleDetails || {};
+    const bundleOrders = res.bundle_orders || {};
+    const flightOrd = bundleOrders.flight_order || {};
+    const hotelOrd = bundleOrders.hotel_order || {};
+    const carOrd = bundleOrders.car_order || {};
+
+    wrap.innerHTML = `
+      <div class="main-confirmation-card">
+        <div class="main-confirmation-header">
+          <div>
+            <span class="header-status-pill">✓ VACATION PACKAGE BUNDLE CONFIRMED</span>
+            <h2>Get ready for your trip, ${pass.first_name}!</h2>
+            <p style="margin:6px 0 0;opacity:0.85;font-size:14px">Your complete vacation bundle (${pkg.title || 'Flights + Hotel + Car'}) is reserved.</p>
+          </div>
+          <div style="text-align:right">
+            <span style="font-size:12px;opacity:0.75;display:block">TOTAL BUNDLE PAID</span>
+            <strong style="font:700 28px 'Space Grotesk',sans-serif">${money(Number(res.total_amount || pkg.total_bundle_price || total))}</strong>
+          </div>
+        </div>
+
+        <div class="main-confirmation-body">
+          <div class="pnr-hero-box">
+            <small>BUNDLE BOOKING REFERENCE</small>
+            <strong>${res.booking_reference || 'BND-948210'}</strong>
+            <span style="font-size:12px;color:var(--muted)">All-in-one package confirmation reference</span>
+          </div>
+
+          <div class="conf-grid">
+            <div class="conf-item">
+              <small>PRIMARY PASSENGER / GUEST</small>
+              <strong>${(pass.title || 'MR').toUpperCase()} ${pass.first_name} ${pass.last_name}</strong>
+            </div>
+            <div class="conf-item">
+              <small>CONTACT EMAIL</small>
+              <strong>${pass.email}</strong>
+            </div>
+            <div class="conf-item">
+              <small>FLIGHT ORDER</small>
+              <strong>✈️ ${flightOrd.booking_reference ? `PNR: ${flightOrd.booking_reference}` : 'Flight Reserved'} (${flightOrd.status || 'confirmed'})</strong>
+            </div>
+            <div class="conf-item">
+              <small>HOTEL ORDER</small>
+              <strong>🏨 ${pkg.hotel_name || 'Hotel Stay Reserved'} (${hotelOrd.status || 'confirmed'})</strong>
+            </div>
+            <div class="conf-item">
+              <small>CAR RENTAL ORDER</small>
+              <strong>🚗 ${pkg.car_model || 'Car Rental Reserved'} (${carOrd.status || 'confirmed'})</strong>
+            </div>
+            <div class="conf-item">
+              <small>SAVINGS APPLIED</small>
+              <strong style="color:var(--emerald);">Saved ${pkg.savings_percentage || 15}% ($${pkg.savings_amount || 45})</strong>
+            </div>
+          </div>
+
+          <div class="conf-actions" style="margin-top:20px;">
+            <button type="button" class="btn-secondary-outline" onclick="window.print()">🖨️ Print Bundle Itinerary</button>
+            <button type="button" class="primary-button" data-book-another><span>Search Packages</span> <b>→</b></button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const confSec = $('[data-booking-confirmation-section]');
+    confSec.classList.remove('hidden');
+    confSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    wrap.querySelector('[data-book-another]')?.addEventListener('click', () => {
+      confSec.classList.add('hidden');
+      document.querySelector('#top')?.scrollIntoView({ behavior: 'smooth' });
+    });
+    return;
+  }
 
   const hasCheckedBag = bookingState.extras.bag;
   const hasSeatSelection = bookingState.extras.seat;

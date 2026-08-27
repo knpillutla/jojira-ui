@@ -496,10 +496,16 @@ function bindEvents(container, filteredCars, rentalDays) {
   }
 
   // Stat tile click wiring
-  wireTravelStatTileClicks(container, 'car-card-id', (targetId) => {
-    activeBadgeTargetId = targetId;
-    renderCarUI(container);
-  });
+  wireTravelStatTileClicks(container, 'car-card-id', 
+    (targetId) => {
+      activeBadgeTargetId = targetId;
+      renderCarUI(container);
+    },
+    (targetId) => {
+      const car = currentCarData?.cars?.find(c => String(c.id) === String(targetId));
+      if (car) openCarBookingWizard(car);
+    }
+  );
 }
 
 function buildCarStatTiles(cars, rentalDays = 3) {

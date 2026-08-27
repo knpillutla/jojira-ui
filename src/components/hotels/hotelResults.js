@@ -451,10 +451,16 @@ function bindEvents(container, filteredHotels) {
   }
 
   // Stat tile click wiring
-  wireTravelStatTileClicks(container, 'hotel-card-id', (targetId) => {
-    activeBadgeTargetId = targetId;
-    renderHotelUI(container);
-  });
+  wireTravelStatTileClicks(container, 'hotel-card-id', 
+    (targetId) => {
+      activeBadgeTargetId = targetId;
+      renderHotelUI(container);
+    },
+    (targetId) => {
+      const hotel = currentHotelData?.hotels?.find(h => String(h.id) === String(targetId));
+      if (hotel) openStayBookingWizard(hotel);
+    }
+  );
 }
 
 function buildHotelStatTiles(hotels) {

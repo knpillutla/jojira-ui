@@ -34,8 +34,13 @@
           <nav class="left-nav-menu" role="tablist" aria-label="Travel Services Navigation">
             <button type="button" class="left-nav-item is-active" data-service-tab="ai-search" role="tab" aria-selected="true">
               <span class="left-nav-icon">🔍</span>
-              <span class="left-nav-label">Ask AI Search</span>
+              <span class="left-nav-label">AI Search</span>
               <span class="left-nav-badge">Smart</span>
+            </button>
+            <button type="button" class="left-nav-item" data-service-tab="ai-planner" role="tab" aria-selected="false">
+              <span class="left-nav-icon">✨</span>
+              <span class="left-nav-label">AI Travel Planner</span>
+              <span class="left-nav-badge-new">New</span>
             </button>
             <button type="button" class="left-nav-item" data-service-tab="flights" role="tab" aria-selected="false">
               <span class="left-nav-icon">✈️</span>
@@ -52,11 +57,6 @@
             <button type="button" class="left-nav-item" data-service-tab="packages" role="tab" aria-selected="false">
               <span class="left-nav-icon">🌴</span>
               <span class="left-nav-label">Vacation Packages</span>
-            </button>
-            <button type="button" class="left-nav-item" data-service-tab="ai-planner" role="tab" aria-selected="false">
-              <span class="left-nav-icon">✨</span>
-              <span class="left-nav-label">AI Travel Planner</span>
-              <span class="left-nav-badge-new">New</span>
             </button>
           </nav>
         </aside>
@@ -357,24 +357,24 @@
           <div class="search-panel ai-planner-search-panel" aria-label="AI Trip Planner">
             <form id="ai-planner-form">
               <!-- AI Natural Language Prompt Input Box -->
-              <div class="natural-search-bar" style="margin-bottom: 12px;">
-                <label style="display:block; font-size:11px; font-weight:700; color:var(--muted); margin-bottom:4px;">
-                  <span>✨ Ask AI Travel Planner (Describe your trip naturally)</span>
+              <div class="natural-search-bar" style="margin-bottom: 16px;">
+                <label style="display:block; font-size:11px; font-weight:700; color:var(--muted); margin-bottom:6px;">
+                  <span>✨ AI Travel Planner (Describe your trip naturally)</span>
                 </label>
-                <div class="natural-input-wrap" style="display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:6px; padding:6px 10px; background:var(--white);">
-                  <span style="font-size:15px; color:var(--coral);">🧠</span>
-                  <input name="planner_prompt" placeholder="Describe your trip (e.g. 4-day romantic trip to Paris with art museums and wine tasting under $2000)..." style="border:0; outline:0; flex:1; font-size:12px; font-weight:600; width:100%;" />
+                <div class="natural-input-wrap" style="display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:8px; padding:10px 14px; background:var(--white); box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                  <span style="font-size:18px; color:var(--coral);">🧠</span>
+                  <input name="planner_prompt" placeholder="Describe your trip (e.g. 4-day romantic trip to Paris with art museums and wine tasting under $2000)..." style="border:0; outline:0; flex:1; font-size:13px; font-weight:600; width:100%;" />
                 </div>
               </div>
 
-              <!-- Dropdown Hints (Default to None / Optional Enhancements) -->
-              <div class="field-grid">
+              <!-- Compact Secondary Dropdown & Input Hints (4 columns) -->
+              <div class="planner-compact-fields">
                 <label class="field field-location">
-                  <span>Destination (Optional Hint)</span><strong>✨</strong>
+                  <span>Destination (Optional Hint)</span>
                   <input name="planner_destination" placeholder="City or country (e.g. Paris)" value="" autocomplete="off" />
                 </label>
                 <label class="field">
-                  <span>Duration</span><strong>⏳</strong>
+                  <span>Duration</span>
                   <select name="planner_days">
                     <option value="" selected>None (Auto-detect)</option>
                     <option value="2">2 Days Weekend</option>
@@ -384,7 +384,7 @@
                   </select>
                 </label>
                 <label class="field">
-                  <span>Travel Style</span><strong>🎨</strong>
+                  <span>Travel Style</span>
                   <select name="planner_style">
                     <option value="" selected>None (Auto-detect)</option>
                     <option value="balanced">Balanced Highlights</option>
@@ -394,7 +394,7 @@
                   </select>
                 </label>
                 <label class="field">
-                  <span>Budget Tier</span><strong>💳</strong>
+                  <span>Budget Tier</span>
                   <select name="planner_budget">
                     <option value="" selected>None (Auto-detect)</option>
                     <option value="budget">Budget Friendly</option>
@@ -403,12 +403,36 @@
                   </select>
                 </label>
               </div>
-              <div class="planner-presets-row" style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                <span style="font-size:12px; font-weight:600; color:var(--muted);">Popular ideas:</span>
+
+              <!-- Explicit Trip Component Selection Checkboxes -->
+              <div class="planner-components-row" style="margin-top:16px; margin-bottom:16px; display:flex; gap:18px; align-items:center; flex-wrap:wrap; background:#f8fafc; padding:10px 16px; border-radius:8px; border:1px solid var(--line);">
+                <span style="font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:0.4px;">Include in Trip Plan:</span>
+                <label class="checkbox" style="font-size:12px; font-weight:600; cursor:pointer;">
+                  <input type="checkbox" name="include_flights" checked /> <span>✈️ Flights</span>
+                </label>
+                <label class="checkbox" style="font-size:12px; font-weight:600; cursor:pointer;">
+                  <input type="checkbox" name="include_hotels" checked /> <span>🏨 Hotels</span>
+                </label>
+                <label class="checkbox" style="font-size:12px; font-weight:600; cursor:pointer;">
+                  <input type="checkbox" name="include_cars" checked /> <span>🚗 Car Rentals</span>
+                </label>
+                <label class="checkbox" style="font-size:12px; font-weight:600; cursor:pointer;">
+                  <input type="checkbox" name="include_attractions" checked /> <span>🎟️ Attractions</span>
+                </label>
+                <label class="checkbox" style="font-size:12px; font-weight:600; cursor:pointer;">
+                  <input type="checkbox" name="include_activities" checked /> <span>🏄 Activities & Dining</span>
+                </label>
+              </div>
+
+              <!-- Popular Ideas Preset Chips -->
+              <div class="planner-presets-row" style="margin-top:14px; margin-bottom:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                <span style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px;">Popular ideas:</span>
                 <button type="button" class="preset-chip" data-planner-preset data-preset-dest="Paris" data-preset-days="4">🇫🇷 Paris 4-Day Trip</button>
                 <button type="button" class="preset-chip" data-planner-preset data-preset-dest="Tokyo" data-preset-days="2">🇯🇵 Tokyo Express</button>
               </div>
-              <div class="search-actions" style="margin-top:16px;">
+
+              <!-- Action Bar -->
+              <div class="search-actions" style="margin-top:16px; display:flex; justify-content:space-between; align-items:center;">
                 <div class="actions-left"><span class="badge-ai">🧠 Powered by AI & Leaflet Geo-Maps</span></div>
                 <div class="actions-right">
                   <button class="primary-button btn-generate-planner" type="submit"><span>✨ Generate Itinerary</span><b>→</b></button>
@@ -430,12 +454,18 @@
                 <div id="planner-itinerary-list"></div>
               </div>
 
-              <!-- Right Column: Interactive Leaflet Map -->
+              <!-- Right Column: Interactive Google / Leaflet Map -->
               <div class="planner-map-pane">
                 <div class="map-container-card">
-                  <div class="map-card-header">
-                    <span class="map-title">📍 Interactive Route Map</span>
-                    <span class="map-subtitle">Pins & routes color-coded by day</span>
+                  <div class="map-card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div>
+                      <span class="map-title">📍 Interactive Route Map</span>
+                      <span class="map-subtitle">Pins & routes color-coded by day</span>
+                    </div>
+                    <div class="map-provider-toggle" style="display:flex; gap:4px; background:#f1f5f9; padding:3px; border-radius:8px; border:1px solid #cbd5e1;">
+                      <button type="button" class="map-toggle-btn is-active" data-map-provider="google" style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; border:0; cursor:pointer; background:#ffffff; color:#0f172a; box-shadow:0 1px 2px rgba(0,0,0,0.08);">🗺️ Google Maps</button>
+                      <button type="button" class="map-toggle-btn" data-map-provider="leaflet" style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; border:0; cursor:pointer; background:transparent; color:#64748b;">🍃 Leaflet</button>
+                    </div>
                   </div>
                   <div id="trip-map" class="leaflet-map-frame"></div>
                 </div>
@@ -443,8 +473,6 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
 
       <!-- GLOBAL RECENT SEARCHES: Appears consistently across all tabs above results/split-view -->
       <section class="recent-searches hidden" data-recent-searches aria-label="Recent searches" style="margin-top:18px; margin-bottom:18px;">
@@ -518,6 +546,8 @@
       <section class="confirmation-section hidden" id="booking-confirmation" data-booking-confirmation-section>
         <div class="confirmation-card-wrap" data-confirmation-card-wrap></div>
       </section>
+        </section>
+      </div>
     </main>
     <footer id="support" class="minimal-footer"><p class="copyright">© 2026 Jojira Travel, Inc. · Powered by Duffel API</p></footer>
     
@@ -714,6 +744,68 @@
           <div class="footer-right">
             <span class="booking-total-display" data-stay-booking-total></span>
             <button type="button" class="primary-button" data-stay-booking-next><span>Continue to Guest Details</span> <b>→</b></button>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Dedicated Package / Bundle Booking Modal Overlay -->
+    <div class="booking-modal-overlay hidden" data-package-booking-modal role="dialog" aria-modal="true" aria-label="Vacation package booking wizard">
+      <div class="booking-modal-card">
+        <header class="booking-header">
+          <div class="booking-title-bar">
+            <h3>Reserve your vacation package</h3>
+            <button type="button" class="close-button" data-close-package-booking aria-label="Close package booking modal">✕</button>
+          </div>
+          <div class="booking-stepper">
+            <div class="step-item is-active" data-package-step-indicator="1"><span class="step-num">1</span><span class="step-label">Review</span></div>
+            <div class="step-line"></div>
+            <div class="step-item" data-package-step-indicator="2"><span class="step-num">2</span><span class="step-label">Passenger & Driver</span></div>
+            <div class="step-line"></div>
+            <div class="step-item" data-package-step-indicator="3"><span class="step-num">3</span><span class="step-label">Payment</span></div>
+          </div>
+        </header>
+
+        <div class="booking-body">
+          <!-- Step 1: Package Review & Details -->
+          <div class="booking-step-content" data-package-booking-step="1">
+            <div class="step-package-summary" data-package-summary></div>
+          </div>
+
+          <!-- Step 2: Passenger & Driver Details -->
+          <div class="booking-step-content hidden" data-package-booking-step="2">
+            <h4>Primary Passenger & Driver Information</h4>
+            <form id="package-guest-form" class="passenger-form">
+              <div class="form-row">
+                <label class="form-field field-small"><span>Title</span><select name="title"><option value="mr">Mr</option><option value="ms">Ms</option><option value="mrs">Mrs</option><option value="dr">Dr</option></select></label>
+                <label class="form-field"><span>First name *</span><input name="first_name" required placeholder="John" value="John" /></label>
+                <label class="form-field"><span>Last name *</span><input name="last_name" required placeholder="Doe" value="Doe" /></label>
+              </div>
+              <div class="form-row">
+                <label class="form-field"><span>Email address *</span><input name="email" type="email" required placeholder="john.doe@example.com" value="john.doe@example.com" /></label>
+                <label class="form-field"><span>Phone number *</span><input name="phone_number" required placeholder="+14155552671" value="+14155552671" /></label>
+              </div>
+              <div class="form-row">
+                <label class="form-field field-small"><span>Driver Age *</span><input name="driver_age" type="number" min="18" max="99" required value="30" /></label>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 3: Payment & Summary -->
+          <div class="booking-step-content hidden" data-package-booking-step="3">
+            <h4>Payment & Finalize</h4>
+            <div class="payment-error-alert hidden" data-package-payment-error role="alert"></div>
+            <div class="payment-methods-header">Select Payment Method</div>
+            <div class="payment-methods-list" data-package-payment-methods-list></div>
+            <div class="price-breakdown-card" data-package-price-breakdown></div>
+          </div>
+        </div>
+
+        <footer class="booking-footer">
+          <button type="button" class="text-button" data-package-booking-back>Back</button>
+          <div class="footer-right">
+            <span class="booking-total-display" data-package-booking-total></span>
+            <button type="button" class="primary-button" data-package-booking-next><span>Continue to Passenger Details</span> <b>→</b></button>
           </div>
         </footer>
       </div>

@@ -1,6 +1,7 @@
 import { state, getPreferredLayout, setPreferredLayout } from '../../core/state.js';
 import { renderTravelStatTiles, wireTravelStatTileClicks } from '../../utils/travelStatTiles.js';
 import { normalizeBundleApiResponse } from '../../api/travelApi.js';
+import { openPackageBookingWizard, initPackageBookingEvents } from './packageBookingWizard.js';
 
 let currentBundleData = null;
 let activeBadgeTargetId = null;
@@ -16,6 +17,7 @@ let bundleSortDir = 'asc';
 let isBundleFilterDrawerOpen = false;
 
 export function renderBundleResults(raw, targetContainer = null) {
+  initPackageBookingEvents();
   const container = targetContainer || document.querySelector('[data-bundle-results]');
   if (!container) return;
 
@@ -427,9 +429,27 @@ function bindEvents(container, filteredPackages) {
   }
 
   // Stat tile click wiring
-  wireTravelStatTileClicks(container, 'bundle-card-id', (targetId) => {
-    activeBadgeTargetId = targetId;
-    renderBundleUI(container);
+  wireTravelStatTileClicks(container, 'bundle-card-id', 
+    (targetId) => {
+      activeBadgeTargetId = targetId;
+      renderBundleUI(container);
+    },
+    (targetId) => {
+      const pkg = currentBundleData?.packages?.find(p => String(p.id) === String(targetId) || String(p.bundle_id) === String(targetId));
+      if (pkg) openPackageBookingWizard(pkg);
+    }
+  );
+
+  // Book Package button click wiring
+  container.querySelectorAll('.btn-book-bundle').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const bundleId = btn.getAttribute('data-bundle-id');
+      const pkg = filteredPackages.find(p => String(p.id) === String(bundleId) || String(p.bundle_id) === String(bundleId));
+      if (pkg) {
+        openPackageBookingWizard(pkg);
+      }
+    });
   });
 }
 

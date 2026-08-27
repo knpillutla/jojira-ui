@@ -54,6 +54,12 @@ export function initPlannerControls() {
     }
     if (!daysVal) daysVal = 4;
 
+    const includeFlights = form.querySelector('[name="include_flights"]')?.checked ?? true;
+    const includeHotels = form.querySelector('[name="include_hotels"]')?.checked ?? true;
+    const includeCars = form.querySelector('[name="include_cars"]')?.checked ?? true;
+    const includeAttractions = form.querySelector('[name="include_attractions"]')?.checked ?? true;
+    const includeActivities = form.querySelector('[name="include_activities"]')?.checked ?? true;
+
     showSearchProgressModal('Generating AI Itinerary', `Synthesizing ${daysVal}-day travel itinerary for ${destVal}...`, '✨');
 
     const payload = {
@@ -61,7 +67,12 @@ export function initPlannerControls() {
       destination: destVal,
       days: daysVal,
       style: styleVal || 'balanced',
-      budget: budgetVal || 'moderate'
+      budget: budgetVal || 'moderate',
+      include_flights: includeFlights,
+      include_hotels: includeHotels,
+      include_cars: includeCars,
+      include_attractions: includeAttractions,
+      include_activities: includeActivities
     };
 
     saveRecentSearch({
@@ -113,7 +124,12 @@ export function initPlannerControls() {
         destination: dest,
         days: days,
         style: 'balanced',
-        budget: 'moderate'
+        budget: 'moderate',
+        include_flights: true,
+        include_hotels: true,
+        include_cars: true,
+        include_attractions: true,
+        include_activities: true
       });
     });
   });
@@ -133,93 +149,149 @@ async function loadItinerary(payload) {
     `;
   }
 
+  console.log('🧠 [AI PLANNER] loadItinerary called with payload:', payload);
+  try {
+    let rawData = await generateAiItinerary(payload);
+    console.log('✅ [AI PLANNER] API response data:', rawData);
 
-    console.log('🧠 [AI PLANNER] loadItinerary called with payload:', payload);
-    try {
-      let rawData = await generateAiItinerary(payload);
-      console.log('✅ [AI PLANNER] API response data:', rawData);
+    const inner = rawData?.data || rawData || {};
+    const rawDailyList = inner.daily_itinerary || inner.itinerary || rawData?.daily_itinerary || rawData?.itinerary || [];
+    const dayColors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#14b8a6'];
 
-      const inner = rawData?.data || rawData || {};
-      const itineraryList = inner.itinerary || rawData?.itinerary || [];
+    const days = rawDailyList.map((dayItem, i) => {
+      const rawItems = dayItem.items || dayItem.activities || [];
+      const activities = rawItems.map((item, actIdx) => {
+        const typeIconMap = {
+          flight: '✈️',
+          hotel: '🏨',
+          car: '🚗',
+          attraction: '🎟️',
+          activity: '🏄'
+        };
+        const icon = item.icon || typeIconMap[item.type] || '📍';
+        const title = item.title || item.name || 'Activity';
+        const lat = item.geo_location?.latitude ?? item.lat ?? 48.8566;
+        const lng = item.geo_location?.longitude ?? item.lng ?? 2.3522;
+        const address = item.geo_location?.address || item.geo_location?.name || item.address || '';
+        const timeStr = item.time_slot || item.time || (actIdx === 0 ? '9:00 AM' : (actIdx === 1 ? '1:00 PM' : '6:00 PM'));
+        const priceStr = item.price ? `$${item.price} ${item.currency || 'USD'}` : (item.cost || 'Included');
 
-      // Transform backend response to expected frontend format
-      const total_days = (itineraryList && itineraryList.length) || 0;
-      const total_attractions = itineraryList.reduce((acc, day) => acc + (day.activities?.length || 0), 0);
-      const estimated_budget = inner.budget_estimate || rawData?.budget_estimate || 'N/A';
+        return {
+          id: item.id || `act-${i + 1}-${actIdx + 1}`,
+          type: item.type || 'attraction',
+          title: title,
+          description: item.description || '',
+          category: (item.type || 'Activity').toUpperCase(),
+          duration: item.time_slot ? item.time_slot : (item.duration || '2 hrs'),
+          cost: priceStr,
+          icon: icon,
+          lat: lat,
+          lng: lng,
+          time: timeStr,
+          address: address,
+          item_details: item.item_details || {}
+        };
+      });
 
-      const days = itineraryList.map((day, i) => ({
-        day: day.day_number || day.day || (i + 1),
-        themeColor: day.themeColor || '#ff6b6b',
-        activities: day.activities || []
-      }));
-
-      const data = {
-        ...rawData,
-        ...inner,
-        destination: inner.destination || rawData?.destination || payload.destination,
-        total_days: total_days,
-        total_attractions: total_attractions,
-        estimated_budget: estimated_budget,
-        days: days
+      return {
+        day: dayItem.day_number || dayItem.day || (i + 1),
+        date: dayItem.date || '',
+        title: dayItem.title || `Day ${i + 1}: ${payload.destination} Exploration`,
+        themeColor: dayColors[i % dayColors.length],
+        daily_total_cost: dayItem.daily_total_cost || 0,
+        activities: activities
       };
+    });
 
+    const total_days = days.length || Number(payload.days) || 4;
+    const total_attractions = days.reduce((acc, day) => acc + (day.activities?.length || 0), 0);
+    const tripSummary = inner.trip_summary || rawData?.trip_summary || {};
+    const estimated_budget = tripSummary.total_trip_price ? `$${tripSummary.total_trip_price.toLocaleString()} ${tripSummary.currency || 'USD'}` : (inner.budget_estimate || rawData?.budget_estimate || '$2,500 USD');
 
+    const data = {
+      ...rawData,
+      ...inner,
+      destination: inner.meta_data?.parsed_intent?.destination || inner.destination || payload.destination,
+      total_days: total_days,
+      total_attractions: total_attractions,
+      estimated_budget: estimated_budget,
+      trip_summary: tripSummary,
+      days: days,
+      map_pins: inner.map_pins || rawData?.map_pins || []
+    };
 
-      // Log transformed data fields
-      console.log('🧠 [AI PLANNER] total_days:', total_days);
-      console.log('🧠 [AI PLANNER] total_attractions:', total_attractions);
-      console.log('🧠 [AI PLANNER] estimated_budget:', estimated_budget);
+    currentItineraryData = data;
+    currentDayFilter = 'all';
 
-      currentItineraryData = data;
-      currentDayFilter = 'all';
-
-      renderTripSummaryHeader(data);
-      renderDayFilterPills(data);
-      renderPlannerItinerary(data, currentDayFilter);
-      initOrUpdateMap(data, currentDayFilter);
-    } catch (err) {
-      console.error('❌ [AI PLANNER] Error in loadItinerary:', err);
-      if (itineraryContainer) {
-        itineraryContainer.innerHTML = `
-          <div class="search-error-banner" role="alert">
-            <span style="font-size:16px;">⚠️</span>
-            <span>Our AI trip planner service is currently unavailable. Please try again in a few moments.</span>
-          </div>
-        `;
-      }
-
-      const mapContainer = document.getElementById('planner-route-map');
-      if (mapContainer) {
-        mapContainer.innerHTML = `
-          <div class="map-error-placeholder" aria-hidden="true">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-              <circle cx="12" cy="12" r="10" stroke="#ff4d4f" stroke-width="2"/>
-              <line x1="12" y1="8" x2="12" y2="12" stroke="#ff4d4f" stroke-width="2" stroke-linecap="round"/>
-              <circle cx="12" cy="16" r="1" fill="#ff4d4f"/>
-            </svg>
-            <p>No map data available</p>
-          </div>
-        `;
-      }
-    } finally {
-      hideSearchProgressModal();
+    renderTripSummaryHeader(data);
+    renderDayFilterPills(data);
+    renderPlannerItinerary(data, currentDayFilter);
+    initOrUpdateMap(data, currentDayFilter);
+  } catch (err) {
+    console.error('❌ [AI PLANNER] Error in loadItinerary:', err);
+    if (itineraryContainer) {
+      itineraryContainer.innerHTML = `
+        <div class="search-error-banner" role="alert">
+          <span style="font-size:16px;">⚠️</span>
+          <span>Our AI trip planner service is currently unavailable. Please try again in a few moments.</span>
+        </div>
+      `;
     }
+
+    const mapContainer = document.getElementById('planner-route-map');
+    if (mapContainer) {
+      mapContainer.innerHTML = `
+        <div class="map-error-placeholder" aria-hidden="true">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="10" stroke="#ff4d4f" stroke-width="2"/>
+            <line x1="12" y1="8" x2="12" y2="12" stroke="#ff4d4f" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="12" cy="16" r="1" fill="#ff4d4f"/>
+          </svg>
+          <p>No map data available</p>
+        </div>
+      `;
+    }
+  } finally {
+    hideSearchProgressModal();
+  }
 }
 
 function renderTripSummaryHeader(data) {
   const headerContainer = document.getElementById('planner-trip-header');
   if (!headerContainer) return;
 
+  const summary = data.trip_summary || {};
+  const occupancy = summary.occupancy_details || {};
+  const hasSummary = Boolean(summary.total_trip_price);
+
   headerContainer.innerHTML = `
-    <div class="trip-header-card">
-      <div class="trip-header-title">
-        <h2>✨ ${data.city_full_name || data.destination} Trip Plan</h2>
-        <p class="muted">${data.total_days} Days · ${data.total_attractions} Attractions & Experiences · Est. Budget ${data.estimated_budget}</p>
+    <div class="trip-header-card" style="background:#ffffff; border:1px solid var(--line); border-radius:12px; padding:20px; box-shadow:0 4px 16px rgba(0,0,0,0.04); margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
+        <div class="trip-header-title">
+          <h2 style="font-family:'Space Grotesk',sans-serif; font-size:20px; font-weight:700; margin:0 0 6px 0; color:var(--ink);">✨ ${data.city_full_name || data.destination} ${data.total_days}-Day Trip Plan</h2>
+          <p class="muted" style="margin:0; font-size:13px; color:var(--muted);">
+            ${data.total_days} Days · ${data.total_attractions} Stops & Experiences ${hasSummary ? `· Est. Total: <strong style="color:var(--coral);">$${summary.total_trip_price.toLocaleString()} ${summary.currency || 'USD'}</strong> ($${summary.price_per_passenger}/person)` : `· Est. Budget: ${data.estimated_budget}`}
+          </p>
+        </div>
+        <div class="trip-badges" style="display:flex; gap:8px;">
+          <span class="badge-ai" style="padding:4px 10px; border-radius:12px; background:rgba(99,102,241,0.1); color:#6366f1; font-weight:700; font-size:11px;">✦ AI Generated</span>
+          <span class="badge-route" style="padding:4px 10px; border-radius:12px; background:rgba(16,185,129,0.1); color:#10b981; font-weight:700; font-size:11px;">🗺️ Interactive Map</span>
+        </div>
       </div>
-      <div class="trip-badges">
-        <span class="badge-ai">✦ AI Generated</span>
-        <span class="badge-route">🗺️ Interactive Map</span>
-      </div>
+
+      ${hasSummary ? `
+        <div class="trip-cost-breakdown-row" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line); display:flex; gap:16px; flex-wrap:wrap; align-items:center; justify-content:space-between; font-size:12px;">
+          <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+            ${summary.total_flight_cost ? `<span>✈️ Flights: <strong>$${summary.total_flight_cost}</strong></span>` : ''}
+            ${summary.total_hotel_cost ? `<span>🏨 Hotels: <strong>$${summary.total_hotel_cost}</strong> (${occupancy.hotel_rooms_booked || 1} room)</span>` : ''}
+            ${summary.total_car_cost ? `<span>🚗 Car Rental: <strong>$${summary.total_car_cost}</strong></span>` : ''}
+            ${summary.total_attractions_cost ? `<span>🎟️ Attractions: <strong>$${summary.total_attractions_cost}</strong></span>` : ''}
+          </div>
+          <div style="font-weight:700; color:var(--ink);">
+            👤 ${occupancy.passengers || data.passengers_count || 1} Passenger(s)
+          </div>
+        </div>
+      ` : ''}
     </div>
   `;
 }

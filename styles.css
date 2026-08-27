@@ -1348,6 +1348,53 @@
   color: #a3c2b8;
 }
 
+/* AI Travel Planner Compact Secondary Fields */
+.planner-compact-fields {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+  margin-bottom: 16px;
+}
+
+.planner-compact-fields .field {
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.planner-compact-fields .field span {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 2px;
+}
+
+.planner-compact-fields .field input,
+.planner-compact-fields .field select {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 6px;
+  height: 28px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.planner-compact-fields .field input:focus,
+.planner-compact-fields .field select:focus {
+  border-color: var(--coral);
+  outline: none;
+}
+
 .planner-day-filters-bar {
   display: flex;
   gap: 10px;

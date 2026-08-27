@@ -377,6 +377,73 @@ export async function searchBundles(payload) {
   throw new Error(msg);
 }
 
+export async function bookBundle(payload) {
+  console.log('📦 [BUNDLE BOOKING API] Creating bundle booking with payload:', payload);
+
+  const requestBody = {
+    flight_offer_id: payload.flight_offer_id || payload.flight_id || 'off_0000B9lfPpz9iH5hH5JMO0',
+    stay_quote_id: payload.stay_quote_id || payload.hotel_quote_id || 'quo_mock_001',
+    car_offer_id: payload.car_offer_id || payload.car_id || 'cro_mock_1_a8c902',
+    passengers: payload.passengers || [
+      {
+        id: 'pas_1',
+        type: 'adult',
+        given_name: payload.guest_details?.given_name || 'John',
+        family_name: payload.guest_details?.family_name || 'Doe',
+        born_on: '1992-05-15',
+        email: payload.guest_details?.email || 'john.doe@example.com',
+        phone_number: payload.guest_details?.phone_number || '+14155552671',
+        title: payload.guest_details?.title || 'mr',
+        gender: 'm'
+      }
+    ],
+    guests: payload.guests || [
+      {
+        given_name: payload.guest_details?.given_name || 'John',
+        family_name: payload.guest_details?.family_name || 'Doe'
+      }
+    ],
+    driver_details: payload.driver_details || {
+      given_name: payload.guest_details?.given_name || 'John',
+      family_name: payload.guest_details?.family_name || 'Doe',
+      email: payload.guest_details?.email || 'john.doe@example.com',
+      phone_number: payload.guest_details?.phone_number || '+14155552671',
+      age: payload.driver_age || 30
+    },
+    payments: payload.payments || [
+      {
+        type: payload.payment_type || 'card',
+        currency: payload.currency || 'USD',
+        amount: String(payload.total_amount || payload.total_bundle_price || '864.30'),
+        card_id: payload.card_id || 'card_mock_123'
+      }
+    ]
+  };
+
+  console.log('📡 [BUNDLE BOOKING REQUEST] POST /api/v1/bundles/book', requestBody);
+
+  const resp = await fetch(`${apiBase}/api/v1/bundles/book`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (resp.ok && resp.headers.get('content-type')?.includes('json')) {
+    const data = await resp.json();
+    console.log('✅ [BUNDLE BOOKING SUCCESS]:', data);
+    return data;
+  }
+
+  const errText = await resp.text().catch(() => '');
+  let msg = `Bundle booking API failed (Status ${resp.status})`;
+  try {
+    const parsed = JSON.parse(errText);
+    msg = parsed.detail || parsed.message || msg;
+    if (Array.isArray(msg)) msg = msg.map(m => m.msg || m.detail || JSON.stringify(m)).join('; ');
+  } catch (e) {}
+  throw new Error(msg);
+}
+
 export function normalizeBundleApiResponse(response, fallbackOrigin = 'ATL', fallbackDestination = 'CDG') {
   if (!response) return { origin: fallbackOrigin, destination: fallbackDestination, total_found: 0, packages: [] };
 
@@ -475,20 +542,37 @@ export function normalizeBundleApiResponse(response, fallbackOrigin = 'ATL', fal
 export async function generateAiItinerary(payload) {
   console.log('🧠 [AI PLANNER API] Requesting AI Trip Itinerary:', payload);
 
-  const cacheKey = `planner_${(payload.destination || '').toLowerCase()}_${payload.days || 4}_${payload.style || ''}_${payload.budget || ''}_${(payload.prompt || '').toLowerCase()}`;
+  const cacheKey = `planner_${(payload.destination || '').toLowerCase()}_${payload.days || 4}_${payload.style || ''}_${payload.budget || ''}_f${payload.include_flights !== false}_h${payload.include_hotels !== false}_c${payload.include_cars !== false}_att${payload.include_attractions !== false}_act${payload.include_activities !== false}_${(payload.prompt || '').toLowerCase()}`;
   const cached = getCachedSearch(cacheKey);
   if (cached) return cached;
+
+  const requestBody = {
+    prompt: payload.prompt || `Plan a ${payload.days || 4}-day ${payload.style || 'balanced'} trip to ${payload.destination || 'Paris'} on a ${payload.budget || 'moderate'} budget.`,
+    include_flights: payload.include_flights !== undefined ? payload.include_flights : true,
+    include_hotels: payload.include_hotels !== undefined ? payload.include_hotels : true,
+    include_cars: payload.include_cars !== undefined ? payload.include_cars : true,
+    include_attractions: payload.include_attractions !== undefined ? payload.include_attractions : true,
+    include_activities: payload.include_activities !== undefined ? payload.include_activities : true,
+    destination: payload.destination || 'Paris',
+    days: Number(payload.days) || 4,
+    style: payload.style || 'balanced',
+    budget: payload.budget || 'moderate'
+  };
+
+  if (payload.origin) requestBody.origin = payload.origin;
+  if (payload.departure_date) requestBody.departure_date = payload.departure_date;
+  if (payload.return_date) requestBody.return_date = payload.return_date;
+  if (payload.passengers_count) requestBody.passengers_count = payload.passengers_count;
+  if (payload.cabin_class) requestBody.cabin_class = payload.cabin_class;
+  if (payload.rooms) requestBody.rooms = payload.rooms;
+  if (payload.driver_age) requestBody.driver_age = payload.driver_age;
+  if (payload.budget_limit) requestBody.budget_limit = payload.budget_limit;
+  if (payload.force_refresh) requestBody.force_refresh = payload.force_refresh;
 
   const resp = await fetch(`${apiBase}/api/v1/planner/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      prompt: payload.prompt || `Plan a ${payload.days || 4}-day ${payload.style || 'balanced'} trip to ${payload.destination || 'Paris'} on a ${payload.budget || 'moderate'} budget.`,
-      destination: payload.destination || 'Paris',
-      days: Number(payload.days) || 4,
-      style: payload.style || 'balanced',
-      budget: payload.budget || 'moderate'
-    })
+    body: JSON.stringify(requestBody)
   });
 
   if (resp.ok && resp.headers.get('content-type')?.includes('json')) {

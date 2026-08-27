@@ -336,7 +336,7 @@ export function renderStatTiles() {
 
             <div class="stat-tile-footer">
               <span class="stat-tile-airline">${o.airline || 'Airline'} ${o.flightNumber ? '· ' + o.flightNumber : ''}</span>
-              <span class="stat-tile-select-btn" style="padding: 3px 8px; background: var(--ink); color: #fff; border-radius: 4px; font-size: 10px; font-weight: 700;">Select <b>→</b></span>
+              <button type="button" class="stat-tile-select-btn" data-tile-select-btn="${tile.key}" style="padding: 3px 9px; background: var(--ink); color: #fff; border-radius: 4px; font-size: 10px; font-weight: 700; border: 0; cursor: pointer;">Select <b>→</b></button>
             </div>
           </div>
         `;
@@ -349,10 +349,18 @@ export function renderStatTiles() {
     </div>
   `;
 
-  // Attach click listeners to cards
+  // Attach click listeners to cards & Select buttons
   tiles.forEach((tile) => {
     const cardEl = container.querySelector(`.stat-tile-card[data-tile-key="${tile.key}"]`);
     if (cardEl) {
+      const selectBtn = cardEl.querySelector('[data-tile-select-btn]');
+      if (selectBtn) {
+        selectBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          selectOffer(tile.offer.id);
+        });
+      }
       cardEl.addEventListener('click', (e) => {
         e.stopPropagation();
         handleTileClick(tile);

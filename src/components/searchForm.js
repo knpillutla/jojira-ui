@@ -368,42 +368,9 @@ export function renderRecentSearches() {
       const item = list[idx];
       if (!item) return;
 
-      let icon = '✈️';
-      let title = 'Searching Live Flights';
-      let subtext = 'Fetching real-time options for your search...';
-
-      if (item.serviceTab === 'hotels' || activeTab === 'hotels') {
-        icon = '🏨';
-        title = 'Searching Hotels';
-        subtext = `Finding available hotel stays in ${item.location || 'destination'}...`;
-      } else if (item.serviceTab === 'cars' || activeTab === 'cars') {
-        icon = '🚗';
-        title = 'Searching Car Rentals';
-        subtext = `Finding rental cars in ${item.location || 'destination'}...`;
-      } else if (item.serviceTab === 'packages' || activeTab === 'packages') {
-        icon = '🌴';
-        title = 'Bundling Vacation Packages';
-        subtext = `Bundling package deals for ${item.origin || 'origin'} → ${item.destination || 'destination'}...`;
-      } else if (activeTab === 'ai-planner') {
-        icon = '✨';
-        title = 'Generating AI Itinerary';
-        subtext = `Synthesizing travel plan for ${item.destination || item.prompt || 'trip'}...`;
-      } else {
-        if (item.origin && item.destination) {
-          subtext = `Fetching live flight options for ${item.origin} → ${item.destination}...`;
-        } else if (item.prompt) {
-          subtext = `Searching AI options for "${item.prompt}"...`;
-        }
-      }
-
-      showSearchProgressModal(title, subtext, icon);
-
       if (activeTab === 'ai-search') {
         const input = document.getElementById('standalone-ai-query');
         if (input) input.value = item.prompt || '';
-        if (item.prompt) {
-          handleFlightSearch({ searchType: 'natural', prompt: item.prompt });
-        }
       } else if (activeTab === 'ai-planner') {
         const form = document.getElementById('ai-planner-form');
         if (form) {
@@ -419,8 +386,6 @@ export function renderRecentSearches() {
           if (styleSelect) styleSelect.value = item.style || '';
           if (budgetSelect) budgetSelect.value = item.budget || '';
         }
-        const submitBtn = document.querySelector('#ai-planner-form button[type="submit"]');
-        if (submitBtn) submitBtn.click();
       } else if (activeTab === 'hotels') {
         const form = document.getElementById('hotel-search-form');
         if (form) {
@@ -436,8 +401,6 @@ export function renderRecentSearches() {
           if (guestsSelect) guestsSelect.value = String(item.guests || 2);
           if (roomsSelect) roomsSelect.value = String(item.rooms || 1);
         }
-        const submitBtn = document.querySelector('#hotel-search-form button[type="submit"]');
-        if (submitBtn) submitBtn.click();
       } else if (activeTab === 'cars') {
         const form = document.getElementById('car-search-form');
         if (form) {
@@ -451,8 +414,6 @@ export function renderRecentSearches() {
           if (dropInput) dropInput.value = item.dropoffDate || '';
           if (catSelect) catSelect.value = item.category || 'all';
         }
-        const submitBtn = document.querySelector('#car-search-form button[type="submit"]');
-        if (submitBtn) submitBtn.click();
       } else if (activeTab === 'packages') {
         const form = document.getElementById('bundle-search-form');
         if (form) {
@@ -468,8 +429,6 @@ export function renderRecentSearches() {
           if (retInput) retInput.value = item.return || '';
           if (travSelect) travSelect.value = String(item.travelers || 2);
         }
-        const submitBtn = document.querySelector('#bundle-search-form button[type="submit"]');
-        if (submitBtn) submitBtn.click();
       } else {
         // Flights Tab: restore every field & sub-tab exactly as it was searched
         if (item.type === 'exact' || item.type === 'enhanced') {
@@ -502,7 +461,7 @@ export function renderRecentSearches() {
 
           updateFieldHelpers(item.origin || '', item.destination || '');
 
-          // Auto-select the matching trip-type radio (round trip / one way / multi-city)
+          // Auto-select matching trip-type button (round trip / one way / multi-city)
           const tripTypeBtn = document.querySelector(`[data-trip-type="${item.tripType || 'round_trip'}"]`);
           if (tripTypeBtn) tripTypeBtn.click();
 
@@ -529,9 +488,6 @@ export function renderRecentSearches() {
             updatePassengerDisplay();
           }
         }
-
-        const submitBtn = document.querySelector('#flight-search-form button[type="submit"]');
-        if (submitBtn) submitBtn.click();
       }
     });
   });
@@ -801,52 +757,42 @@ let searchModalStartTime = 0;
 
 export function showSearchProgressModal(title = 'Searching Live Options', subtext = 'Fetching real-time travel options...', icon = '✈️') {
   searchModalStartTime = Date.now();
-  let modal = document.querySelector('[data-search-progress-modal]');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.className = 'payment-progress-overlay hidden';
-    modal.setAttribute('data-search-progress-modal', '');
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-label', 'Loading Search Results');
-    modal.innerHTML = `
-      <div class="payment-progress-card">
-        <div class="search-round-spinner-wrap">
-          <div class="round-progress-spinner"></div>
-          <span class="round-spinner-icon" data-search-progress-icon>✈️</span>
-        </div>
-        <h3 data-search-progress-title>Searching Live Options</h3>
-        <p class="progress-subtext" data-search-progress-subtext>Fetching real-time travel options...</p>
-        <div class="line-progress-bar" style="width: 100%; margin-top: 6px;"></div>
-      </div>
-    `;
-    document.body.appendChild(modal);
+
+  // Hide popup modal if present
+  const popupModal = document.querySelector('[data-search-progress-modal]');
+  if (popupModal) popupModal.classList.add('hidden');
+
+  // Show inline animated line progress bar
+  const lineProgress = document.querySelector('[data-line-progress]');
+  const statusText = document.querySelector('[data-line-progress-text]');
+
+  if (statusText) {
+    statusText.textContent = subtext || `${title}...`;
   }
 
-  const titleEl = modal.querySelector('[data-search-progress-title]');
-  const subtextEl = modal.querySelector('[data-search-progress-subtext]');
-  const iconEl = modal.querySelector('[data-search-progress-icon]');
-
-  if (titleEl) titleEl.textContent = title;
-  if (subtextEl) subtextEl.textContent = subtext;
-  if (iconEl) iconEl.textContent = icon;
-
-  modal.classList.remove('hidden');
+  if (lineProgress) {
+    lineProgress.classList.remove('hidden');
+    lineProgress.style.display = 'block';
+  }
 }
 
 export function hideSearchProgressModal() {
-  const modal = document.querySelector('[data-search-progress-modal]');
-  if (!modal) return;
+  const lineProgress = document.querySelector('[data-line-progress]');
+  const popupModal = document.querySelector('[data-search-progress-modal]');
+
+  if (popupModal) popupModal.classList.add('hidden');
 
   const elapsed = Date.now() - searchModalStartTime;
-  const minDuration = 750;
+  const minDuration = 500;
+
+  const hideProgress = () => {
+    if (lineProgress) lineProgress.classList.add('hidden');
+  };
 
   if (elapsed < minDuration) {
-    setTimeout(() => {
-      modal.classList.add('hidden');
-    }, minDuration - elapsed);
+    setTimeout(hideProgress, minDuration - elapsed);
   } else {
-    modal.classList.add('hidden');
+    hideProgress();
   }
 }
 
