@@ -17,7 +17,7 @@ export async function searchHotels(payload) {
   const cacheKey = `hotels_${(location || '').toLowerCase()}_${payload.checkIn || ''}_${payload.checkOut || ''}_${payload.guests || 2}_${payload.rooms || 1}`;
   const cached = getCachedSearch(cacheKey);
   if (cached) return cached;
-  
+
   const resp = await fetch(`${apiBase}/api/v1/stays/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -44,7 +44,7 @@ export async function searchHotels(payload) {
     const parsed = JSON.parse(errText);
     msg = parsed.detail || parsed.message || msg;
     if (Array.isArray(msg)) msg = msg.map(m => m.msg || m.detail || JSON.stringify(m)).join('; ');
-  } catch (e) {}
+  } catch (e) { }
   throw new Error(msg);
 }
 
@@ -168,7 +168,7 @@ export async function bookHotel(payload) {
     const parsed = JSON.parse(errText);
     msg = parsed.detail || parsed.message || msg;
     if (Array.isArray(msg)) msg = msg.map(m => m.msg || m.detail || JSON.stringify(m)).join('; ');
-  } catch (e) {}
+  } catch (e) { }
   throw new Error(msg);
 }
 
@@ -210,7 +210,7 @@ export async function searchCars(payload) {
     const parsed = JSON.parse(errText);
     msg = parsed.detail || parsed.message || msg;
     if (Array.isArray(msg)) msg = msg.map(m => m.msg || m.detail || JSON.stringify(m)).join('; ');
-  } catch (e) {}
+  } catch (e) { }
   throw new Error(msg);
 }
 
@@ -329,7 +329,7 @@ export async function bookCar(payload) {
     const parsed = JSON.parse(errText);
     msg = parsed.detail || parsed.message || msg;
     if (Array.isArray(msg)) msg = msg.map(m => m.msg || m.detail || JSON.stringify(m)).join('; ');
-  } catch (e) {}
+  } catch (e) { }
   throw new Error(msg);
 }
 
@@ -377,7 +377,7 @@ export async function searchBundles(payload) {
     const parsed = JSON.parse(errText);
     msg = parsed.detail || parsed.message || msg;
     if (Array.isArray(msg)) msg = msg.map(m => m.msg || m.detail || JSON.stringify(m)).join('; ');
-  } catch (e) {}
+  } catch (e) { }
   throw new Error(msg);
 }
 
@@ -444,7 +444,7 @@ export async function bookBundle(payload) {
     const parsed = JSON.parse(errText);
     msg = parsed.detail || parsed.message || msg;
     if (Array.isArray(msg)) msg = msg.map(m => m.msg || m.detail || JSON.stringify(m)).join('; ');
-  } catch (e) {}
+  } catch (e) { }
   throw new Error(msg);
 }
 
@@ -596,7 +596,7 @@ export async function generateAiItinerary(payload) {
     const parsed = JSON.parse(errText);
     msg = parsed.detail || parsed.message || msg;
     if (Array.isArray(msg)) msg = msg.map(m => m.msg || m.detail || JSON.stringify(m)).join('; ');
-  } catch (e) {}
+  } catch (e) { }
   throw new Error(msg);
 }
 

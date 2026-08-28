@@ -1,5 +1,5 @@
 import { state, $ } from '../core/state.js';
-import { money, parseMoneyVal, formatDateShort } from '../utils/formatters.js';
+import { money, parseMoneyVal, formatDateShort, formatTimeOnly } from '../utils/formatters.js';
 import { selectOffer, renderOffers, updateSortHeaderIcons, showFrontierRedirectModal } from './offerTable.js';
 
 // Priority-ordered map of category_highlights keys -> tile presentation.
@@ -38,6 +38,15 @@ function normalizeHighlightOffer(raw) {
   const to = src.destination_code || src.to || 'MCO';
   const formattedDuration = src.total_duration || src.duration || (src.duration_minutes ? `${Math.floor(src.duration_minutes / 60)}h ${src.duration_minutes % 60}m` : '');
 
+  const rawDepart = src.departure_at || src.departure_time || src.departures?.[0] || src.depart || src.slices?.[0]?.segments?.[0]?.departing_at || '';
+  const rawArrive = src.arrival_at || src.arrival_time || src.arrivals?.[0] || src.arrive || src.slices?.[0]?.segments?.slice(-1)[0]?.arriving_at || '';
+  const rawReturnDepart = src.return_departure_at || src.return_departure_time || src.inbound_departure_at || src.return_date || src.inbound_date || src.slices?.[1]?.segments?.[0]?.departing_at || '';
+  const rawReturnArrive = src.return_arrival_at || src.return_arrival_time || src.inbound_arrival_at || src.slices?.[1]?.segments?.slice(-1)[0]?.arriving_at || '';
+
+  const departTime = src.depart_time || src.outbound_depart_time || (rawDepart ? formatTimeOnly(rawDepart) : '');
+  const arriveTime = src.arrive_time || src.outbound_arrive_time || (rawArrive ? formatTimeOnly(rawArrive) : '');
+  const dateRangeText = src.date_range_text || src.date_range || (rawDepart ? formatDateShort(rawDepart) + (rawReturnDepart ? ` – ${formatDateShort(rawReturnDepart)}` : '') : '');
+
   const outboundRouteTextWithDuration = src.outbound_route_with_duration || (formattedDuration ? `${from} – ${to} (${formattedDuration})` : `${from} – ${to}`);
   const inboundRouteTextWithDuration = isOneWay ? '' : (src.inbound_route_with_duration || '');
 
@@ -52,6 +61,17 @@ function normalizeHighlightOffer(raw) {
     formattedPrice: money(priceNum),
     duration: src.duration_minutes || src.total_duration_minutes || 0,
     formattedDuration,
+    rawDepart,
+    rawArrive,
+    rawReturnDepart,
+    rawReturnArrive,
+    departTime,
+    arriveTime,
+    dateRangeText,
+    outboundDepartDateTime: rawDepart,
+    outboundArriveDateTime: rawArrive,
+    inboundDepartDateTime: rawReturnDepart,
+    inboundArriveDateTime: rawReturnArrive,
     stops,
     legs: src.legs || (stops === 0 ? 'Non-stop' : `${stops} stop${stops > 1 ? 's' : ''}`),
     legCodes: src.leg_codes || '',
@@ -98,13 +118,13 @@ function buildHighlightTiles() {
       categoryType: 'highlight',
       badgeLabel: def.label(fullOffer),
       badgeClass: def.badgeClass,
-      legsVal: String(fullOffer.stops),
+      legsVal: String(fullOffer.stops ?? 'all'),
       sortVal: 'price',
       offer: fullOffer
     });
   });
 
-  return tiles.slice(0, 6);
+  return tiles;
 }
 
 
@@ -185,6 +205,10 @@ function formatLegCodes(offer) {
   }
 
   if (rawCodes && typeof rawCodes === 'string') {
+    const iataMatches = rawCodes.match(/\b[A-Z]{3}\b/g);
+    if (iataMatches && iataMatches.length > 0) {
+      return [...new Set(iataMatches)].join(', ');
+    }
     const parts = rawCodes.split(/[,/\s]+/).map((s) => s.trim()).filter(Boolean);
     const uniqueCodes = [...new Set(parts)];
     if (uniqueCodes.length > 0) {
@@ -301,6 +325,11 @@ export function renderStatTiles() {
         const tripTypeLabel = isOneWay ? '✈️ One Way' : '🔄 Round Trip';
         const isActiveTile = Boolean(state.activeTileKey && state.activeTileKey === tile.key);
 
+        const dateStr = o.dateRangeText || (o.rawDepart ? formatDateShort(o.rawDepart) + (o.rawReturnDepart ? ` – ${formatDateShort(o.rawReturnDepart)}` : '') : '');
+        const outDepTime = o.departTime || (o.outboundDepartDateTime ? formatTimeOnly(o.outboundDepartDateTime) : (o.depart ? formatTimeOnly(o.depart) : ''));
+        const outArrTime = o.arriveTime || (o.outboundArriveDateTime ? formatTimeOnly(o.outboundArriveDateTime) : (o.arrive ? formatTimeOnly(o.arrive) : ''));
+        const timeDisplayStr = (outDepTime && outArrTime) ? `${outDepTime} – ${outArrTime}` : (outDepTime || outArrTime || '');
+
         return `
 
           <div class="stat-tile-card ${tile.badgeClass} ${isActiveTile ? 'is-active' : ''}" data-tile-key="${tile.key}" data-stat-tile-id="${o.id}" title="Click to view details & book ${tile.badgeLabel}">
@@ -312,16 +341,20 @@ export function renderStatTiles() {
             
             <div class="stat-tile-route-row">
               <strong class="stat-tile-route">${routeStr}</strong>
-              <span class="stat-tile-duration">⏱️ ${durationStr}</span>
+              <span class="stat-tile-duration" style="font-weight: 700; color: #0f172a;">⏱️ <strong>${durationStr}</strong></span>
             </div>
+
+            ${(dateStr || timeDisplayStr) ? `
+              <div class="stat-tile-datetime-bar" style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 5px; padding: 4px 8px; margin-bottom: 6px; font-size: 11px; font-weight: 600; color: #1e293b;">
+                ${dateStr ? `<span>📅 ${dateStr}</span>` : ''}
+                ${timeDisplayStr ? `<span style="color: #0f172a; font-weight: 700;">🕒 ${timeDisplayStr}</span>` : ''}
+              </div>
+            ` : ''}
 
             <div style="margin-bottom: 6px; font-size: 11px; color: #475569; background: #f8fafc; padding: 6px 8px; border-radius: 6px; border: 1px solid #e2e8f0; line-height: 1.4;">
               <div style="font-weight: 500; color: #475569;">${o.outboundRouteTextWithDuration || `${o.from} – ${o.to}`}</div>
               ${!isOneWay && o.inboundRouteTextWithDuration ? `<div style="font-weight: 500; color: #475569; margin-top: 2px;">${o.inboundRouteTextWithDuration}</div>` : ''}
             </div>
-
-
-
 
             <div class="stat-tile-meta-grid">
               <div class="stat-tile-meta-item">
@@ -464,7 +497,7 @@ export function renderTrendingSearches(onSelectTrending) {
 
           <div class="stat-tile-route-row">
             <strong class="stat-tile-route">${item.originName} → ${item.destinationName}</strong>
-            <span class="stat-tile-duration">⏱️ ${item.duration}</span>
+            <span class="stat-tile-duration" style="font-weight: 700; color: #0f172a;">⏱️ <strong>${item.duration}</strong></span>
           </div>
 
           <div class="stat-tile-meta-grid">

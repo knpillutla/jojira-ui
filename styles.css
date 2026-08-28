@@ -2607,8 +2607,8 @@ footer {
 
 .stat-tile-duration {
   font-size: 11px;
-  color: var(--muted);
-  font-weight: 600;
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .stat-tile-meta-grid {

@@ -224,7 +224,9 @@ export function renderStep1Summary() {
 
   const tripTypeLabel = offer.isOneWay ? '✈️ One Way Flight' : '🔄 Round Trip Flight';
   const cabinLabel = offer.cabin || 'Economy Class';
-  const durationText = offer.formattedDuration || (offer.duration ? `${Math.floor(offer.duration / 60)}h ${offer.duration % 60}m` : 'Direct');
+  const totalDurationText = offer.totalDurationText || offer.formattedDuration || (offer.duration ? `${Math.floor(offer.duration / 60)}h ${offer.duration % 60}m` : 'Direct');
+  const outboundDurationText = offer.outboundDurationText || (offer.outboundRouteTextWithDuration?.match(/\(([^)]+)\)/)?.[1]) || totalDurationText;
+  const inboundDurationText = offer.inboundDurationText || (offer.inboundRouteTextWithDuration?.match(/\(([^)]+)\)/)?.[1]) || totalDurationText;
   const stopsText = offer.stopsCountText || (offer.stops === 0 ? 'Nonstop' : `${offer.stops} stop`);
   const layoverText = offer.layoverDetailText || 'Direct Flight';
   const emissions = offer.emissionsKg || '180 kg CO2e';
@@ -234,9 +236,10 @@ export function renderStep1Summary() {
     <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 16px; margin-bottom: 16px;">
       <!-- Header Badge & Price Row -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px dashed #cbd5e1;">
-        <div>
-          <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; margin-right: 6px;">${tripTypeLabel}</span>
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+          <span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">${tripTypeLabel}</span>
           <span style="background: #f1f5f9; color: #334155; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 11px;">💺 ${cabinLabel}</span>
+          <span style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 11px;">⏱️ Total: ${totalDurationText}</span>
         </div>
         <div style="font-size: 20px; font-weight: 800; color: #15803d;">${money(offer.price)}</div>
       </div>
@@ -250,7 +253,7 @@ export function renderStep1Summary() {
             <div style="font-size: 12px; color: #475569; margin-top: 2px;">${offer.airline || 'Airline'} ${offer.flightNumber ? '· Flight ' + offer.flightNumber : ''}</div>
           </div>
           <div style="text-align: right;">
-            <span style="font-size: 12px; font-weight: 700; color: #1e293b;">⏱️ ${durationText}</span>
+            <span style="font-size: 12px; font-weight: 700; color: #1e293b;">⏱️ ${outboundDurationText}</span>
             <div style="font-size: 11px; color: #64748b;">${stopsText} (${layoverText})</div>
           </div>
         </div>
@@ -279,7 +282,7 @@ export function renderStep1Summary() {
               <div style="font-size: 12px; color: #475569; margin-top: 2px;">${offer.inboundCarrierName || offer.airline || 'Airline'} ${offer.flightNumber ? '· Flight ' + offer.flightNumber : ''}</div>
             </div>
             <div style="text-align: right;">
-              <span style="font-size: 12px; font-weight: 700; color: #1e293b;">⏱️ ${offer.inboundRouteTextWithDuration || durationText}</span>
+              <span style="font-size: 12px; font-weight: 700; color: #1e293b;">⏱️ ${inboundDurationText}</span>
             </div>
           </div>
           <div style="font-size: 11px; color: #0f172a; font-weight: 600;">${offer.inboundRouteTextWithDuration || offer.inboundRouteText || `${offer.to} - ${offer.from}`}</div>

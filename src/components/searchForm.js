@@ -2,7 +2,7 @@ import { state, $, recentSearchCookie, cookieConsentCookie, getCookie } from '..
 import { money, normalizeOffer } from '../utils/formatters.js';
 import { searchFlights, executeAiSearch } from '../api/flightApi.js';
 import { removeCachedSearch, clearAllClientCaches } from '../utils/clientCache.js';
-import { renderOffers, populateAirlines, updateRouteHeading, initTableSorting } from './offerTable.js';
+import { renderOffers, populateAirlines, updateRouteHeading, initTableSorting, updateSortHeaderIcons } from './offerTable.js';
 import { renderStatTiles, clearTileFilters, renderTrendingSearches } from './statTiles.js';
 import { renderBundleResults } from './bundles/bundleResults.js';
 import { renderHotelResults } from './hotels/hotelResults.js';
@@ -1481,7 +1481,9 @@ export function initSearchForm() {
   $('#results [data-sort-select]')?.addEventListener('change', (e) => {
     state.sort = e.target.value;
     state.sortColumn = e.target.value;
-    updateSortHeaderIcons();
+    if (typeof updateSortHeaderIcons === 'function') {
+      updateSortHeaderIcons();
+    }
     renderOffers();
   });
 
