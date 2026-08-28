@@ -151,16 +151,19 @@ export function normalizeOffer(offer, index) {
     });
   }
   if (offer.airline) carriers.add(offer.airline);
+  if (offer.airline_name) carriers.add(offer.airline_name);
+  if (offer.carrier_name) carriers.add(offer.carrier_name);
+  if (offer.carrier) carriers.add(offer.carrier);
   if (offer.owner?.name) carriers.add(offer.owner.name);
 
   const carriersArray = Array.from(carriers);
-  const carriersText = carriersArray.length > 0 ? carriersArray.slice(0, 3).join(' · ') : (offer.airline || '');
-  const codeVal = offer.code || offer.flight_number || Array.from(carrierCodes).join('/') || (offer.airline ? offer.airline.slice(0, 2) : '');
+  const carriersText = carriersArray.length > 0 ? carriersArray.slice(0, 3).join(' · ') : (offer.airline || offer.airline_name || offer.carrier_name || '');
+  const codeVal = offer.code || offer.flight_number || Array.from(carrierCodes).join('/') || ((offer.airline || offer.airline_name || offer.carrier_name || 'DL').slice(0, 2));
 
   // Per-leg carrier (Departure vs Return) so we can avoid repeating the same airline twice
-  const outboundCarrierName = segments[0]?.marketing_carrier?.name || offer.airline || carriersText || '';
+  const outboundCarrierName = segments[0]?.marketing_carrier?.name || offer.airline || offer.airline_name || offer.carrier_name || offer.owner?.name || carriersText || '';
   const outboundCarrierCode = getIataCode(segments[0]?.marketing_carrier?.iata_code, codeVal);
-  const inboundCarrierName = isOneWay ? '' : (returnSegments[0]?.marketing_carrier?.name || offer.return_airline || outboundCarrierName);
+  const inboundCarrierName = isOneWay ? '' : (returnSegments[0]?.marketing_carrier?.name || offer.return_airline || offer.return_airline_name || outboundCarrierName);
   const inboundCarrierCode = isOneWay ? '' : getIataCode(returnSegments[0]?.marketing_carrier?.iata_code, outboundCarrierCode);
   const isSameCarrierBothWays = isOneWay || !inboundCarrierName || outboundCarrierName === inboundCarrierName;
 
@@ -312,8 +315,10 @@ export function normalizeOffer(offer, index) {
   const isLowEmissions = Boolean(offer.is_low_emissions);
   const emissionsNote = offer.emissions_note || (isLowEmissions ? 'Low emissions' : '');
 
-  // Flight Number & Stop Codes
-  const flightNumber = offer.flight_number || offer.flight_numbers || offer.code || (segments[0]?.marketing_carrier_flight_number ? `${segments[0]?.marketing_carrier?.iata_code || ''} ${segments[0].marketing_carrier_flight_number}` : (offer.airline || ''));
+  // Flight Number & Stop Codes (Standardized Industry Schema)
+  const outboundNo = offer.outbound_flight_number || offer.flight_number;
+  const returnNo = offer.return_flight_number || null;
+  const flightNumber = outboundNo || offer.flight_numbers || offer.code || (segments[0]?.marketing_carrier_flight_number ? `${segments[0]?.marketing_carrier?.iata_code || ''} ${segments[0].marketing_carrier_flight_number}` : (offer.airline || ''));
   
   const stopCodesText = stops === 0 ? 'Nonstop' : (offer.leg_codes || `${stops} stop${stops > 1 ? 's' : ''}`);
 
@@ -332,6 +337,8 @@ export function normalizeOffer(offer, index) {
     id: offer.offer_id || offer.id || String(index + 1),
     airline: offer.airline || '',
     code: codeVal,
+    outboundFlightNumber: outboundNo,
+    returnFlightNumber: returnNo,
     flightNumber,
     tone: tones[index % tones.length],
     departTime,

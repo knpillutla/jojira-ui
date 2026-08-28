@@ -32,9 +32,12 @@ export async function executeAiSearch(searchPayload) {
 
   const cached = getCachedSearch(cacheKey);
   if (cached && !searchPayload.forceRefresh) {
-    console.log('⚡ [AI SEARCH CACHE HIT] Returning cached AI search results');
+    console.log(`⚡ [AI SEARCH STEP 1: CACHE HIT] Key: "${cacheKey}" | Returning stored cached response WITHOUT hitting backend API.`);
+    console.log(`📋 [CACHED OFFERS COUNT]:`, (cached.data?.offers || cached.offers || []).length);
     return cached;
   }
+
+  console.log(`📡 [AI SEARCH STEP 1: LIVE API FETCH] Key: "${cacheKey}" (No valid cache / expired / forced). Calling live backend API (POST ${apiBase}/api/v1/search/ai)...`);
 
   const body = {
     prompt: promptText,
@@ -91,6 +94,10 @@ export async function executeAiSearch(searchPayload) {
   const metaData = rawData.meta_data || rawData.meta || {};
   const resData = rawData.data || rawData;
   const searchType = String(metaData.search_type || resData.search_type || (resData.top_bundles?.length ? 'bundle' : 'flights')).toLowerCase();
+  let extractedOffers = resData.offers || resData.results || resData.top_offers || rawData.offers || rawData.top_offers || [];
+  if ((!extractedOffers || extractedOffers.length === 0) && resData.category_highlights && typeof resData.category_highlights === 'object') {
+    extractedOffers = Object.values(resData.category_highlights).filter(b => b && typeof b === 'object' && (b.price || b.total_amount || b.airline));
+  }
 
   const formattedResponse = {
     status: rawData.status || 'success',
@@ -105,14 +112,14 @@ export async function executeAiSearch(searchPayload) {
     data: {
       ai_summary: resData.ai_summary || resData.summary || `AI Search completed for ${promptText}.`,
       search_type: searchType,
-      total_items: resData.total_items || resData.offers?.length || resData.top_bundles?.length || 0,
+      total_items: resData.total_items || extractedOffers.length || resData.top_bundles?.length || 0,
       category_highlights: resData.category_highlights || {},
-      offers: resData.offers || resData.results || [],
+      offers: extractedOffers,
       top_bundles: resData.top_bundles || resData.bundles || []
     }
   };
 
-  setCachedSearch(cacheKey, formattedResponse);
+  setCachedSearch(cacheKey, formattedResponse, 120);
   const duration = (performance.now() - startTime).toFixed(2);
   console.log(`🏁 [AI SEARCH END] Completed in ${duration}ms. Type: ${searchType}`, formattedResponse);
   return formattedResponse;
@@ -127,10 +134,12 @@ export async function searchFlights(searchPayload) {
     : `flights_${searchPayload.origin || ''}_${searchPayload.destination || ''}_${searchPayload.depart || ''}_${searchPayload.return || ''}`;
 
   const cached = getCachedSearch(cacheKey);
-  if (cached) {
-    console.log('⚡ [FLIGHTS CACHE HIT] Returning cached flight search results without hitting API');
+  if (cached && !searchPayload.forceRefresh) {
+    console.log(`⚡ [FLIGHTS STEP 1: CACHE HIT] Key: "${cacheKey}" | Serving cached flight results WITHOUT hitting backend API.`);
     return cached;
   }
+
+  console.log(`📡 [FLIGHTS STEP 1: LIVE API FETCH] Key: "${cacheKey}" (No valid cache or forced). Fetching live flight offers from backend...`);
 
   let rawData = null;
   try {

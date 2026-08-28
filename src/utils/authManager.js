@@ -1,4 +1,4 @@
-import { authenticateWithGoogleBackend, signOutWithBackend } from '../api/travelApi.js';
+import { authenticateWithGoogleBackend, signOutWithBackend, fetchUserProfile } from '../api/travelApi.js';
 
 let currentSessionToken = null;
 let currentUserProfile = null;
@@ -127,12 +127,50 @@ function checkOAuthRedirectHash() {
   return true;
 }
 
+export function deriveUserProfileFromToken(token) {
+  if (!token) return null;
+  const payload = parseJwtPayload(token);
+  if (!payload) return null;
+
+  const email = payload.email || payload.user_email || '';
+  const name = payload.name || payload.full_name || `${payload.given_name || ''} ${payload.family_name || ''}`.trim() || (email ? email.split('@')[0] : 'Authenticated User');
+  const userId = payload.user_id || payload.sub || (payload.google_user_id ? `usr_${payload.google_user_id.slice(-8)}` : null);
+  const picture = payload.picture || payload.picture_url || payload.avatar || '';
+
+  return {
+    user_id: userId,
+    email: email,
+    name: name,
+    given_name: payload.given_name || name.split(' ')[0],
+    family_name: payload.family_name || name.split(' ').slice(1).join(' '),
+    picture_url: picture,
+    preferences: payload.preferences || { home_airport: 'ATL' }
+  };
+}
+
 export function getUserProfile() {
-  return currentUserProfile;
+  if (currentUserProfile) return currentUserProfile;
+  const savedProfile = localStorage.getItem(USER_PROFILE_KEY);
+  if (savedProfile) {
+    try {
+      const parsed = JSON.parse(savedProfile);
+      if (parsed && (parsed.name || parsed.email)) {
+        currentUserProfile = parsed;
+        return currentUserProfile;
+      }
+    } catch (e) {}
+  }
+  const token = getSessionToken();
+  if (token) {
+    currentUserProfile = deriveUserProfileFromToken(token);
+    return currentUserProfile;
+  }
+  return null;
 }
 
 export function getUserId() {
-  return currentUserProfile?.user_id || localStorage.getItem(USER_ID_KEY) || null;
+  const profile = getUserProfile();
+  return profile?.user_id || localStorage.getItem(USER_ID_KEY) || null;
 }
 
 export function getSessionToken() {
@@ -140,7 +178,7 @@ export function getSessionToken() {
 }
 
 export function isAuthenticated() {
-  return Boolean(currentSessionToken && currentUserProfile);
+  return Boolean(getSessionToken());
 }
 
 export function openAuthModal() {
@@ -350,20 +388,27 @@ function bindAuthEvents() {
   });
 }
 
-function updateNavbarUI() {
+export function updateNavbarUI() {
   const signInBtn = document.querySelector('[data-open-auth-modal]');
   const profileMenu = document.querySelector('[data-user-profile-menu]');
-
-  const userInitialsBadge = document.querySelector('[data-user-initials]');
-  const userInitialsLarge = document.querySelector('[data-user-initials-large]');
   const userAvatarImg = document.querySelector('[data-user-avatar]');
 
-  const userFullName = document.querySelector('[data-user-full-name]');
-  const userEmail = document.querySelector('[data-user-email]');
-  const userId = document.querySelector('[data-user-id]');
-  const userHomeAirport = document.querySelector('[data-user-home-airport]');
+  const profile = getUserProfile();
+  const userIdVal = profile?.user_id || getUserId() || '';
 
-  if (isAuthenticated() && currentUserProfile) {
+  if (userIdVal && (!profile || !profile.name || profile.name === 'Authenticated User')) {
+    fetchUserProfile(userIdVal).then(remoteUser => {
+      if (remoteUser && (remoteUser.name || remoteUser.email)) {
+        currentUserProfile = { ...profile, ...remoteUser };
+        try {
+          localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(currentUserProfile));
+        } catch (e) {}
+        updateNavbarUI();
+      }
+    });
+  }
+
+  if (isAuthenticated() || profile) {
     if (signInBtn) {
       signInBtn.classList.add('hidden');
       signInBtn.style.display = 'none';
@@ -373,25 +418,42 @@ function updateNavbarUI() {
       profileMenu.style.display = 'block';
     }
 
-    const initials = computeUserInitials(currentUserProfile.name);
-    if (userInitialsBadge) userInitialsBadge.textContent = initials;
-    if (userInitialsLarge) userInitialsLarge.textContent = initials;
+    const userName = profile?.name || 'Authenticated User';
+    const userEmailAddr = profile?.email || '';
+    const userIdVal = profile?.user_id || getUserId() || '';
+    const homeAirport = profile?.preferences?.home_airport || 'ATL';
+    const initials = computeUserInitials(userName);
 
-    if (currentUserProfile.picture_url || currentUserProfile.picture) {
+    document.querySelectorAll('[data-user-initials], [data-user-initials-large]').forEach(el => {
+      el.textContent = initials;
+    });
+
+    document.querySelectorAll('[data-user-full-name]').forEach(el => {
+      el.textContent = userName;
+    });
+
+    document.querySelectorAll('[data-user-email]').forEach(el => {
+      el.textContent = userEmailAddr;
+    });
+
+    document.querySelectorAll('[data-user-id]').forEach(el => {
+      el.textContent = userIdVal;
+    });
+
+    document.querySelectorAll('[data-user-home-airport]').forEach(el => {
+      el.textContent = homeAirport;
+    });
+
+    if (profile?.picture_url || profile?.picture) {
       if (userAvatarImg) {
-        userAvatarImg.src = currentUserProfile.picture_url || currentUserProfile.picture;
+        userAvatarImg.src = profile.picture_url || profile.picture;
         userAvatarImg.classList.remove('hidden');
       }
-      if (userInitialsLarge) userInitialsLarge.classList.add('hidden');
+      document.querySelectorAll('[data-user-initials-large]').forEach(el => el.classList.add('hidden'));
     } else {
       if (userAvatarImg) userAvatarImg.classList.add('hidden');
-      if (userInitialsLarge) userInitialsLarge.classList.remove('hidden');
+      document.querySelectorAll('[data-user-initials-large]').forEach(el => el.classList.remove('hidden'));
     }
-
-    if (userFullName) userFullName.textContent = currentUserProfile.name || 'Jane Doe';
-    if (userEmail) userEmail.textContent = currentUserProfile.email || 'jane.doe@example.com';
-    if (userId) userId.textContent = currentUserProfile.user_id || currentUserProfile.sub || 'usr_0cba00ca';
-    if (userHomeAirport) userHomeAirport.textContent = currentUserProfile.preferences?.home_airport || 'ATL';
   } else {
     if (signInBtn) {
       signInBtn.classList.remove('hidden');
@@ -429,43 +491,36 @@ async function fetchOAuthClientId() {
   return null;
 }
 
-async function initGoogleGIS() {
-  if (!window.google?.accounts?.id) {
-    setTimeout(initGoogleGIS, 300);
-    return;
-  }
-
-  const configuredId = await fetchOAuthClientId();
-  const clientId = (configuredId && !configuredId.includes('YOUR_CLIENT_ID'))
-    ? configuredId
-    : '1092837465019-jojira.apps.googleusercontent.com';
+function initGoogleGIS() {
+  if (typeof window.google === 'undefined' || !window.google.accounts) return;
 
   try {
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: (response) => {
-        if (response.credential) {
-          handleCredentialResponse(response.credential);
+    fetchOAuthClientId().then(clientId => {
+      window.google.accounts.id.initialize({
+        client_id: clientId || '902031561179-a55usf1op5d3sukbm6vr1c2uqs0k6t95.apps.googleusercontent.com',
+        callback: (response) => {
+          if (response.credential) {
+            handleCredentialResponse(response.credential);
+          }
         }
-      }
-    });
-
-    const renderTarget = document.getElementById('google-gsi-btn-wrap');
-    if (renderTarget) {
-      renderTarget.innerHTML = '';
-      window.google.accounts.id.renderButton(renderTarget, {
-        theme: 'outline',
-        size: 'large',
-        type: 'standard',
-        shape: 'pill',
-        text: 'signin_with',
-        logo_alignment: 'left',
-        width: 280
       });
-    }
 
-    googleIdentityInitialized = true;
-    console.log('✅ [GSI INIT SUCCESS] Rendered Google Identity Services Login Widget with Client ID:', clientId);
+      const renderTarget = document.getElementById('google-gsi-btn-wrap');
+      if (renderTarget) {
+        renderTarget.innerHTML = '';
+        window.google.accounts.id.renderButton(renderTarget, {
+          theme: 'outline',
+          size: 'large',
+          type: 'standard',
+          shape: 'pill',
+          text: 'signin_with',
+          logo_alignment: 'left',
+          width: 280
+        });
+      }
+
+      googleIdentityInitialized = true;
+    });
   } catch (e) {
     console.warn('⚠️ [GSI INIT WARNING]', e);
   }
@@ -473,17 +528,13 @@ async function initGoogleGIS() {
 
 window.jojiraAuthTrigger = function(e) {
   if (e && e.preventDefault) e.preventDefault();
-  console.log('🚀 [STEP 1] Topbar Login button clicked!');
   triggerGoogleAuthFlow();
 };
 
 async function triggerGoogleAuthFlow() {
-  console.log('🌐 [STEP 2] Starting Google OAuth Flow...');
   const configuredId = await fetchOAuthClientId();
   const clientId = configuredId || '902031561179-a55usf1op5d3sukbm6vr1c2uqs0k6t95.apps.googleusercontent.com';
   const redirectUri = window.location.origin + '/';
-
-  console.log('🌐 [STEP 3] Opening Google OAuth Popup window for Client ID:', clientId);
 
   const googleOAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
     `client_id=${encodeURIComponent(clientId)}&` +
@@ -505,7 +556,6 @@ async function triggerGoogleAuthFlow() {
   );
 
   if (!googlePopup) {
-    console.warn('⚠️ [STEP 3b] Popup blocked by browser! Redirecting main window...');
     window.location.href = googleOAuthUrl;
   }
 }
@@ -517,11 +567,11 @@ async function handleCredentialResponse(credentialJwt) {
 
   const authData = {
     google_token: credentialJwt,
-    email: payload?.email || 'jane.doe@example.com',
-    google_user_id: payload?.sub || '109283746501928374',
-    name: payload?.name || `${payload?.given_name || ''} ${payload?.family_name || ''}`.trim() || 'Jane Doe',
-    given_name: payload?.given_name || payload?.first_name || 'Jane',
-    family_name: payload?.family_name || payload?.last_name || 'Doe',
+    email: payload?.email || '',
+    google_user_id: payload?.sub || '',
+    name: payload?.name || `${payload?.given_name || ''} ${payload?.family_name || ''}`.trim() || 'Authenticated User',
+    given_name: payload?.given_name || payload?.first_name || '',
+    family_name: payload?.family_name || payload?.last_name || '',
     picture: payload?.picture || ''
   };
 

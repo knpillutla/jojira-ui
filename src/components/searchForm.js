@@ -1,6 +1,7 @@
 import { state, $, recentSearchCookie, cookieConsentCookie, getCookie } from '../core/state.js';
 import { money, normalizeOffer } from '../utils/formatters.js';
 import { searchFlights, executeAiSearch } from '../api/flightApi.js';
+import { removeCachedSearch, clearAllClientCaches } from '../utils/clientCache.js';
 import { renderOffers, populateAirlines, updateRouteHeading, initTableSorting } from './offerTable.js';
 import { renderStatTiles, clearTileFilters, renderTrendingSearches } from './statTiles.js';
 import { renderBundleResults } from './bundles/bundleResults.js';
@@ -127,55 +128,10 @@ export function getActiveServiceTab() {
   return activeTabEl ? activeTabEl.dataset.serviceTab : 'ai-search';
 }
 
-export async function recordUserSearchHistory(searchData) {
-  if (!searchData) return;
-  const userId = localStorage.getItem('jojira_user_id');
-  const sessionToken = localStorage.getItem('jojira_session_token');
+let activeSelectedRecentIndex = -1;
 
-  if (!userId || !sessionToken) return;
-
-  const prompt = searchData.prompt || searchData.title || searchData.query || `${searchData.durationDays || searchData.tripDuration || 4} day trip to ${searchData.destination || searchData.location || 'Paris'}`;
-  const destination = searchData.destination || searchData.location || searchData.to || 'Paris';
-  const origin = searchData.origin || searchData.from || 'ATL';
-  const tripDurationDays = parseInt(searchData.trip_duration_days || searchData.durationDays || searchData.tripDuration || 4, 10);
-
-  const payload = {
-    prompt: String(prompt),
-    destination: String(destination),
-    origin: String(origin),
-    trip_duration_days: isNaN(tripDurationDays) ? 4 : tripDurationDays
-  };
-
-  console.log('📜 [SEARCH HISTORY API] Transmitting background POST to /api/v1/users/' + userId + '/history:', payload);
-
-  try {
-    let resp = await fetch(`/api/v1/users/${userId}/history`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sessionToken}`
-      },
-      body: JSON.stringify(payload)
-    }).catch(() => null);
-
-    if (!resp || !resp.ok) {
-      resp = await fetch(`http://localhost:8001/api/v1/users/${userId}/history`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`
-        },
-        body: JSON.stringify(payload)
-      }).catch(() => null);
-    }
-
-    if (resp && resp.ok) {
-      const data = await resp.json();
-      console.log('✅ [SEARCH HISTORY RECORDED SUCCESS]:', data);
-    }
-  } catch (err) {
-    console.warn('⚠️ [SEARCH HISTORY RECORD ERROR]:', err);
-  }
+export function setSelectedRecentIndex(index) {
+  activeSelectedRecentIndex = index;
 }
 
 export function saveRecentSearch(data) {
@@ -183,26 +139,46 @@ export function saveRecentSearch(data) {
   const activeTab = data.serviceTab || getActiveServiceTab();
   const newItem = { ...data, serviceTab: activeTab };
 
-  const existing = getRecentSearches();
-  
-  // Filter out duplicates for the active tab
-  const filtered = existing.filter((item) => {
-    if ((item.serviceTab || 'flights') !== activeTab) return true;
-    if (newItem.prompt && item.prompt) {
-      return item.prompt.toLowerCase() !== newItem.prompt.toLowerCase();
+  let existing = getRecentSearches();
+
+  if (activeSelectedRecentIndex >= 0 && activeSelectedRecentIndex < existing.length) {
+    const selectedItem = existing[activeSelectedRecentIndex];
+    if (selectedItem && selectedItem.prompt && newItem.prompt && selectedItem.prompt.trim().toLowerCase() !== newItem.prompt.trim().toLowerCase()) {
+      // Prompt text changed from selected recent search -> delete old recent search & invalidate cache!
+      deleteRecentSearch(selectedItem);
+      const oldKey = (selectedItem.prompt || '').trim().toLowerCase();
+      const newKey = (newItem.prompt || '').trim().toLowerCase();
+      removeCachedSearch(`ai_search_${oldKey}`);
+      removeCachedSearch(`flights_natural_${oldKey}`);
+      removeCachedSearch(`ai_search_${newKey}`);
+      removeCachedSearch(`flights_natural_${newKey}`);
+      data.forceRefresh = true;
+      activeSelectedRecentIndex = -1;
+      existing = getRecentSearches();
     }
-    const origMatch = (item.origin || item.location || '').toLowerCase() === (newItem.origin || newItem.location || '').toLowerCase();
-    const destMatch = (item.destination || '').toLowerCase() === (newItem.destination || '').toLowerCase();
-    return !(origMatch && destMatch);
-  });
+  }
 
-  const updated = [newItem, ...filtered].slice(0, 20);
+  if (activeSelectedRecentIndex >= 0 && activeSelectedRecentIndex < existing.length) {
+    // UPDATE the selected recent search entry in-place
+    existing[activeSelectedRecentIndex] = newItem;
+    activeSelectedRecentIndex = -1;
+  } else {
+    // Filter out duplicates for the active tab
+    const filtered = existing.filter((item) => {
+      if ((item.serviceTab || 'flights') !== activeTab) return true;
+      if (newItem.prompt && item.prompt) {
+        return item.prompt.toLowerCase() !== newItem.prompt.toLowerCase();
+      }
+      const origMatch = (item.origin || item.location || '').toLowerCase() === (newItem.origin || newItem.location || '').toLowerCase();
+      const destMatch = (item.destination || '').toLowerCase() === (newItem.destination || '').toLowerCase();
+      return !(origMatch && destMatch);
+    });
+    existing = [newItem, ...filtered];
+  }
 
+  const updated = existing.slice(0, 20);
   document.cookie = `${recentSearchCookie}=${encodeURIComponent(JSON.stringify(updated))}; max-age=259200; path=/; SameSite=Lax`;
   renderRecentSearches();
-
-  // Transmit search history asynchronously in background (saves exactly once per search)
-  recordUserSearchHistory(newItem);
 }
 
 export function clearRecentSearches() {
@@ -215,6 +191,7 @@ export function clearRecentSearches() {
   } else {
     document.cookie = `${recentSearchCookie}=; max-age=0; path=/; SameSite=Lax`;
   }
+  clearAllClientCaches();
   renderRecentSearches();
 }
 
@@ -230,6 +207,38 @@ export function deleteRecentSearch(item) {
   } else {
     document.cookie = `${recentSearchCookie}=; max-age=0; path=/; SameSite=Lax`;
   }
+
+  // Also remove client storage cache for deleted item
+  if (item.prompt) {
+    const rawPrompt = item.prompt.trim().toLowerCase();
+    removeCachedSearch(`ai_search_${rawPrompt}`);
+    removeCachedSearch(`flights_natural_${rawPrompt}`);
+    [localStorage, sessionStorage].forEach((storage) => {
+      for (let i = storage.length - 1; i >= 0; i--) {
+        const key = storage.key(i);
+        if (key && key.toLowerCase().includes(rawPrompt)) {
+          storage.removeItem(key);
+        }
+      }
+    });
+  }
+
+  if (item.origin || item.destination || item.location) {
+    const loc = (item.origin || item.location || '').toLowerCase();
+    const dest = (item.destination || '').toLowerCase();
+    [localStorage, sessionStorage].forEach((storage) => {
+      for (let i = storage.length - 1; i >= 0; i--) {
+        const key = storage.key(i);
+        if (key && key.startsWith('jojira_cache_')) {
+          const lowerKey = key.toLowerCase();
+          if ((loc && lowerKey.includes(loc)) || (dest && lowerKey.includes(dest))) {
+            storage.removeItem(key);
+          }
+        }
+      }
+    });
+  }
+
   renderRecentSearches();
 }
 
@@ -441,6 +450,7 @@ export function renderRecentSearches() {
   ul.querySelectorAll('[data-recent-index]').forEach((chip) => {
     chip.addEventListener('click', () => {
       const idx = Number(chip.dataset.recentIndex);
+      setSelectedRecentIndex(idx);
       const item = list[idx];
       if (!item) return;
 
@@ -615,18 +625,23 @@ export async function handleFlightSearch(searchPayload) {
 
     if (searchPayload.searchType === 'natural' || searchPayload.prompt) {
       aiResponse = await executeAiSearch(searchPayload);
-      const meta = aiResponse.meta_data || {};
-      const resData = aiResponse.data || {};
+      const meta = aiResponse.meta_data || aiResponse.meta || {};
+      const resData = aiResponse.data || aiResponse;
+
+      let extractedOffers = resData.offers || resData.results || resData.top_offers || aiResponse.offers || [];
+      if ((!extractedOffers || extractedOffers.length === 0) && resData.category_highlights && typeof resData.category_highlights === 'object') {
+        extractedOffers = Object.values(resData.category_highlights).filter(b => b && typeof b === 'object' && (b.price || b.total_amount || b.airline));
+      }
       
       normalized = {
         search_type: meta.search_type || resData.search_type || 'flights',
         ai_summary: resData.ai_summary || '',
         category_highlights: resData.category_highlights || {},
-        offers: resData.offers || [],
+        offers: extractedOffers,
         top_bundles: resData.top_bundles || [],
-        results: resData.offers || resData.top_bundles || [],
+        results: extractedOffers,
         searchParams: meta.parsed_intent || {},
-        total_items: resData.total_items || 0,
+        total_items: resData.total_items || extractedOffers.length,
         rawResponse: aiResponse
       };
     } else {
@@ -737,6 +752,8 @@ export async function handleFlightSearch(searchPayload) {
     }
 
     state.offers = (normalized.offers || []).map((o, idx) => (o.formattedPrice ? o : normalizeOffer(o, idx)));
+    const loadedAirlines = [...new Set(state.offers.map(o => o.outboundCarrierName || o.airline || 'Unknown'))];
+    console.log(`📊 [OFFERS DISPLAYED IN TABLE] Count: ${state.offers.length} | Airlines:`, loadedAirlines);
     state.categoryHighlights = normalized.categoryHighlights || {};
     state.routeNames = normalized.routeNames || {};
 
@@ -1376,6 +1393,7 @@ export function initSearchForm() {
   });
 
   $('[data-clear-recent]')?.addEventListener('click', clearRecentSearches);
+  $('[data-close-recent-box]')?.addEventListener('click', clearRecentSearches);
 
   const standaloneAiForm = document.getElementById('standalone-ai-search-form');
   if (standaloneAiForm) {

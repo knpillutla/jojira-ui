@@ -1,7 +1,7 @@
 /**
  * Dynamic API Metadata-Driven Client Storage Cache (respects ttl_seconds & expires_at)
  */
-const DEFAULT_FALLBACK_TTL_MS = 60 * 1000; // Default 60 seconds fallback if API metadata TTL is missing
+const DEFAULT_FALLBACK_TTL_MS = 2 * 60 * 1000; // Default 2 minutes (120s) fallback if API metadata TTL is missing
 
 export function getCachedSearch(cacheKey) {
   if (!cacheKey) return null;
@@ -15,41 +15,19 @@ export function getCachedSearch(cacheKey) {
       return null;
     }
     const remainingSecs = Math.round((entry.expiresAt - Date.now()) / 1000);
-    console.log(`⚡ [DYNAMIC CACHE HIT] Key: "${cacheKey}" (Expires in ${remainingSecs}s / TTL ${entry.ttlSeconds || 60}s)`);
+    console.log(`⚡ [DYNAMIC CACHE HIT] Key: "${cacheKey}" (Expires in ${remainingSecs}s / TTL ${entry.ttlSeconds || 120}s)`);
     return entry.data;
   } catch (e) {
     return null;
   }
 }
 
-export function setCachedSearch(cacheKey, data, customTtlSeconds, customExpiresAtISO) {
+export function setCachedSearch(cacheKey, data) {
   if (!cacheKey || !data) return;
   try {
-    let expiresAtTime = 0;
-    let effectiveTtlSecs = 0;
-
-    // Extract TTL and expiration timestamp from response metadata or params
-    const meta = data.meta || {};
-    const ttlSecs = customTtlSeconds || meta.ttl_seconds || data.ttl_seconds;
-    const expiresAtStr = customExpiresAtISO || meta.expires_at || data.expires_at;
-
-    if (expiresAtStr) {
-      const parsedTime = new Date(expiresAtStr).getTime();
-      if (!isNaN(parsedTime) && parsedTime > Date.now()) {
-        expiresAtTime = parsedTime;
-        effectiveTtlSecs = Math.round((parsedTime - Date.now()) / 1000);
-      }
-    }
-
-    if (!expiresAtTime && ttlSecs && Number(ttlSecs) > 0) {
-      effectiveTtlSecs = Number(ttlSecs);
-      expiresAtTime = Date.now() + (effectiveTtlSecs * 1000);
-    }
-
-    if (!expiresAtTime) {
-      effectiveTtlSecs = 60;
-      expiresAtTime = Date.now() + DEFAULT_FALLBACK_TTL_MS;
-    }
+    // Strictly enforce 2-minute (120 seconds) TTL and expiration for ALL caches
+    const effectiveTtlSecs = 120;
+    const expiresAtTime = Date.now() + (effectiveTtlSecs * 1000);
 
     const entry = {
       expiresAt: expiresAtTime,
@@ -60,25 +38,31 @@ export function setCachedSearch(cacheKey, data, customTtlSeconds, customExpiresA
     const jsonStr = JSON.stringify(entry);
     localStorage.setItem(`jojira_cache_${cacheKey}`, jsonStr);
     sessionStorage.setItem(`jojira_cache_${cacheKey}`, jsonStr);
-    console.log(`💾 [DYNAMIC CACHE SAVED] Key: "${cacheKey}" stored with TTL ${effectiveTtlSecs}s (Expires at ${new Date(expiresAtTime).toLocaleTimeString()})`);
+    console.log(`💾 [DYNAMIC CACHE SAVED] Key: "${cacheKey}" stored with 2-minute TTL (Expires at ${new Date(expiresAtTime).toLocaleTimeString()})`);
   } catch (e) {
     console.warn('Cache storage warning:', e);
   }
 }
 
-export function clearExpiredSearchCache() {
+export function removeCachedSearch(cacheKey) {
+  if (!cacheKey) return;
   try {
-    const now = Date.now();
-    for (let i = sessionStorage.length - 1; i >= 0; i--) {
-      const key = sessionStorage.key(i);
-      if (key && key.startsWith('jojira_cache_')) {
-        try {
-          const entry = JSON.parse(sessionStorage.getItem(key));
-          if (entry && entry.expiresAt && now > entry.expiresAt) {
-            sessionStorage.removeItem(key);
-          }
-        } catch (e) { }
+    localStorage.removeItem(`jojira_cache_${cacheKey}`);
+    sessionStorage.removeItem(`jojira_cache_${cacheKey}`);
+    console.log(`🗑️ [CACHE REMOVED] Key: "${cacheKey}" removed from client storage.`);
+  } catch (e) {}
+}
+
+export function clearAllClientCaches() {
+  try {
+    [localStorage, sessionStorage].forEach((storage) => {
+      for (let i = storage.length - 1; i >= 0; i--) {
+        const key = storage.key(i);
+        if (key && key.startsWith('jojira_cache_')) {
+          storage.removeItem(key);
+        }
       }
-    }
-  } catch (e) { }
+    });
+    console.log('🗑️ [ALL CLIENT CACHES CLEARED]');
+  } catch (e) {}
 }

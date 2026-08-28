@@ -16,6 +16,8 @@
 - **Never Update Scripts in Other Folders**: Do not modify, edit, or update scripts, configuration files, or source code located in folders outside the active project workspace (`jojira-ui`).
 - **Do Not Execute Scratchpad Files Automatically**: Under no circumstances should scratchpad Markdown files, temporary scratch notes, or scratchpad tasks be executed automatically, in order to avoid unnecessary token burn.
 - **Do Not Run Commands Automatically**: Under no circumstances should terminal commands, build tasks, scripts, or server restarts be executed automatically unless explicitly asked by the user.
+- **Never Invoke API Calls in the Background**: Under no circumstances should backend API requests or asynchronous background logging be triggered automatically. APIs must only be invoked when the user explicitly clicks an interactive UI button.
+- **Never Create or Fallback to Mock Data in the UI**: Under no circumstances should fake/mock data, hardcoded fallbacks, or sample search results be created or rendered in the UI. All data displayed must strictly originate from live backend API responses.
 
 ## Code Design & Architecture Rules
 

@@ -586,7 +586,7 @@ export async function generateAiItinerary(payload) {
   if (resp.ok && resp.headers.get('content-type')?.includes('json')) {
     const data = await resp.json();
     console.log('✅ [AI PLANNER API SUCCESS]:', data);
-    setCachedSearch(cacheKey, data, 86400); // 24-hour persistent browser cache
+    setCachedSearch(cacheKey, data, 120); // 2-minute client storage cache
     return data;
   }
 
@@ -728,12 +728,25 @@ export async function signOutWithBackend(userId, sessionToken) {
 // 6. USER SERVICE (PORT 8001) EXTENDED PROFILE, HISTORY & BOOKINGS APIS
 // -----------------------------------------------------------------------------
 export async function fetchUserProfile(userId) {
+  if (!userId) return null;
   try {
-    const resp = await fetch(`${userServiceBase}/api/v1/users/${userId}`, {
+    let resp = await fetch(`/api/v1/users/${userId}`, {
       headers: { ...getAuthHeaders() }
-    });
-    if (resp.ok) return await resp.json();
-  } catch(e) {}
+    }).catch(() => null);
+
+    if (!resp || !resp.ok) {
+      resp = await fetch(`http://localhost:8001/api/v1/users/${userId}`, {
+        headers: { ...getAuthHeaders() }
+      }).catch(() => null);
+    }
+
+    if (resp && resp.ok) {
+      const data = await resp.json();
+      return data.user || data.data || data;
+    }
+  } catch (e) {
+    console.warn('⚠️ [FETCH USER PROFILE ERROR]:', e);
+  }
   return null;
 }
 

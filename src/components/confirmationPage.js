@@ -1,5 +1,6 @@
 import { state, bookingState, $ } from '../core/state.js';
 import { money } from '../utils/formatters.js';
+import { openAccountDashboard } from './accountDashboard.js';
 
 export function calculateBookingTotal() {
   if (!bookingState.activeOffer) return 0;
@@ -408,21 +409,66 @@ export function showMainPageBookingConfirmation() {
           <strong>Need assistance with your booking?</strong> Contact Jojira 24/7 Global Customer Care at <code>support@jojira.com</code> or call <code>+1-800-JOJIRA-FLY</code>. Refer to PNR <strong>${res.booking_reference || 'JOJ-94827F'}</strong>.
         </div>
 
-        <div class="conf-actions">
-          <button type="button" class="btn-secondary-outline" onclick="window.print()">🖨️ Print E-Ticket / Receipt</button>
-          <button type="button" class="primary-button" data-book-another><span>Book Another Flight</span> <b>→</b></button>
+        <div class="conf-actions" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:24px; padding-top:20px; border-top:1px solid #cbd5e1;">
+          <div>
+            <button type="button" class="btn-secondary-outline" onclick="window.print()">🖨️ Print E-Ticket / Receipt</button>
+          </div>
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <button type="button" class="primary-button" data-return-to-home style="background:#0f172a; color:#ffffff; font-size:13.5px; padding:10px 20px; border-radius:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(15,23,42,0.15);">
+              <span>🏠 Return to Home & Search</span>
+              <b>→</b>
+            </button>
+            <button type="button" class="primary-button" data-go-to-bookings style="background:#4338ca; color:#ffffff; font-size:13.5px; padding:10px 20px; border-radius:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(67,56,202,0.2);">
+              <span>🎫 View My Confirmed Bookings</span>
+              <b>→</b>
+            </button>
+          </div>
         </div>
       </div>
     </div>
   `;
 
   const confSec = $('[data-booking-confirmation-section]');
-  confSec.classList.remove('hidden');
-  confSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const mainSidebarLayout = document.querySelector('.app-sidebar-layout');
+  const accountView = document.getElementById('account-full-page-view');
 
-  const bookAnotherBtn = wrap.querySelector('[data-book-another]');
-  bookAnotherBtn?.addEventListener('click', () => {
-    confSec.classList.add('hidden');
-    document.querySelector('#top')?.scrollIntoView({ behavior: 'smooth' });
+  if (accountView) {
+    accountView.classList.add('hidden');
+    accountView.style.display = 'none';
+  }
+
+  if (mainSidebarLayout) {
+    mainSidebarLayout.classList.add('hidden');
+    mainSidebarLayout.style.display = 'none';
+  }
+
+  confSec.classList.remove('hidden');
+  confSec.style.display = 'block';
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Wire return home button
+  wrap.querySelectorAll('[data-return-to-home], [data-book-another]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      confSec.classList.add('hidden');
+      confSec.style.display = 'none';
+      if (mainSidebarLayout) {
+        mainSidebarLayout.classList.remove('hidden');
+        mainSidebarLayout.style.display = '';
+      }
+      if (window.location.hash) {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  // Wire go to bookings button
+  wrap.querySelectorAll('[data-go-to-bookings]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      confSec.classList.add('hidden');
+      confSec.style.display = 'none';
+      openAccountDashboard('bookings');
+    });
   });
 }

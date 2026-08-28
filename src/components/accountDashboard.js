@@ -1,5 +1,5 @@
 import { fetchUserBookings, fetchBookingDetails, fetchUserSearchHistory, fetchUserTripPlans, fetchTripPlanDetails } from '../api/travelApi.js';
-import { getUserId, getUserProfile } from '../utils/authManager.js';
+import { getUserId, getUserProfile, updateNavbarUI } from '../utils/authManager.js';
 import { switchServiceTab } from './searchForm.js';
 
 let activeAccountTab = 'bookings';
@@ -86,6 +86,9 @@ export function openAccountDashboard(tab = 'bookings') {
 
   if (!accountView) return;
 
+  // Sync profile details across all profile cards on page
+  updateNavbarUI();
+
   // Hide main search layout using hidden class and display none
   if (mainSidebarLayout) {
     mainSidebarLayout.classList.add('hidden');
@@ -105,10 +108,16 @@ export function openAccountDashboard(tab = 'bookings') {
 export function showMainSearchView() {
   const accountView = document.getElementById('account-full-page-view');
   const mainSidebarLayout = document.querySelector('.app-sidebar-layout');
+  const bookingConfirmationSection = document.getElementById('booking-confirmation');
 
   if (accountView) {
     accountView.classList.add('hidden');
     accountView.style.display = 'none';
+  }
+
+  if (bookingConfirmationSection) {
+    bookingConfirmationSection.classList.add('hidden');
+    bookingConfirmationSection.style.display = 'none';
   }
 
   if (mainSidebarLayout) {
@@ -156,10 +165,6 @@ export function switchAccountTab(tabName) {
     renderFullPagePreferences(userId, profile);
   } else if (tabName === 'trips') {
     renderFullPageTrips(userId);
-  } else if (tabName === 'bundles') {
-    renderFullPageBundles(userId);
-  } else if (tabName === 'saved') {
-    renderFullPageSaved();
   }
 }
 
@@ -362,20 +367,25 @@ function renderFullPageSettings(userId, profile) {
   const container = document.getElementById('full-page-settings-container');
   if (!container) return;
 
-  const p = profile || {};
+  const p = profile || getUserProfile() || {};
+  const userName = p.name || 'Authenticated User';
+  const userEmail = p.email || '';
+  const uId = userId || p.user_id || getUserId() || 'N/A';
+  const initials = (userName || 'U').split(' ').map(n => n[0]).join('').slice(0, 2);
+
   container.innerHTML = `
     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; max-width: 600px; box-shadow: 0 4px 16px rgba(15,23,42,0.03);">
       <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
         <div style="width: 60px; height: 60px; background: #0f172a; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 22px; font-weight: 800;">
-          ${(p.name || 'Jane Doe').split(' ').map(n => n[0]).join('').slice(0, 2)}
+          ${initials}
         </div>
         <div>
-          <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: #0f172a;">${p.name || 'Jane Doe'}</h3>
-          <p style="margin: 2px 0 0 0; font-size: 13px; color: #64748b;">${p.email || 'jane.doe@example.com'}</p>
+          <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: #0f172a;">${userName}</h3>
+          <p style="margin: 2px 0 0 0; font-size: 13px; color: #64748b;">${userEmail}</p>
         </div>
       </div>
       <div style="font-size: 13.5px; color: #334155; display: flex; flex-direction: column; gap: 12px;">
-        <div><strong>User ID:</strong> <code style="background: #f1f5f9; padding: 3px 8px; border-radius: 6px; font-weight: 700;">${userId || 'usr_0cba00ca'}</code></div>
+        <div><strong>User ID:</strong> <code style="background: #f1f5f9; padding: 3px 8px; border-radius: 6px; font-weight: 700;">${uId}</code></div>
         <div><strong>Account Type:</strong> Google OAuth Authenticated User</div>
         <div><strong>Home Airport:</strong> ${p.preferences?.home_airport || 'ATL'}</div>
         <div><strong>Status:</strong> <span style="color: #16a34a; font-weight: 700;">Active Session</span></div>
