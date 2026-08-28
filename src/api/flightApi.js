@@ -6,6 +6,14 @@ const apiBase = (window.location.hostname === 'localhost' || window.location.hos
   ? 'http://127.0.0.1:8000'
   : '';
 
+export function getAuthHeaders() {
+  const token = localStorage.getItem('jojira_session_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+}
+
 export async function fetchInitialSearchResults() {
   const resp = await fetch('/latest_results.json');
   if (!resp.ok) {
@@ -56,7 +64,7 @@ export async function executeAiSearch(searchPayload) {
       console.log(`📡 [AI SEARCH REQUEST] POST ${url}`, body);
       const resp = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(body)
       });
 
@@ -284,6 +292,7 @@ export async function bookFlight(bookingPayload) {
 
   try {
     const endpoints = [
+      `${apiBase}/api/v1/flights/orders`,
       `${apiBase}/api/flights/book`,
     ];
 
@@ -293,7 +302,7 @@ export async function bookFlight(bookingPayload) {
         console.log(`📡 [BOOKING REQUEST] POST ${url}`, bookingPayload);
         const resp = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify(bookingPayload)
         });
         lastResp = resp;

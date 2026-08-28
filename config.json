@@ -1,0 +1,8 @@
+{
+  "google_maps_api_key": "AIzaSyBV0RK2DPGa5uOofjOf_CN6s0rFwUhC4lM",
+  "google_oauth_client_id": "902031561179-a55usf1op5d3sukbm6vr1c2uqs0k6t95.apps.googleusercontent.com",
+  "api_base_url": "http://localhost:8000/api/v1",
+  "user_service_api_base_url": "http://localhost:8001/api/v1",
+  "enable_google_maps": true,
+  "map_default_provider": "google"
+}

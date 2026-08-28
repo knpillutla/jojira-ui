@@ -127,6 +127,57 @@ export function getActiveServiceTab() {
   return activeTabEl ? activeTabEl.dataset.serviceTab : 'ai-search';
 }
 
+export async function recordUserSearchHistory(searchData) {
+  if (!searchData) return;
+  const userId = localStorage.getItem('jojira_user_id');
+  const sessionToken = localStorage.getItem('jojira_session_token');
+
+  if (!userId || !sessionToken) return;
+
+  const prompt = searchData.prompt || searchData.title || searchData.query || `${searchData.durationDays || searchData.tripDuration || 4} day trip to ${searchData.destination || searchData.location || 'Paris'}`;
+  const destination = searchData.destination || searchData.location || searchData.to || 'Paris';
+  const origin = searchData.origin || searchData.from || 'ATL';
+  const tripDurationDays = parseInt(searchData.trip_duration_days || searchData.durationDays || searchData.tripDuration || 4, 10);
+
+  const payload = {
+    prompt: String(prompt),
+    destination: String(destination),
+    origin: String(origin),
+    trip_duration_days: isNaN(tripDurationDays) ? 4 : tripDurationDays
+  };
+
+  console.log('📜 [SEARCH HISTORY API] Transmitting background POST to /api/v1/users/' + userId + '/history:', payload);
+
+  try {
+    let resp = await fetch(`/api/v1/users/${userId}/history`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sessionToken}`
+      },
+      body: JSON.stringify(payload)
+    }).catch(() => null);
+
+    if (!resp || !resp.ok) {
+      resp = await fetch(`http://localhost:8001/api/v1/users/${userId}/history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify(payload)
+      }).catch(() => null);
+    }
+
+    if (resp && resp.ok) {
+      const data = await resp.json();
+      console.log('✅ [SEARCH HISTORY RECORDED SUCCESS]:', data);
+    }
+  } catch (err) {
+    console.warn('⚠️ [SEARCH HISTORY RECORD ERROR]:', err);
+  }
+}
+
 export function saveRecentSearch(data) {
   if (!data) return;
   const activeTab = data.serviceTab || getActiveServiceTab();
@@ -149,6 +200,9 @@ export function saveRecentSearch(data) {
 
   document.cookie = `${recentSearchCookie}=${encodeURIComponent(JSON.stringify(updated))}; max-age=259200; path=/; SameSite=Lax`;
   renderRecentSearches();
+
+  // Transmit search history asynchronously in background (saves exactly once per search)
+  recordUserSearchHistory(newItem);
 }
 
 export function clearRecentSearches() {
@@ -254,7 +308,29 @@ function repositionRecentSearches(activeTab) {
 export function renderRecentSearches() {
   const activeTab = getActiveServiceTab();
   const allList = getRecentSearches();
-  const list = allList.filter((item) => (item.serviceTab || 'flights') === activeTab);
+
+  // Strict tab isolation rule:
+  // - Non-AI tabs ('flights', 'hotels', 'cars', 'packages') MUST NEVER display AI searches (items with item.prompt or serviceTab === 'ai-search' / 'ai-planner')
+  // - 'ai-search' tab ONLY displays AI searches
+  // - 'ai-planner' tab ONLY displays planner searches
+  const list = allList.filter((item) => {
+    const isAiItem = Boolean(item.prompt || item.serviceTab === 'ai-search' || item.serviceTab === 'ai-planner');
+
+    if (activeTab === 'ai-search') {
+      return isAiItem || (item.serviceTab || 'ai-search') === 'ai-search';
+    }
+
+    if (activeTab === 'ai-planner') {
+      return item.serviceTab === 'ai-planner';
+    }
+
+    // For all non-AI tabs (flights, hotels, cars, packages), NEVER display AI searches!
+    if (isAiItem) {
+      return false;
+    }
+
+    return (item.serviceTab || 'flights') === activeTab;
+  });
 
   repositionRecentSearches(activeTab);
 
@@ -270,7 +346,7 @@ export function renderRecentSearches() {
 
   card.classList.remove('hidden');
   ul.innerHTML = list.map((item, index) => {
-    if (activeTab === 'ai-search' || activeTab === 'ai-planner' || item.prompt) {
+    if (activeTab === 'ai-search' || activeTab === 'ai-planner') {
       const titleText = item.prompt || `${item.destination || item.location} (${item.days || 4} days)`;
       const metaText = item.destination || item.location || 'AI Search';
       return `

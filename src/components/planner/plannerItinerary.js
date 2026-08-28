@@ -61,6 +61,17 @@ export function renderPlannerItinerary(itineraryData, selectedDayFilter = 'all')
 
   container.innerHTML = daysHtml;
 
+  // Add click listeners to day section headers to filter map & itinerary
+  container.querySelectorAll('[data-day-number] .day-section-header').forEach(header => {
+    header.style.cursor = 'pointer';
+    header.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const dayNum = header.closest('[data-day-number]')?.getAttribute('data-day-number');
+      const dayBtn = document.querySelector(`[data-day-filter="${dayNum}"]`);
+      if (dayBtn) dayBtn.click();
+    });
+  });
+
   // Add click listeners to activity cards for panning map
   container.querySelectorAll('.activity-card').forEach(card => {
     card.addEventListener('click', (e) => {

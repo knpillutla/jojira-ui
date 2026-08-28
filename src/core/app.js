@@ -6,8 +6,12 @@ import { initCarSearch } from '../components/cars/carSearch.js';
 import { initBundleSearch } from '../components/bundles/bundleSearch.js';
 import { initPlannerControls } from '../components/planner/plannerControls.js';
 import { initTableSorting } from '../components/offerTable.js';
+import { initAuth } from '../utils/authManager.js';
+import { initAccountDashboard } from '../components/accountDashboard.js';
 
 function initApp() {
+  initAuth();
+  initAccountDashboard();
   hidePaymentProgress();
 
   initSearchForm();

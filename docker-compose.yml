@@ -3,5 +3,7 @@ services:
     build: .
     ports:
       - "127.0.0.1:8080:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
