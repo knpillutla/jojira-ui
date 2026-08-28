@@ -37,7 +37,8 @@ export async function executeAiSearch(searchPayload) {
     return cached;
   }
 
-  console.log(`📡 [AI SEARCH STEP 1: LIVE API FETCH] Key: "${cacheKey}" (No valid cache / expired / forced). Calling live backend API (POST ${apiBase}/api/v1/search/ai)...`);
+  const url = `${apiBase}/api/v1/search/ai`;
+  console.log(`📡 [AI SEARCH STEP 1: LIVE API FETCH] Key: "${cacheKey}" | Calling live backend API: POST ${url}...`);
 
   const body = {
     prompt: promptText,
@@ -54,41 +55,20 @@ export async function executeAiSearch(searchPayload) {
     driver_age: searchPayload.driverAge || 30
   };
 
-  const endpoints = [
-    `${apiBase}/api/v1/search/ai`,
-    `${apiBase}/api/v1/flights/search-natural-language`
-  ];
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body)
+  });
 
-  let rawData = null;
-  let lastError = null;
-
-  for (const url of endpoints) {
-    try {
-      console.log(`📡 [AI SEARCH REQUEST] POST ${url}`, body);
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(body)
-      });
-
-      if (resp.ok && resp.headers.get('content-type')?.includes('json')) {
-        rawData = await resp.json();
-        console.log(`✅ [AI SEARCH SUCCESS] Payload from ${url}:`, rawData);
-        break;
-      } else {
-        const errText = await resp.text();
-        console.warn(`⚠️ [AI SEARCH WARN ${resp.status}] ${url}:`, errText);
-        lastError = new Error(`API Error (${resp.status}): ${errText}`);
-      }
-    } catch (e) {
-      console.warn(`⚠️ [AI SEARCH FETCH ERROR] Failed endpoint ${url}:`, e.message);
-      lastError = e;
-    }
+  if (!resp.ok) {
+    const errText = await resp.text();
+    console.error(`❌ [AI SEARCH ERROR ${resp.status}] ${url}:`, errText);
+    throw new Error(`API Error (${resp.status}): ${errText}`);
   }
 
-  if (!rawData) {
-    throw lastError || new Error('AI Search service unreachable. Please ensure Python Duffel API server is running.');
-  }
+  const rawData = await resp.json();
+  console.log(`✅ [AI SEARCH SUCCESS] Received payload from ${url}:`, rawData);
 
   // Parse AISearchResponse envelope structure
   const metaData = rawData.meta_data || rawData.meta || {};
@@ -112,7 +92,7 @@ export async function executeAiSearch(searchPayload) {
     data: {
       ai_summary: resData.ai_summary || resData.summary || `AI Search completed for ${promptText}.`,
       search_type: searchType,
-      total_items: resData.total_items || extractedOffers.length || resData.top_bundles?.length || 0,
+      total_items: resData.total_items !== undefined ? Number(resData.total_items) : (extractedOffers.length || resData.top_bundles?.length || 0),
       category_highlights: resData.category_highlights || {},
       offers: extractedOffers,
       top_bundles: resData.top_bundles || resData.bundles || []
@@ -351,4 +331,66 @@ export async function bookFlight(bookingPayload) {
   }
 
   return { result, errorMsg, isTemporaryError };
+}
+
+export async function saveAiSearchHistory(historyPayload) {
+  try {
+    const url = `${apiBase}/api/v1/search/ai/history`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(historyPayload)
+    });
+    if (resp.ok) {
+      const data = await resp.json().catch(() => ({ status: 'success' }));
+      console.log(`✅ [AI HISTORY SAVE SUCCESS] from ${url}:`, data);
+      return data;
+    }
+  } catch (e) {
+    console.error('Failed to save AI search history:', e);
+  }
+  return null;
+}
+
+export async function getAiSearchHistory(userId = null) {
+  try {
+    const query = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
+    const url = `${apiBase}/api/v1/search/ai/history${query}`;
+    const resp = await fetch(url, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (resp.ok) {
+      const data = await resp.json().catch(() => []);
+      console.log(`✅ [AI HISTORY FETCH SUCCESS] from ${url}:`, data);
+      return data;
+    }
+  } catch (e) {
+    console.error('Failed to retrieve AI search history:', e);
+  }
+  return [];
+}
+
+export async function bookAiSearchResult(bookingPayload) {
+  try {
+    const url = `${apiBase}/api/v1/search/ai/book`;
+    console.log(`📡 [AI BOOKING REQUEST] POST ${url}`, bookingPayload);
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(bookingPayload)
+    });
+    if (resp.ok) {
+      const result = await resp.json();
+      console.log(`✅ [AI BOOKING SUCCESS] from ${url}:`, result);
+      return { result, errorMsg: null };
+    } else {
+      const errText = await resp.text();
+      console.warn(`⚠️ [AI BOOKING WARN ${resp.status}] ${url}:`, errText);
+      return { result: null, errorMsg: `Booking failed with status ${resp.status}: ${errText}` };
+    }
+  } catch (e) {
+    console.error('Failed to execute AI booking:', e);
+  }
+  return { result: null, errorMsg: 'Failed to complete AI booking. Please try again.' };
 }

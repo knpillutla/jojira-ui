@@ -7,6 +7,7 @@ import { renderStatTiles, clearTileFilters, renderTrendingSearches } from './sta
 import { renderBundleResults } from './bundles/bundleResults.js';
 import { renderHotelResults } from './hotels/hotelResults.js';
 import { renderCarResults } from './cars/carResults.js';
+import { renderAiExecutiveInsightsBanner } from './aiInsightsBanner.js';
 import { searchHotels, searchCars, searchBundles, normalizeBundleApiResponse, normalizeHotelApiResponse, normalizeCarApiResponse } from '../api/travelApi.js';
 
 
@@ -297,6 +298,7 @@ function repositionRecentSearches(activeTab) {
   }
 
   const anchorSelectorByTab = {
+    'ai-search': '[data-ai-results-panel]',
     hotels: '[data-hotel-results]',
     cars: '[data-car-results]',
     packages: '[data-bundle-results]',
@@ -641,7 +643,7 @@ export async function handleFlightSearch(searchPayload) {
         top_bundles: resData.top_bundles || [],
         results: extractedOffers,
         searchParams: meta.parsed_intent || {},
-        total_items: resData.total_items || extractedOffers.length,
+        total_items: resData.total_items !== undefined ? Number(resData.total_items) : extractedOffers.length,
         rawResponse: aiResponse
       };
     } else {
@@ -691,10 +693,14 @@ export async function handleFlightSearch(searchPayload) {
 
       renderBundleResults(bundleData, pkgContainer);
 
-      pkgContainer?.querySelector('.ai-executive-insights-banner')?.remove();
+      if (isAiMode || normalized.ai_summary || normalized.total_items === 0) {
+        renderAiExecutiveInsightsBanner(pkgContainer, normalized);
+      } else {
+        pkgContainer?.querySelector('.ai-executive-insights-banner')?.remove();
+      }
 
       saveRecentSearch({
-        origin, destination, prompt: searchPayload.prompt || '', type: 'natural', serviceTab: 'packages'
+        origin, destination, prompt: searchPayload.prompt || '', type: 'natural', serviceTab: isAiMode ? 'ai-search' : 'packages'
       });
       return;
     }
@@ -711,10 +717,14 @@ export async function handleFlightSearch(searchPayload) {
 
       renderHotelResults(hotelData, hotelContainer);
 
-      hotelContainer?.querySelector('.ai-executive-insights-banner')?.remove();
+      if (isAiMode || normalized.ai_summary || normalized.total_items === 0) {
+        renderAiExecutiveInsightsBanner(hotelContainer, normalized);
+      } else {
+        hotelContainer?.querySelector('.ai-executive-insights-banner')?.remove();
+      }
 
       saveRecentSearch({
-        origin: location, destination: location, prompt: searchPayload.prompt || '', type: 'natural', serviceTab: 'hotels'
+        origin: location, destination: location, prompt: searchPayload.prompt || '', type: 'natural', serviceTab: isAiMode ? 'ai-search' : 'hotels'
       });
       return;
     }
@@ -731,10 +741,14 @@ export async function handleFlightSearch(searchPayload) {
 
       renderCarResults(carData, carContainer);
 
-      carContainer?.querySelector('.ai-executive-insights-banner')?.remove();
+      if (isAiMode || normalized.ai_summary || normalized.total_items === 0) {
+        renderAiExecutiveInsightsBanner(carContainer, normalized);
+      } else {
+        carContainer?.querySelector('.ai-executive-insights-banner')?.remove();
+      }
 
       saveRecentSearch({
-        origin: location, destination: location, prompt: searchPayload.prompt || '', type: 'natural', serviceTab: 'cars'
+        origin: location, destination: location, prompt: searchPayload.prompt || '', type: 'natural', serviceTab: isAiMode ? 'ai-search' : 'cars'
       });
       return;
     }
@@ -785,7 +799,12 @@ export async function handleFlightSearch(searchPayload) {
     populateAirlines();
     renderOffers();
 
-    resultsSection?.querySelector('.ai-executive-insights-banner')?.remove();
+    const targetFlightContainer = (isAiMode && aiResultsPanel) ? aiResultsPanel : resultsSection;
+    if (isAiMode || normalized.ai_summary || normalized.total_items === 0) {
+      renderAiExecutiveInsightsBanner(targetFlightContainer, normalized);
+    } else {
+      targetFlightContainer?.querySelector('.ai-executive-insights-banner')?.remove();
+    }
 
     if (resultsSection && !resultsSection._hasBadgeListener) {
       resultsSection._hasBadgeListener = true;
@@ -804,6 +823,7 @@ export async function handleFlightSearch(searchPayload) {
       return: returnDate,
       prompt: searchPayload.prompt || '',
       type: searchPayload.prompt ? 'natural' : (searchPayload.searchType || 'exact'),
+      serviceTab: isAiMode ? 'ai-search' : (searchPayload.serviceTab || getActiveServiceTab()),
       tripType: searchPayload.tripType || 'round_trip',
       legs: searchPayload.legs || undefined,
       passengers: searchPayload.passengers || undefined,
@@ -827,12 +847,37 @@ export async function handleFlightSearch(searchPayload) {
     }
   } catch (err) {
     console.error('Search failed:', err);
+    let userMsg = 'Our travel search service is currently unavailable. Please try again in a few moments.';
+    if (err && err.message) {
+      if (err.message.includes('Failed to fetch') || err.message.includes('ERR_CONNECTION_REFUSED') || err.message.includes('unreachable') || err.message.includes('connect')) {
+        userMsg = 'Unable to connect to the backend travel search service (http://127.0.0.1:8000). Please ensure your backend server is running and try again.';
+      } else {
+        userMsg = err.message.replace(/^API Error \(\d+\):\s*/i, '');
+      }
+    }
+
+    const aiResultsPanel = document.querySelector('[data-ai-results-panel]');
+    const activeTab = getActiveServiceTab();
+    if ((activeTab === 'ai-search' || isAiMode) && aiResultsPanel) {
+      aiResultsPanel.classList.remove('hidden');
+      aiResultsPanel.innerHTML = `
+        <div class="search-error-banner" role="alert" style="background: linear-gradient(135deg, #1f1113 0%, #2a1215 100%); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 16px 20px; color: #ffffff; margin-top: 16px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+            <span style="font-size: 18px;">⚠️</span>
+            <strong style="color: #ef4444; font-size: 15px;">Search Error</strong>
+          </div>
+          <p style="color: #f87171; font-size: 14px; margin: 0; line-height: 1.5; font-weight: 500;">${userMsg}</p>
+        </div>
+      `;
+      aiResultsPanel.scrollIntoView({ behavior: 'smooth' });
+    }
+
     const errorEl = $('[data-search-error]');
     if (errorEl) {
       errorEl.innerHTML = `
         <div class="search-error-banner" role="alert">
           <span style="font-size:16px;">⚠️</span>
-          <span>Our flight search service is currently unavailable. Please try again in a few moments.</span>
+          <span>${userMsg}</span>
         </div>
       `;
       errorEl.classList.remove('hidden');

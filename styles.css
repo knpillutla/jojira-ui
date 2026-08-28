@@ -3534,6 +3534,13 @@ footer {
   font-weight: 400;
 }
 
+.ai-summary-text.text-red,
+.ai-summary-red {
+  color: #ef4444 !important;
+  font-weight: 600;
+  margin-bottom: 0;
+}
+
 .persona-badge-group {
   display: flex;
   flex-wrap: wrap;
