@@ -1,0 +1,11 @@
+{
+  "environment": "dev",
+  "app_name": "jojira-ui",
+  "port": 80,
+  "main_api_url": "https://ca-jojira-duffel-dev.eastus.azurecontainerapps.io",
+  "user_service_url": "https://ca-jojira-user-service-dev.eastus.azurecontainerapps.io",
+  "azure": {
+    "key_vault_name": "kv-jojiradev",
+    "resource_group": "rg-jojira-dev"
+  }
+}
