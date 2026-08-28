@@ -15,7 +15,8 @@ if ([string]::IsNullOrWhiteSpace($Tag)) {
     $GitSha = git rev-parse --short HEAD 2>$null
     if ($GitSha) {
         $Tag = $GitSha.Trim()
-    } else {
+    }
+    else {
         $Tag = "dev-" + (Get-Date -Format "yyyyMMdd-HHmmss")
     }
 }
@@ -37,7 +38,8 @@ if (Test-Path $EnvFile) {
             [Environment]::SetEnvironmentVariable($matches[1].Trim(), $matches[2].Trim())
         }
     }
-} else {
+}
+else {
     Write-Error "Configuration file '$EnvFile' not found!"
 }
 
@@ -49,6 +51,8 @@ $AcrName = if ($env:AZURE_ACR_NAME) { $env:AZURE_ACR_NAME } else { "jojiraserver
 $AkvName = if ($env:AZURE_KEYVAULT_NAME) { $env:AZURE_KEYVAULT_NAME } else { "jojiradevcakv" }
 
 $UiAppName = if ($env:CONTAINER_APP_UI_NAME) { $env:CONTAINER_APP_UI_NAME } else { "app-jojira-ui-$Env" }
+$ApiAppName = if ($env:CONTAINER_APP_API_NAME) { $env:CONTAINER_APP_API_NAME } else { "app-jojira-$Env" }
+$UserSvcAppName = if ($env:CONTAINER_APP_USER_SERVICE_NAME) { $env:CONTAINER_APP_USER_SERVICE_NAME } else { "app-jojira-user-service-$Env" }
 
 $AcrServer = "$AcrName.azurecr.io"
 
@@ -79,7 +83,8 @@ if ($Build) {
     Write-Host "      Building UI image ($AcrServer/jojira-ui:$Tag)..." -ForegroundColor Yellow
     docker build -t "$AcrServer/jojira-ui:$Tag" -f $dockerfilePath "$RootDir"
     docker push "$AcrServer/jojira-ui:$Tag"
-} else {
+}
+else {
     Write-Host "[2/5] Skipping build step. Reusing pre-built image artifacts..." -ForegroundColor Yellow
 }
 
@@ -116,25 +121,27 @@ $MaxReplicas = if ($env:MAX_REPLICAS) { $env:MAX_REPLICAS } else { "10" }
 # 4. Deploy UI Container App
 Write-Host "[4/5] Deploying '$UiAppName' with environment configs from '$Env.env'..." -ForegroundColor Yellow
 az containerapp create `
-  --name $UiAppName `
-  --resource-group $ResourceGroup `
-  --environment $ContainerAppEnv `
-  --image "$AcrServer/jojira-ui:$Tag" `
-  --registry-server $AcrServer `
-  --registry-username $AcrName `
-  --registry-password $AcrPassword `
-  --target-port 80 `
-  --ingress external `
-  --cpu $Cpu `
-  --memory $Memory `
-  --min-replicas $MinReplicas `
-  --max-replicas $MaxReplicas `
-  --env-vars `
+    --name $UiAppName `
+    --resource-group $ResourceGroup `
+    --environment $ContainerAppEnv `
+    --image "$AcrServer/jojira-ui:$Tag" `
+    --registry-server $AcrServer `
+    --registry-username $AcrName `
+    --registry-password $AcrPassword `
+    --target-port 80 `
+    --ingress external `
+    --cpu $Cpu `
+    --memory $Memory `
+    --min-replicas $MinReplicas `
+    --max-replicas $MaxReplicas `
+    --env-vars `
     ENVIRONMENT="$Env" `
     AZURE_KEYVAULT_ENABLED="true" `
     AZURE_KEYVAULT_NAME="$AkvName" `
     AZURE_KEYVAULT_URL="https://$AkvName.vault.azure.net/" `
-  --system-assigned
+    CONTAINER_APP_USER_SERVICE_NAME="$UserSvcAppName" `
+    CONTAINER_APP_API_NAME="$ApiAppName" `
+    --system-assigned
 
 # 5. Retrieve Key Vault Secret references & Role assignment
 Write-Host "[5/5] Configuring Key Vault Secret References and Identity Permissions..." -ForegroundColor Yellow
@@ -142,13 +149,18 @@ $identityPrincipalId = az containerapp identity show --name $UiAppName --resourc
 $kvResourceId = az keyvault show --name $AkvName --resource-group $ResourceGroup --query "id" -o tsv 2>$null
 
 if ($identityPrincipalId -and $kvResourceId) {
-    $PrevEap = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    az role assignment create --assignee-object-id $identityPrincipalId --assignee-principal-type ServicePrincipal --role "Key Vault Secrets User" --scope $kvResourceId --only-show-errors -o none 2>$null
-    $ErrorActionPreference = $PrevEap
+    $OldEap = $ErrorActionPreference
+    $ErrorActionPreference = "SilentlyContinue"
+    az role assignment create --assignee-object-id $identityPrincipalId --assignee-principal-type ServicePrincipal --role "Key Vault Secrets User" --scope $kvResourceId --only-show-errors *>$null
+    $ErrorActionPreference = $OldEap
 }
 
 $UiUrl = az containerapp show --name $UiAppName --resource-group $ResourceGroup --query "properties.configuration.ingress.fqdn" -o tsv
+
+Write-Host "==================================================================" -ForegroundColor Green
+Write-Host " [SUCCESS] Deployed image '$Tag' to '$Env' environment!" -ForegroundColor Green
+Write-Host " UI Web Application URL: https://$UiUrl" -ForegroundColor Green
+Write-Host "==================================================================" -ForegroundColor Green
 
 Write-Host "==================================================================" -ForegroundColor Green
 Write-Host " [SUCCESS] Deployed image '$Tag' to '$Env' environment!" -ForegroundColor Green

@@ -53,6 +53,8 @@ $AcrName = if ($env:AZURE_ACR_NAME) { $env:AZURE_ACR_NAME } else { "jojiraserver
 $AkvName = if ($env:AZURE_KEYVAULT_NAME) { $env:AZURE_KEYVAULT_NAME } else { "jojiradevcakv" }
 
 $UiAppName = if ($env:CONTAINER_APP_UI_NAME) { $env:CONTAINER_APP_UI_NAME } else { "app-jojira-ui-$Env" }
+$ApiAppName = if ($env:CONTAINER_APP_API_NAME) { $env:CONTAINER_APP_API_NAME } else { "app-jojira-$Env" }
+$UserSvcAppName = if ($env:CONTAINER_APP_USER_SERVICE_NAME) { $env:CONTAINER_APP_USER_SERVICE_NAME } else { "app-jojira-user-service-$Env" }
 
 $AcrServer = "$AcrName.azurecr.io"
 
@@ -138,6 +140,8 @@ az containerapp create `
     AZURE_KEYVAULT_ENABLED="true" `
     AZURE_KEYVAULT_NAME="$AkvName" `
     AZURE_KEYVAULT_URL="https://$AkvName.vault.azure.net/" `
+    CONTAINER_APP_USER_SERVICE_NAME="$UserSvcAppName" `
+    CONTAINER_APP_API_NAME="$ApiAppName" `
   --system-assigned
 
 # 5. Retrieve Key Vault Secret references & Role assignment
@@ -146,10 +150,10 @@ $identityPrincipalId = az containerapp identity show --name $UiAppName --resourc
 $kvResourceId = az keyvault show --name $AkvName --resource-group $ResourceGroup --query "id" -o tsv 2>$null
 
 if ($identityPrincipalId -and $kvResourceId) {
-    $PrevEap = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    az role assignment create --assignee-object-id $identityPrincipalId --assignee-principal-type ServicePrincipal --role "Key Vault Secrets User" --scope $kvResourceId --only-show-errors -o none 2>$null
-    $ErrorActionPreference = $PrevEap
+    $OldEap = $ErrorActionPreference
+    $ErrorActionPreference = "SilentlyContinue"
+    az role assignment create --assignee-object-id $identityPrincipalId --assignee-principal-type ServicePrincipal --role "Key Vault Secrets User" --scope $kvResourceId --only-show-errors *>$null
+    $ErrorActionPreference = $OldEap
 }
 
 $UiUrl = az containerapp show --name $UiAppName --resource-group $ResourceGroup --query "properties.configuration.ingress.fqdn" -o tsv

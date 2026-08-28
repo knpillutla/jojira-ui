@@ -1,0 +1,5 @@
+{
+  "google_oauth_client_id": "${GOOGLE_CLIENT_ID}",
+  "google_maps_api_key": "${GOOGLE_MAPS_API_KEY}",
+  "environment": "${ENVIRONMENT}"
+}
