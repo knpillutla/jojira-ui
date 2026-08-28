@@ -10,6 +10,10 @@ param (
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ContainerAppsDir = Join-Path $ScriptDir "container_apps"
+if (Test-Path $ContainerAppsDir) {
+    $ScriptDir = $ContainerAppsDir
+}
 
 if ([string]::IsNullOrWhiteSpace($Tag)) {
     $GitSha = git rev-parse --short HEAD 2>$null
