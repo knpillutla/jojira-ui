@@ -46,7 +46,7 @@ a {
 }
 
 .topbar {
-  height: 36px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -340,8 +340,8 @@ a {
 }
 
 .results-heading h2 {
-  font: 700 15px 'Space Grotesk', sans-serif;
-  letter-spacing: -0.5px;
+  font: 700 13px 'Space Grotesk', sans-serif;
+  letter-spacing: -0.4px;
   margin: 0
 }
 
@@ -353,7 +353,7 @@ a {
 .muted {
   margin: 0;
   color: var(--muted);
-  font-size: 11px
+  font-size: 10px
 }
 
 .date-button {
@@ -1729,18 +1729,18 @@ footer {
 
 /* JustFly Style Bounded Recent Search Cards */
 .recent-searches {
-  margin-top: 8px;
-  padding: 6px 0;
+  margin-top: 2px;
+  padding: 0;
 }
 
 .recent-heading {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
   color: var(--muted);
-  margin-bottom: 6px;
+  margin-bottom: 2px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1748,69 +1748,78 @@ footer {
 .recent-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 6px;
+  gap: 4px;
+  margin-top: 2px;
 }
 
 .recent-search-card {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 10px !important;
+  gap: 4px !important;
   background: #ffffff !important;
-  border: 1.5px solid #cce3dc !important;
-  border-radius: 8px !important;
-  padding: 6px 12px !important;
+  border: 1px solid #d4e5e0 !important;
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  font-size: 9.5px !important;
   cursor: pointer !important;
-  box-shadow: 0 2px 6px rgba(23, 37, 39, 0.06) !important;
-  transition: all 0.2s ease !important;
+  box-shadow: 0 1px 3px rgba(23, 37, 39, 0.03) !important;
+  transition: all 0.15s ease !important;
 }
 
 .recent-search-card:hover {
   border-color: var(--coral) !important;
   background: #fff8f6 !important;
-  box-shadow: 0 4px 12px rgba(244, 124, 97, 0.18) !important;
-  transform: translateY(-2px) !important;
+  box-shadow: 0 2px 8px rgba(244, 124, 97, 0.12) !important;
+  transform: translateY(-1px) !important;
 }
 
 .recent-card-route {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 9.5px;
   color: var(--ink);
 }
 
+.recent-prompt-text {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 9.5px;
+}
+
 .recent-plane-icon {
-  font-size: 13px;
+  font-size: 10px;
   color: var(--coral);
 }
 
 .recent-card-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .recent-date-tag {
-  font-size: 10px;
+  font-size: 8.5px;
   background: #eef5f2;
   color: #397265;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 .recent-search-arrow {
   color: var(--coral);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 9px;
   transition: transform 0.2s;
 }
 
 .recent-search-card:hover .recent-search-arrow {
-  transform: translateX(3px);
+  transform: translateX(2px);
 }
 
 .recent-delete-btn {
@@ -1819,12 +1828,12 @@ footer {
   padding: 0;
   margin-left: 2px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 9px;
   line-height: 1;
   cursor: pointer;
   border-radius: 50%;
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1983,20 +1992,20 @@ footer {
 .left-nav-menu {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
 }
 
 .left-nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 8px;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 11px;
   cursor: pointer;
   width: 100%;
   text-align: left;
@@ -2013,11 +2022,11 @@ footer {
   background: var(--ink);
   color: var(--white);
   border-color: var(--ink);
-  box-shadow: 0 4px 12px rgba(23, 37, 39, 0.15);
+  box-shadow: 0 2px 8px rgba(23, 37, 39, 0.12);
 }
 
 .left-nav-icon {
-  font-size: 16px;
+  font-size: 13px;
   line-height: 1;
 }
 
@@ -2026,10 +2035,10 @@ footer {
 }
 
 .left-nav-badge {
-  font-size: 10px;
+  font-size: 8.5px;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 10px;
+  padding: 1px 4px;
+  border-radius: 8px;
   background: rgba(99, 102, 241, 0.15);
   color: #6366f1;
 }
@@ -2040,10 +2049,10 @@ footer {
 }
 
 .left-nav-badge-new {
-  font-size: 10px;
+  font-size: 8.5px;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 10px;
+  padding: 1px 4px;
+  border-radius: 8px;
   background: rgba(244, 124, 97, 0.15);
   color: var(--coral);
 }
@@ -3053,9 +3062,9 @@ footer {
 .preset-chip {
   background: var(--surface);
   border: 1px solid var(--line);
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 9.5px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -4106,8 +4115,15 @@ footer {
 }
 
 @keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .account-user-header {
@@ -4212,7 +4228,8 @@ footer {
 }
 
 /* Auth Modal Overlay Styles */
-[hidden], .hidden {
+[hidden],
+.hidden {
   display: none !important;
 }
 

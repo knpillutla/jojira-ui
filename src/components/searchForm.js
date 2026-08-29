@@ -843,7 +843,6 @@ export async function handleFlightSearch(searchPayload) {
     $('[data-booking-confirmation-section]')?.classList.add('hidden');
     if (resultsSection) {
       resultsSection.classList.remove('hidden');
-      resultsSection.scrollIntoView({ behavior: 'smooth' });
     }
   } catch (err) {
     console.error('Search failed:', err);
@@ -869,7 +868,6 @@ export async function handleFlightSearch(searchPayload) {
           <p style="color: #f87171; font-size: 14px; margin: 0; line-height: 1.5; font-weight: 500;">${userMsg}</p>
         </div>
       `;
-      aiResultsPanel.scrollIntoView({ behavior: 'smooth' });
     }
 
     const errorEl = $('[data-search-error]');
@@ -882,7 +880,6 @@ export async function handleFlightSearch(searchPayload) {
       `;
       errorEl.classList.remove('hidden');
       errorEl.classList.add('is-visible');
-      errorEl.scrollIntoView({ behavior: 'smooth' });
     }
   }
  finally {

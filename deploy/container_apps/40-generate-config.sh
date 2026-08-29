@@ -1,9 +1,9 @@
 #!/bin/sh
 set -e
 
-# 1. Substitute only application container hostnames in Nginx config template
+# 1. Substitute application container FQDN hostnames in Nginx config template
 if [ -f /etc/nginx/templates/default.conf.template ]; then
-  envsubst '$CONTAINER_APP_USER_SERVICE_NAME $CONTAINER_APP_API_NAME' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+  envsubst '$CONTAINER_APP_USER_SERVICE_HOST $CONTAINER_APP_API_HOST' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
 fi
 
 # 2. Substitute runtime client config variables in config.json template

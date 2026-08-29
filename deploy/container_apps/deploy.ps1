@@ -54,6 +54,9 @@ $UiAppName = if ($env:CONTAINER_APP_UI_NAME) { $env:CONTAINER_APP_UI_NAME } else
 $ApiAppName = if ($env:CONTAINER_APP_API_NAME) { $env:CONTAINER_APP_API_NAME } else { "app-jojira-$Env" }
 $UserSvcAppName = if ($env:CONTAINER_APP_USER_SERVICE_NAME) { $env:CONTAINER_APP_USER_SERVICE_NAME } else { "app-jojira-user-service-$Env" }
 
+$ApiAppHost = if ($env:CONTAINER_APP_API_HOST) { $env:CONTAINER_APP_API_HOST } else { "app-jojira-dev.mangoglacier-a04733de.eastus.azurecontainerapps.io" }
+$UserSvcAppHost = if ($env:CONTAINER_APP_USER_SERVICE_HOST) { $env:CONTAINER_APP_USER_SERVICE_HOST } else { "app-jojira-user-service-dev.mangoglacier-a04733de.eastus.azurecontainerapps.io" }
+
 $AcrServer = "$AcrName.azurecr.io"
 
 Write-Host "==================================================================" -ForegroundColor Cyan
@@ -119,29 +122,49 @@ $MinReplicas = if ($env:MIN_REPLICAS) { $env:MIN_REPLICAS } else { "0" }
 $MaxReplicas = if ($env:MAX_REPLICAS) { $env:MAX_REPLICAS } else { "10" }
 
 # 4. Deploy UI Container App
-Write-Host "[4/5] Deploying '$UiAppName' with environment configs from '$Env.env'..." -ForegroundColor Yellow
-az containerapp create `
-    --name $UiAppName `
-    --resource-group $ResourceGroup `
-    --environment $ContainerAppEnv `
-    --image "$AcrServer/jojira-ui:$Tag" `
-    --registry-server $AcrServer `
-    --registry-username $AcrName `
-    --registry-password $AcrPassword `
-    --target-port 80 `
-    --ingress external `
-    --cpu $Cpu `
-    --memory $Memory `
-    --min-replicas $MinReplicas `
-    --max-replicas $MaxReplicas `
-    --env-vars `
-    ENVIRONMENT="$Env" `
-    AZURE_KEYVAULT_ENABLED="true" `
-    AZURE_KEYVAULT_NAME="$AkvName" `
-    AZURE_KEYVAULT_URL="https://$AkvName.vault.azure.net/" `
-    CONTAINER_APP_USER_SERVICE_NAME="$UserSvcAppName" `
-    CONTAINER_APP_API_NAME="$ApiAppName" `
-    --system-assigned
+Write-Host "[4/5] Deploying / Updating '$UiAppName' with environment configs..." -ForegroundColor Yellow
+$PrevEap = $ErrorActionPreference
+$ErrorActionPreference = "SilentlyContinue"
+
+$caExists = az containerapp show --name $UiAppName --resource-group $ResourceGroup --only-show-errors 2>$null
+
+if (-not $caExists) {
+    az containerapp create `
+        --name $UiAppName `
+        --resource-group $ResourceGroup `
+        --environment $ContainerAppEnv `
+        --image "$AcrServer/jojira-ui:$Tag" `
+        --registry-server $AcrServer `
+        --registry-username $AcrName `
+        --registry-password $AcrPassword `
+        --target-port 80 `
+        --ingress external `
+        --cpu $Cpu `
+        --memory $Memory `
+        --min-replicas $MinReplicas `
+        --max-replicas $MaxReplicas `
+        --env-vars `
+        ENVIRONMENT="$Env" `
+        AZURE_KEYVAULT_ENABLED="true" `
+        AZURE_KEYVAULT_NAME="$AkvName" `
+        AZURE_KEYVAULT_URL="https://$AkvName.vault.azure.net/" `
+        CONTAINER_APP_USER_SERVICE_HOST="$UserSvcAppHost" `
+        CONTAINER_APP_API_HOST="$ApiAppHost" `
+        --system-assigned --only-show-errors *>$null
+} else {
+    az containerapp update `
+        --name $UiAppName `
+        --resource-group $ResourceGroup `
+        --image "$AcrServer/jojira-ui:$Tag" `
+        --set-env-vars `
+        ENVIRONMENT="$Env" `
+        AZURE_KEYVAULT_ENABLED="true" `
+        AZURE_KEYVAULT_NAME="$AkvName" `
+        AZURE_KEYVAULT_URL="https://$AkvName.vault.azure.net/" `
+        CONTAINER_APP_USER_SERVICE_HOST="$UserSvcAppHost" `
+        CONTAINER_APP_API_HOST="$ApiAppHost" --only-show-errors *>$null
+}
+$ErrorActionPreference = $PrevEap
 
 # 5. Retrieve Key Vault Secret references & Role assignment
 Write-Host "[5/5] Configuring Key Vault Secret References and Identity Permissions..." -ForegroundColor Yellow

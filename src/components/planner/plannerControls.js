@@ -470,8 +470,6 @@ function expandPlannerOption(index) {
   renderDayFilterPills(selectedOpt);
   renderPlannerItinerary(selectedOpt, currentDayFilter);
   initOrUpdateMap(selectedOpt, currentDayFilter);
-
-  splitViewContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderTripSummaryHeader(data, allOptions = [], selectedIdx = 0) {
@@ -556,7 +554,6 @@ function renderTripSummaryHeader(data, allOptions = [], selectedIdx = 0) {
     const overview = document.getElementById('ai-planner-options-overview');
     if (overview) {
       overview.classList.remove('hidden');
-      overview.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   });
 

@@ -12,11 +12,12 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 if ([string]::IsNullOrWhiteSpace($Tag)) {
+    $Timestamp = (Get-Date -Format "yyyyMMdd-HHmmss")
     $GitSha = git rev-parse --short HEAD 2>$null
     if ($GitSha) {
-        $Tag = $GitSha.Trim()
+        $Tag = "$($GitSha.Trim())-$Timestamp"
     } else {
-        $Tag = "dev-" + (Get-Date -Format "yyyyMMdd-HHmmss")
+        $Tag = "dev-$Timestamp"
     }
 }
 
