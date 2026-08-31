@@ -462,4 +462,45 @@ export function normalizeSearchResponse(data) {
   };
 }
 
+export function formatHttpErrorMessage(status, category = 'flight', rawText = '') {
+  const code = Number(status) || 0;
 
+  const categoryLabels = {
+    flight: 'flight search',
+    flights: 'flight search',
+    hotel: 'hotel search',
+    hotels: 'hotel search',
+    car: 'car rental',
+    cars: 'car rental',
+    package: 'vacation package',
+    packages: 'vacation package',
+    bundle: 'vacation package',
+    planner: 'AI trip planner'
+  };
+
+  const catName = categoryLabels[category] || 'travel search';
+
+  if (code === 400 || code === 422) {
+    return `Unable to process request for ${catName}. Please check your selected dates, locations, or options and try again.`;
+  }
+  if (code === 401 || code === 403) {
+    return `Session expired or authorization required. Please refresh the page to continue.`;
+  }
+  if (code === 404) {
+    return `No ${catName} options found for the specified criteria. Please try a different location or date.`;
+  }
+  if (code === 429) {
+    return `Too many requests. Please wait a moment before searching again.`;
+  }
+  if (code === 500) {
+    return `Our ${catName} service encountered an unexpected error. Please check your search details and try again.`;
+  }
+  if (code === 502 || code === 503) {
+    return `Our ${catName} service is temporarily offline for maintenance. Please try again shortly.`;
+  }
+  if (code === 504) {
+    return `${catName.charAt(0).toUpperCase() + catName.slice(1)} connection timed out. Please try again.`;
+  }
+
+  return `Our ${catName} service is temporarily unavailable. Please try again in a few moments.`;
+}

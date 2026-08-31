@@ -470,6 +470,10 @@
         <!-- HOTELS SERVICE TAB -->
         <div class="service-tab-content hidden" data-service-content="hotels">
           <div class="search-panel" aria-label="Hotel search">
+            <div class="search-tabs" role="tablist" aria-label="Hotel search type">
+              <button class="search-tab is-active" type="button" role="tab" aria-selected="true" data-hotel-search-tab="exact">Exact search</button>
+              <button class="search-tab" type="button" role="tab" aria-selected="false" data-hotel-search-tab="enhanced">Enhanced search</button>
+            </div>
             <form id="hotel-search-form">
               <div class="field-grid">
                 <label class="field field-location">
@@ -480,9 +484,9 @@
                   <div class="airport-suggestions" id="hotel-location-suggestions" data-hotel-location-suggestions
                     role="listbox"></div>
                 </label>
-                <label class="field"><span>Check-in</span><strong>▣</strong><input name="hotel_checkin" type="date"
+                <label class="field"><span data-hotel-date-label-in>Check-in</span><strong>▣</strong><input name="hotel_checkin" type="date"
                     value="" /></label>
-                <label class="field"><span>Check-out</span><strong>▣</strong><input name="hotel_checkout" type="date"
+                <label class="field"><span data-hotel-date-label-out>Check-out</span><strong>▣</strong><input name="hotel_checkout" type="date"
                     value="" /></label>
                 <label class="field"><span>Guests</span><strong>👤</strong><select name="hotel_guests">
                     <option value="1">1 Guest</option>
@@ -493,6 +497,28 @@
                 <label class="field"><span>Rooms</span><strong>🔑</strong><select name="hotel_rooms">
                     <option value="1" selected>1 Room</option>
                     <option value="2">2 Rooms</option>
+                  </select></label>
+              </div>
+              <div class="enhanced-duration-row hidden" data-hotel-enhanced-duration>
+                <label class="field"><span>Duration (days)</span><strong>⏳</strong><select name="hotel_duration_days"
+                    aria-label="Stay duration in days">
+                    <option value="1">1 day</option>
+                    <option value="2">2 days</option>
+                    <option value="3">3 days</option>
+                    <option value="4">4 days</option>
+                    <option value="5">5 days</option>
+                    <option value="7" selected>7 days</option>
+                    <option value="10">10 days</option>
+                    <option value="14">14 days</option>
+                    <option value="21">21 days</option>
+                  </select></label>
+                <label class="field"><span>Date Flexibility</span><strong>✦</strong><select name="hotel_flex_days"
+                    aria-label="Date flexibility">
+                    <option value="0">Exact dates (±0d)</option>
+                    <option value="1">±1 day</option>
+                    <option value="2">±2 days</option>
+                    <option value="3" selected>±3 days</option>
+                    <option value="5">±5 days</option>
                   </select></label>
               </div>
               <div class="input-hint-row"
@@ -519,6 +545,10 @@
         <!-- CAR RENTAL SERVICE TAB -->
         <div class="service-tab-content hidden" data-service-content="cars">
           <div class="search-panel" aria-label="Car rental search">
+            <div class="search-tabs" role="tablist" aria-label="Car search type">
+              <button class="search-tab is-active" type="button" role="tab" aria-selected="true" data-car-search-tab="exact">Exact search</button>
+              <button class="search-tab" type="button" role="tab" aria-selected="false" data-car-search-tab="enhanced">Enhanced search</button>
+            </div>
             <form id="car-search-form">
               <div class="field-grid">
                 <label class="field field-location">
@@ -529,9 +559,9 @@
                   <div class="airport-suggestions" id="car-location-suggestions" data-car-location-suggestions
                     role="listbox"></div>
                 </label>
-                <label class="field"><span>Pickup Date</span><strong>▣</strong><input name="car_pickup" type="date"
+                <label class="field"><span data-car-date-label-pickup>Pickup Date</span><strong>▣</strong><input name="car_pickup" type="date"
                     value="" /></label>
-                <label class="field"><span>Drop-off Date</span><strong>▣</strong><input name="car_dropoff" type="date"
+                <label class="field"><span data-car-date-label-dropoff>Drop-off Date</span><strong>▣</strong><input name="car_dropoff" type="date"
                     value="" /></label>
                 <label class="field"><span>Category</span><strong>⚡</strong><select name="car_category">
                     <option value="all" selected>All Vehicles</option>
@@ -539,6 +569,28 @@
                     <option value="suv">SUVs</option>
                     <option value="luxury">Luxury Sedans</option>
                     <option value="economy">Economy Hatchbacks</option>
+                  </select></label>
+              </div>
+              <div class="enhanced-duration-row hidden" data-car-enhanced-duration>
+                <label class="field"><span>Duration (days)</span><strong>⏳</strong><select name="car_duration_days"
+                    aria-label="Rental duration in days">
+                    <option value="1">1 day</option>
+                    <option value="2">2 days</option>
+                    <option value="3">3 days</option>
+                    <option value="4">4 days</option>
+                    <option value="5">5 days</option>
+                    <option value="7" selected>7 days</option>
+                    <option value="10">10 days</option>
+                    <option value="14">14 days</option>
+                    <option value="21">21 days</option>
+                  </select></label>
+                <label class="field"><span>Date Flexibility</span><strong>✦</strong><select name="car_flex_days"
+                    aria-label="Date flexibility">
+                    <option value="0">Exact dates (±0d)</option>
+                    <option value="1">±1 day</option>
+                    <option value="2">±2 days</option>
+                    <option value="3" selected>±3 days</option>
+                    <option value="5">±5 days</option>
                   </select></label>
               </div>
               <div class="input-hint-row"
@@ -565,6 +617,10 @@
         <!-- PACKAGES (BUNDLES) SERVICE TAB -->
         <div class="service-tab-content hidden" data-service-content="packages">
           <div class="search-panel" aria-label="Vacation packages search">
+            <div class="search-tabs" role="tablist" aria-label="Package search type">
+              <button class="search-tab is-active" type="button" role="tab" aria-selected="true" data-bundle-search-tab="exact">Exact search</button>
+              <button class="search-tab" type="button" role="tab" aria-selected="false" data-bundle-search-tab="enhanced">Enhanced search</button>
+            </div>
             <form id="bundle-search-form">
               <div class="field-grid">
                 <label class="field field-location">
@@ -575,14 +631,36 @@
                   <span>Destination</span><strong>🌴</strong>
                   <input name="bundle_destination" placeholder="To city (e.g. Paris)" value="CDG" autocomplete="off" />
                 </label>
-                <label class="field"><span>Depart</span><strong>▣</strong><input name="bundle_depart" type="date"
+                <label class="field"><span data-bundle-date-label-depart>Depart</span><strong>▣</strong><input name="bundle_depart" type="date"
                     value="" /></label>
-                <label class="field"><span>Return</span><strong>▣</strong><input name="bundle_return" type="date"
+                <label class="field"><span data-bundle-date-label-return>Return</span><strong>▣</strong><input name="bundle_return" type="date"
                     value="" /></label>
                 <label class="field"><span>Travelers</span><strong>👤</strong><select name="bundle_travelers">
                     <option value="1">1 Person</option>
                     <option value="2" selected>2 People</option>
                     <option value="4">4 People</option>
+                  </select></label>
+              </div>
+              <div class="enhanced-duration-row hidden" data-bundle-enhanced-duration>
+                <label class="field"><span>Duration (days)</span><strong>⏳</strong><select name="bundle_duration_days"
+                    aria-label="Package duration in days">
+                    <option value="1">1 day</option>
+                    <option value="2">2 days</option>
+                    <option value="3">3 days</option>
+                    <option value="4" selected>4 days</option>
+                    <option value="5">5 days</option>
+                    <option value="7">7 days</option>
+                    <option value="10">10 days</option>
+                    <option value="14">14 days</option>
+                    <option value="21">21 days</option>
+                  </select></label>
+                <label class="field"><span>Date Flexibility</span><strong>✦</strong><select name="bundle_flex_days"
+                    aria-label="Date flexibility">
+                    <option value="0">Exact dates (±0d)</option>
+                    <option value="1">±1 day</option>
+                    <option value="2">±2 days</option>
+                    <option value="3" selected>±3 days</option>
+                    <option value="5">±5 days</option>
                   </select></label>
               </div>
               <div class="bundle-types-row"

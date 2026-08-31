@@ -1,5 +1,5 @@
 import { LATEST_SEARCH_RESULTS as latestResults } from '../utils/latestResults.js';
-import { normalizeSearchResponse } from '../utils/formatters.js';
+import { normalizeSearchResponse, formatHttpErrorMessage } from '../utils/formatters.js';
 import { getCachedSearch, setCachedSearch } from '../utils/clientCache.js';
 
 const apiBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port !== '8000'
@@ -28,7 +28,14 @@ export async function executeAiSearch(searchPayload) {
   console.log('🚀 [AI SEARCH START] Executing AI Search POST /api/v1/search/ai:', searchPayload);
 
   const promptText = (searchPayload.prompt || searchPayload.query || '').trim();
-  const cacheKey = `ai_search_${promptText.toLowerCase()}`;
+  const passengers = searchPayload.passengersCount || 1;
+  const cabin = searchPayload.cabinClass || 'economy';
+  const orig = searchPayload.origin || '';
+  const dest = searchPayload.destination || '';
+  const dep = searchPayload.depart || '';
+  const ret = searchPayload.return || '';
+  const favAirline = (searchPayload.favoriteAirline || '').toLowerCase();
+  const cacheKey = `ai_search_${promptText.toLowerCase()}_${orig}_${dest}_${dep}_${ret}_p${passengers}_c${cabin}_al${favAirline}`;
 
   const cached = getCachedSearch(cacheKey);
   if (cached && !searchPayload.forceRefresh) {
@@ -62,9 +69,9 @@ export async function executeAiSearch(searchPayload) {
   });
 
   if (!resp.ok) {
-    const errText = await resp.text();
+    const errText = await resp.text().catch(() => '');
     console.error(`❌ [AI SEARCH ERROR ${resp.status}] ${url}:`, errText);
-    throw new Error(`API Error (${resp.status}): ${errText}`);
+    throw new Error(formatHttpErrorMessage(resp.status, 'flight', errText));
   }
 
   const rawData = await resp.json();
@@ -109,9 +116,20 @@ export async function searchFlights(searchPayload) {
   const startTime = performance.now();
   console.log('🚀 [API START] Executing Flight Search with Payload:', searchPayload);
 
-  const cacheKey = (searchPayload.searchType === 'natural' || searchPayload.prompt)
-    ? `flights_natural_${(searchPayload.prompt || '').trim().toLowerCase()}`
-    : `flights_${searchPayload.origin || ''}_${searchPayload.destination || ''}_${searchPayload.depart || ''}_${searchPayload.return || ''}`;
+  const sType = searchPayload.searchType || 'exact';
+  const tType = searchPayload.tripType || (searchPayload.return ? 'round_trip' : 'one_way');
+  const passCount = searchPayload.passengersCount || 1;
+  const cabinCls = searchPayload.cabinClass || 'economy';
+  const isNonstop = Boolean(searchPayload.nonstop);
+  const minD = searchPayload.minDuration || 4;
+  const maxD = searchPayload.maxDuration || 7;
+  const flexD = searchPayload.flexDays !== undefined ? searchPayload.flexDays : (sType === 'exact' ? 0 : 3);
+  const favAir = (searchPayload.favoriteAirline || '').toLowerCase();
+  const legsKeyStr = Array.isArray(searchPayload.legs) ? searchPayload.legs.map(l => `${l.origin}->${l.destination}@${l.depart}`).join('|') : '';
+
+  const cacheKey = (sType === 'natural' || searchPayload.prompt)
+    ? `flights_natural_${(searchPayload.prompt || '').trim().toLowerCase()}_p${passCount}_c${cabinCls}_al${favAir}`
+    : `flights_${sType}_${tType}_${searchPayload.origin || ''}_${searchPayload.destination || ''}_${searchPayload.depart || ''}_${searchPayload.return || ''}_p${passCount}_c${cabinCls}_ns${isNonstop}_dur${minD}-${maxD}_flx${flexD}_al${favAir}_legs[${legsKeyStr}]`;
 
   const cached = getCachedSearch(cacheKey);
   if (cached && !searchPayload.forceRefresh) {
@@ -136,6 +154,22 @@ export async function searchFlights(searchPayload) {
       endpoint = '/api/v1/flights/search-natural-language';
       body = {
         prompt: searchPayload.prompt || ''
+      };
+    } else if (searchPayload.searchType === 'enhanced') {
+      endpoint = '/api/v1/flights/search-optimized';
+      body = {
+        origin: searchPayload.origin || 'ATL',
+        destination: searchPayload.destination || 'CDG',
+        departure_date: searchPayload.depart || defaultDepartDate,
+        return_date: isOneWay ? null : (searchPayload.return || defaultReturnDate),
+        duration_days: searchPayload.durationDays || searchPayload.minDuration || 4,
+        min_duration_days: searchPayload.minDuration || 4,
+        max_duration_days: searchPayload.maxDuration || 7,
+        flex_days: searchPayload.flexDays !== undefined ? searchPayload.flexDays : 3,
+        passengers_count: searchPayload.passengersCount || 1,
+        cabin_class: searchPayload.cabinClass || 'economy',
+        favorite_airline: searchPayload.favoriteAirline || null,
+        force_refresh: false
       };
     } else {
       endpoint = '/api/v1/flights/search';
@@ -168,26 +202,9 @@ export async function searchFlights(searchPayload) {
       rawData = await resp.json();
       console.log(`✅ [API SUCCESS] Received payload from ${endpoint}:`, rawData);
     } else {
-      const errText = await resp.text();
-      let msg = errText;
-      if (resp.status === 502 || errText.includes('502 Bad Gateway')) {
-        msg = 'Backend flight search server (http://127.0.0.1:8000) is unreachable or not running. Please ensure the Python Duffel API server is running.';
-      } else if (resp.status === 504 || errText.includes('504 Gateway Time-out')) {
-        msg = 'Flight search backend timed out. Please try again.';
-      } else if (resp.status === 500) {
-        msg = 'The flight search backend encountered an internal server error (500). Please check departure dates or search criteria and try again.';
-      } else {
-        try {
-          const parsed = JSON.parse(errText);
-          msg = parsed.detail || parsed.message || errText;
-          if (Array.isArray(msg)) {
-            msg = msg.map((m) => m.msg || m.detail || JSON.stringify(m)).join('; ');
-          }
-        } catch (e) { }
-      }
-      const errorDetail = typeof msg === 'object' ? JSON.stringify(msg) : msg;
-      console.error(`❌ [API ERROR ${resp.status}] ${endpoint}:`, errorDetail);
-      throw new Error(`API Error (${resp.status}): ${errorDetail}`);
+      const errText = await resp.text().catch(() => '');
+      console.error(`❌ [API ERROR ${resp.status}] ${endpoint}:`, errText);
+      throw new Error(formatHttpErrorMessage(resp.status, 'flight', errText));
     }
   } catch (e) {
     console.error('❌ [API FETCH ERROR] Search execution failed:', e);

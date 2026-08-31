@@ -119,6 +119,19 @@ function getActiveBundleFilterCount() {
 }
 
 function renderBundleUI(container) {
+  if (!currentBundleData || !currentBundleData.packages || currentBundleData.packages.length === 0) {
+    container.innerHTML = `
+      <div class="search-error-banner" role="alert" style="background: linear-gradient(135deg, #1f1113 0%, #2a1215 100%); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 20px 24px; color: #ffffff; margin-top: 16px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+          <span style="font-size: 18px;">🌴</span>
+          <strong style="color: #ef4444; font-size: 15px;">No Vacation Packages Found</strong>
+        </div>
+        <p style="color: #f87171; font-size: 14px; margin: 0; line-height: 1.5; font-weight: 500;">No vacation packages found matching your search criteria for ${currentBundleData?.origin || ''} → ${currentBundleData?.destination || ''}. Please try different travel dates.</p>
+      </div>
+    `;
+    return;
+  }
+
   const filteredPackages = getFilteredAndSortedBundles();
   const activeFilterCount = getActiveBundleFilterCount();
   const preferredMode = state.tabLayouts?.packages || getPreferredLayout('packages') || 'list';

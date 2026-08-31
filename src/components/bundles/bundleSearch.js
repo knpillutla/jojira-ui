@@ -6,8 +6,30 @@ export function initBundleSearch() {
   const form = document.getElementById('bundle-search-form');
   if (!form) return;
 
+  const tabContainer = form.closest('.search-panel') || form.parentElement;
+
+  tabContainer?.querySelectorAll('[data-bundle-search-tab]').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      tabContainer.querySelectorAll('[data-bundle-search-tab]').forEach((t) => {
+        const isActive = t === tab;
+        t.classList.toggle('is-active', isActive);
+        t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+
+      const isEnhanced = tab.dataset.bundleSearchTab === 'enhanced';
+      const durationRow = form.querySelector('[data-bundle-enhanced-duration]');
+      if (durationRow) durationRow.classList.toggle('hidden', !isEnhanced);
+
+      const labelDepart = form.querySelector('[data-bundle-date-label-depart]');
+      const labelReturn = form.querySelector('[data-bundle-date-label-return]');
+      if (labelDepart) labelDepart.textContent = isEnhanced ? 'Depart Window Start' : 'Depart';
+      if (labelReturn) labelReturn.textContent = isEnhanced ? 'Depart Window End' : 'Return';
+    });
+  });
+
   const triggerSearch = async () => {
     const formData = new FormData(form);
+    const activeTab = tabContainer?.querySelector('[data-bundle-search-tab].is-active')?.dataset.bundleSearchTab || 'exact';
 
     let checkedTypes = Array.from(form.querySelectorAll('input[name="bundle_types"]:checked')).map((el) => el.value);
 
@@ -19,23 +41,33 @@ export function initBundleSearch() {
     }
 
     const payload = {
+      searchType: activeTab,
       origin: formData.get('bundle_origin') || 'ATL',
       destination: formData.get('bundle_destination') || 'CDG',
       depart: formData.get('bundle_depart') || '',
       return: formData.get('bundle_return') || '',
       travelers: parseInt(formData.get('bundle_travelers') || '1', 10),
+      durationDays: parseInt(formData.get('bundle_duration_days') || '4', 10),
+      flexDays: parseInt(formData.get('bundle_flex_days') || '3', 10),
       bundleTypes: checkedTypes.join(',')
     };
 
-    showSearchProgressModal('Bundling Vacation Packages', `Bundling package deals for ${payload.origin} → ${payload.destination}...`, '🌴');
+    const statusMsg = activeTab === 'enhanced'
+      ? `Orchestrating multi-window package deal search for ${payload.origin} → ${payload.destination} (${payload.durationDays} days)...`
+      : `Bundling package deals for ${payload.origin} → ${payload.destination}...`;
+
+    showSearchProgressModal('Bundling Vacation Packages', statusMsg, '🌴');
 
     saveRecentSearch({
       serviceTab: 'packages',
+      searchType: payload.searchType,
       origin: payload.origin,
       destination: payload.destination,
       depart: payload.depart,
       return: payload.return,
-      travelers: payload.travelers
+      travelers: payload.travelers,
+      durationDays: payload.durationDays,
+      flexDays: payload.flexDays
     });
 
     const labels = checkedTypes.map(t => t === 'flights' ? 'flight' : (t === 'hotels' ? 'hotel' : 'car'));
@@ -48,7 +80,7 @@ export function initBundleSearch() {
           <div class="line-progress-bar"></div>
           <div class="line-progress-status">
             <span class="line-progress-spinner"></span>
-            <span>Bundling best ${labelStr} packages for ${payload.origin} → ${payload.destination}...</span>
+            <span>${statusMsg}</span>
           </div>
         </div>
       `;
@@ -59,9 +91,7 @@ export function initBundleSearch() {
       renderBundleResults(data);
     } catch (err) {
       if (container) {
-        const userMsg = (err && err.message && (err.message.includes('Failed to fetch') || err.message.includes('ERR_CONNECTION_REFUSED')))
-          ? 'Unable to connect to the backend vacation package search service (http://127.0.0.1:8000). Please ensure your backend server is running and try again.'
-          : (err?.message?.replace(/^API Error \(\d+\):\s*/i, '') || 'Our vacation packages search service is currently unavailable. Please try again in a few moments.');
+        const userMsg = err?.message || 'Our vacation packages search service is temporarily unavailable. Please try again in a few moments.';
         container.innerHTML = `
           <div class="search-error-banner" role="alert" style="background: linear-gradient(135deg, #1f1113 0%, #2a1215 100%); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 16px 20px; color: #ffffff; margin-top: 16px;">
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">

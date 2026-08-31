@@ -178,6 +178,41 @@ export function initTableSorting() {
 }
 
 export function renderOffers() {
+  let emptyBanner = $('#results [data-empty-flights-banner]');
+  if (!state.offers || state.offers.length === 0) {
+    $('#results .results-heading')?.classList.add('hidden');
+    $('#results .table-toolbar')?.classList.add('hidden');
+    $('#results .offer-table-wrap')?.classList.add('hidden');
+    $('#results .table-footnote')?.classList.add('hidden');
+    const cardsContainer = $('#results [data-flight-cards-container]') || $('[data-flight-cards-container]');
+    if (cardsContainer) cardsContainer.classList.add('hidden');
+    $('[data-stat-tiles-container]')?.classList.add('hidden');
+
+    if (!emptyBanner) {
+      emptyBanner = document.createElement('div');
+      emptyBanner.setAttribute('data-empty-flights-banner', 'true');
+      const resultsSection = $('#results');
+      if (resultsSection) resultsSection.appendChild(emptyBanner);
+    }
+    const orig = state.search?.origin || 'your origin';
+    const dest = state.search?.destination || 'your destination';
+    emptyBanner.innerHTML = `
+      <div class="search-error-banner" role="alert" style="background: linear-gradient(135deg, #1f1113 0%, #2a1215 100%); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 20px 24px; color: #ffffff; margin-top: 16px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+          <span style="font-size: 18px;">✈️</span>
+          <strong style="color: #ef4444; font-size: 15px;">No Flights Found</strong>
+        </div>
+        <p style="color: #f87171; font-size: 14px; margin: 0; line-height: 1.5; font-weight: 500;">No flights found matching your search criteria for ${orig} → ${dest}. Please try different travel dates or nearby airports.</p>
+      </div>
+    `;
+    emptyBanner.classList.remove('hidden');
+    return;
+  }
+
+  if (emptyBanner) {
+    emptyBanner.classList.add('hidden');
+  }
+
   const visible = sortedOffers();
   const offersEl = $('#results [data-offers]') || $('[data-offers]');
   const cardsContainer = $('#results [data-flight-cards-container]') || $('[data-flight-cards-container]');
@@ -192,8 +227,6 @@ export function renderOffers() {
 
   updateSortHeaderIcons();
   updateColumnFilterPopovers();
-
-
 
   if (mode === 'table') {
     if (tableWrap) tableWrap.classList.remove('hidden');

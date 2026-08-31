@@ -6,25 +6,57 @@ export function initCarSearch() {
   const form = document.getElementById('car-search-form');
   if (!form) return;
 
+  const tabContainer = form.closest('.search-panel') || form.parentElement;
+
+  tabContainer?.querySelectorAll('[data-car-search-tab]').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      tabContainer.querySelectorAll('[data-car-search-tab]').forEach((t) => {
+        const isActive = t === tab;
+        t.classList.toggle('is-active', isActive);
+        t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+
+      const isEnhanced = tab.dataset.carSearchTab === 'enhanced';
+      const durationRow = form.querySelector('[data-car-enhanced-duration]');
+      if (durationRow) durationRow.classList.toggle('hidden', !isEnhanced);
+
+      const labelPickup = form.querySelector('[data-car-date-label-pickup]');
+      const labelDropoff = form.querySelector('[data-car-date-label-dropoff]');
+      if (labelPickup) labelPickup.textContent = isEnhanced ? 'Pickup Window Start' : 'Pickup Date';
+      if (labelDropoff) labelDropoff.textContent = isEnhanced ? 'Pickup Window End' : 'Drop-off Date';
+    });
+  });
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(form);
+    const activeTab = tabContainer?.querySelector('[data-car-search-tab].is-active')?.dataset.carSearchTab || 'exact';
 
     const payload = {
+      searchType: activeTab,
       location: formData.get('car_location') || 'Paris CDG Airport',
       pickupDate: formData.get('car_pickup') || '',
       dropoffDate: formData.get('car_dropoff') || '',
-      category: formData.get('car_category') || 'all'
+      category: formData.get('car_category') || 'all',
+      durationDays: parseInt(formData.get('car_duration_days') || '7', 10),
+      flexDays: parseInt(formData.get('car_flex_days') || '3', 10)
     };
 
-    showSearchProgressModal('Searching Car Rentals', `Finding rental car deals at ${payload.location}...`, '🚗');
+    const statusMsg = activeTab === 'enhanced'
+      ? `Executing candidate date window search for vehicles at ${payload.location} (${payload.durationDays} days)...`
+      : `Finding rental car deals at ${payload.location}...`;
+
+    showSearchProgressModal('Searching Car Rentals', statusMsg, '🚗');
 
     saveRecentSearch({
       serviceTab: 'cars',
+      searchType: payload.searchType,
       location: payload.location,
       pickupDate: payload.pickupDate,
       dropoffDate: payload.dropoffDate,
-      category: payload.category
+      category: payload.category,
+      durationDays: payload.durationDays,
+      flexDays: payload.flexDays
     });
 
     const container = document.querySelector('[data-car-results]');
@@ -34,7 +66,7 @@ export function initCarSearch() {
           <div class="line-progress-bar"></div>
           <div class="line-progress-status">
             <span class="line-progress-spinner"></span>
-            <span>Finding car rental deals at ${payload.location}...</span>
+            <span>${statusMsg}</span>
           </div>
         </div>
       `;
@@ -45,9 +77,7 @@ export function initCarSearch() {
       renderCarResults(data);
     } catch (err) {
       if (container) {
-        const userMsg = (err && err.message && (err.message.includes('Failed to fetch') || err.message.includes('ERR_CONNECTION_REFUSED')))
-          ? 'Unable to connect to the backend car rental search service (http://127.0.0.1:8000). Please ensure your backend server is running and try again.'
-          : (err?.message?.replace(/^API Error \(\d+\):\s*/i, '') || 'Our car rental search service is currently unavailable. Please try again in a few moments.');
+        const userMsg = err?.message || 'Our car rental search service is temporarily unavailable. Please try again in a few moments.';
         container.innerHTML = `
           <div class="search-error-banner" role="alert" style="background: linear-gradient(135deg, #1f1113 0%, #2a1215 100%); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 16px 20px; color: #ffffff; margin-top: 16px;">
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">

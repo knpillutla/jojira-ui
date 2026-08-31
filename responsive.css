@@ -465,33 +465,38 @@
 }
 
 .passenger-trigger {
+  grid-column: 1 / -1;
+  grid-row: 2;
   display: flex;
   align-items: center;
   gap: 4px;
   width: 100%;
+  height: 18px;
   cursor: pointer;
   background: transparent;
 }
 
 .passenger-icon {
-  color: var(--coral);
+  color: var(--coral, #e67961);
   font-size: 12px;
   align-self: center;
 }
 
+.passenger-trigger .passenger-display-text,
 .passenger-display-text {
   flex: 1;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink);
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: var(--ink, #1e293b) !important;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 18px;
 }
 
 .dropdown-chevron {
   font-size: 10px;
-  color: var(--muted);
+  color: var(--muted, #64748b);
 }
 
 .passenger-popover {

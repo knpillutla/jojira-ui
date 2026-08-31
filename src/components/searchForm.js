@@ -482,12 +482,20 @@ export function renderRecentSearches() {
           const checkOutInput = form.querySelector('[name="hotel_checkout"]');
           const guestsSelect = form.querySelector('[name="hotel_guests"]');
           const roomsSelect = form.querySelector('[name="hotel_rooms"]');
+          const durationSelect = form.querySelector('[name="hotel_duration_days"]');
+          const flexSelect = form.querySelector('[name="hotel_flex_days"]');
 
           if (locInput) locInput.value = item.location || '';
           if (checkInInput) checkInInput.value = item.checkIn || '';
           if (checkOutInput) checkOutInput.value = item.checkOut || '';
           if (guestsSelect) guestsSelect.value = String(item.guests || 2);
           if (roomsSelect) roomsSelect.value = String(item.rooms || 1);
+          if (durationSelect && item.durationDays !== undefined) durationSelect.value = String(item.durationDays);
+          if (flexSelect && item.flexDays !== undefined) flexSelect.value = String(item.flexDays);
+
+          const targetSubTab = item.searchType || 'exact';
+          const tabBtn = form.closest('.search-panel')?.querySelector(`[data-hotel-search-tab="${targetSubTab}"]`);
+          if (tabBtn) tabBtn.click();
         }
       } else if (activeTab === 'cars') {
         const form = document.getElementById('car-search-form');
@@ -496,11 +504,19 @@ export function renderRecentSearches() {
           const pickInput = form.querySelector('[name="car_pickup"]');
           const dropInput = form.querySelector('[name="car_dropoff"]');
           const catSelect = form.querySelector('[name="car_category"]');
+          const durationSelect = form.querySelector('[name="car_duration_days"]');
+          const flexSelect = form.querySelector('[name="car_flex_days"]');
 
           if (locInput) locInput.value = item.location || '';
           if (pickInput) pickInput.value = item.pickupDate || '';
           if (dropInput) dropInput.value = item.dropoffDate || '';
           if (catSelect) catSelect.value = item.category || 'all';
+          if (durationSelect && item.durationDays !== undefined) durationSelect.value = String(item.durationDays);
+          if (flexSelect && item.flexDays !== undefined) flexSelect.value = String(item.flexDays);
+
+          const targetSubTab = item.searchType || 'exact';
+          const tabBtn = form.closest('.search-panel')?.querySelector(`[data-car-search-tab="${targetSubTab}"]`);
+          if (tabBtn) tabBtn.click();
         }
       } else if (activeTab === 'packages') {
         const form = document.getElementById('bundle-search-form');
@@ -510,12 +526,20 @@ export function renderRecentSearches() {
           const depInput = form.querySelector('[name="bundle_depart"]');
           const retInput = form.querySelector('[name="bundle_return"]');
           const travSelect = form.querySelector('[name="bundle_travelers"]');
+          const durationSelect = form.querySelector('[name="bundle_duration_days"]');
+          const flexSelect = form.querySelector('[name="bundle_flex_days"]');
 
           if (origInput) origInput.value = item.origin || '';
           if (destInput) destInput.value = item.destination || '';
           if (depInput) depInput.value = item.depart || '';
           if (retInput) retInput.value = item.return || '';
           if (travSelect) travSelect.value = String(item.travelers || 2);
+          if (durationSelect && item.durationDays !== undefined) durationSelect.value = String(item.durationDays);
+          if (flexSelect && item.flexDays !== undefined) flexSelect.value = String(item.flexDays);
+
+          const targetSubTab = item.searchType || 'exact';
+          const tabBtn = form.closest('.search-panel')?.querySelector(`[data-bundle-search-tab="${targetSubTab}"]`);
+          if (tabBtn) tabBtn.click();
         }
       } else {
         // Flights Tab: restore every field & sub-tab exactly as it was searched
@@ -568,11 +592,18 @@ export function renderRecentSearches() {
             });
           }
 
-          if (item.passengers) {
-            passengerCounts.adults = item.passengers.adults || 1;
-            passengerCounts.children = item.passengers.children || 0;
-            passengerCounts.infantsInSeat = item.passengers.infantsInSeat || 0;
-            passengerCounts.infantsOnLap = item.passengers.infantsOnLap || 0;
+          if (item.passengers || item.passengersCount) {
+            if (typeof item.passengers === 'object' && item.passengers !== null) {
+              passengerCounts.adults = item.passengers.adults || 1;
+              passengerCounts.children = item.passengers.children || 0;
+              passengerCounts.infantsInSeat = item.passengers.infantsInSeat || 0;
+              passengerCounts.infantsOnLap = item.passengers.infantsOnLap || 0;
+            } else if (typeof item.passengersCount === 'number') {
+              passengerCounts.adults = Math.max(1, item.passengersCount);
+              passengerCounts.children = 0;
+              passengerCounts.infantsInSeat = 0;
+              passengerCounts.infantsOnLap = 0;
+            }
             updatePassengerDisplay();
           }
         }
@@ -823,10 +854,12 @@ export async function handleFlightSearch(searchPayload) {
       return: returnDate,
       prompt: searchPayload.prompt || '',
       type: searchPayload.prompt ? 'natural' : (searchPayload.searchType || 'exact'),
+      searchType: searchPayload.searchType || 'exact',
       serviceTab: isAiMode ? 'ai-search' : (searchPayload.serviceTab || getActiveServiceTab()),
       tripType: searchPayload.tripType || 'round_trip',
       legs: searchPayload.legs || undefined,
-      passengers: searchPayload.passengers || undefined,
+      passengers: { ...passengerCounts },
+      passengersCount: searchPayload.passengersCount || (passengerCounts.adults + passengerCounts.children + passengerCounts.infantsInSeat + passengerCounts.infantsOnLap),
       cabinClass: searchPayload.cabinClass || 'economy',
       nonstop: !!searchPayload.nonstop,
       minDuration: searchPayload.minDuration,
@@ -835,10 +868,17 @@ export async function handleFlightSearch(searchPayload) {
       favoriteAirline: searchPayload.favoriteAirline || ''
     });
 
-    $('#results .results-heading')?.classList.remove('hidden');
-    $('#results .table-toolbar')?.classList.remove('hidden');
-    $('#results .offer-table-wrap')?.classList.remove('hidden');
-    $('#results .table-footnote')?.classList.remove('hidden');
+    if (state.offers && state.offers.length > 0) {
+      $('#results .results-heading')?.classList.remove('hidden');
+      $('#results .table-toolbar')?.classList.remove('hidden');
+      $('#results .offer-table-wrap')?.classList.remove('hidden');
+      $('#results .table-footnote')?.classList.remove('hidden');
+    } else {
+      $('#results .results-heading')?.classList.add('hidden');
+      $('#results .table-toolbar')?.classList.add('hidden');
+      $('#results .offer-table-wrap')?.classList.add('hidden');
+      $('#results .table-footnote')?.classList.add('hidden');
+    }
 
     $('[data-booking-confirmation-section]')?.classList.add('hidden');
     if (resultsSection) {
@@ -846,14 +886,7 @@ export async function handleFlightSearch(searchPayload) {
     }
   } catch (err) {
     console.error('Search failed:', err);
-    let userMsg = 'Our travel search service is currently unavailable. Please try again in a few moments.';
-    if (err && err.message) {
-      if (err.message.includes('Failed to fetch') || err.message.includes('ERR_CONNECTION_REFUSED') || err.message.includes('unreachable') || err.message.includes('connect')) {
-        userMsg = 'Unable to connect to the backend travel search service (http://127.0.0.1:8000). Please ensure your backend server is running and try again.';
-      } else {
-        userMsg = err.message.replace(/^API Error \(\d+\):\s*/i, '');
-      }
-    }
+    let userMsg = err?.message || 'Our travel search service is temporarily unavailable. Please try again in a few moments.';
 
     const aiResultsPanel = document.querySelector('[data-ai-results-panel]');
     const activeTab = getActiveServiceTab();

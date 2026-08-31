@@ -148,9 +148,7 @@ async function loadItinerary(payload) {
   } catch (err) {
     console.error('❌ [AI PLANNER] Error in loadItinerary:', err);
     if (optionsOverviewContainer) {
-      const userMsg = (err && err.message && (err.message.includes('Failed to fetch') || err.message.includes('ERR_CONNECTION_REFUSED')))
-        ? 'Unable to connect to the backend AI trip planner service (http://127.0.0.1:8000). Please ensure your backend server is running and try again.'
-        : (err?.message?.replace(/^API Error \(\d+\):\s*/i, '') || 'Our AI trip planner service is currently unavailable. Please try again in a few moments.');
+      const userMsg = err?.message || 'Our AI trip planner service is temporarily unavailable. Please try again in a few moments.';
       optionsOverviewContainer.innerHTML = `
         <div class="search-error-banner" role="alert" style="background: linear-gradient(135deg, #1f1113 0%, #2a1215 100%); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 16px 20px; color: #ffffff; margin-top: 16px;">
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">

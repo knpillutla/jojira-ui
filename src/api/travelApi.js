@@ -1,4 +1,5 @@
 import { getCachedSearch, setCachedSearch } from '../utils/clientCache.js';
+import { formatHttpErrorMessage } from '../utils/formatters.js';
 const apiBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port !== '8000'
   ? 'http://127.0.0.1:8000'
   : '';
@@ -14,20 +15,33 @@ export async function searchHotels(payload) {
   console.log('🏨 [HOTELS API] Searching hotels with payload:', payload);
   const location = payload.location || 'Paris';
 
-  const cacheKey = `hotels_${(location || '').toLowerCase()}_${payload.checkIn || ''}_${payload.checkOut || ''}_${payload.guests || 2}_${payload.rooms || 1}`;
+  const isEnhanced = payload.searchType === 'enhanced';
+  const flexDays = payload.flexDays !== undefined ? payload.flexDays : 3;
+  const cacheKey = `hotels_${(location || '').toLowerCase()}_in${payload.checkIn || ''}_out${payload.checkOut || ''}_g${payload.guests || 2}_r${payload.rooms || 1}_st${payload.searchType || 'exact'}_dur${payload.durationDays || 7}_flx${flexDays}`;
   const cached = getCachedSearch(cacheKey);
   if (cached) return cached;
 
-  const resp = await fetch(`${apiBase}/api/v1/stays/search`, {
+  const endpoint = isEnhanced ? `${apiBase}/api/v1/stays/search-optimized` : `${apiBase}/api/v1/stays/search`;
+  const body = isEnhanced ? {
+    location_string: location,
+    check_in_date: payload.checkIn || '',
+    check_out_date: payload.checkOut || '',
+    duration_days: payload.durationDays || 7,
+    flex_days: payload.flexDays !== undefined ? payload.flexDays : 3,
+    guests_count: payload.guests || 2,
+    rooms: payload.rooms || 1
+  } : {
+    location_string: location,
+    check_in_date: payload.checkIn || '',
+    check_out_date: payload.checkOut || '',
+    guests_count: payload.guests || 2,
+    rooms: payload.rooms || 1
+  };
+
+  const resp = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location_string: location,
-      check_in_date: payload.checkIn || '',
-      check_out_date: payload.checkOut || '',
-      guests_count: payload.guests || 2,
-      rooms: payload.rooms || 1
-    })
+    body: JSON.stringify(body)
   });
 
   if (resp.ok && resp.headers.get('content-type')?.includes('json')) {
@@ -39,13 +53,8 @@ export async function searchHotels(payload) {
   }
 
   const errText = await resp.text().catch(() => '');
-  let msg = `Hotel search API failed (Status ${resp.status})`;
-  try {
-    const parsed = JSON.parse(errText);
-    msg = parsed.detail || parsed.message || msg;
-    if (Array.isArray(msg)) msg = msg.map(m => m.msg || m.detail || JSON.stringify(m)).join('; ');
-  } catch (e) { }
-  throw new Error(msg);
+  console.error(`❌ [HOTELS API ERROR ${resp.status}]:`, errText);
+  throw new Error(formatHttpErrorMessage(resp.status, 'hotel', errText));
 }
 
 export function normalizeHotelApiResponse(response, fallbackLocation = 'Paris') {
@@ -180,20 +189,35 @@ export async function searchCars(payload) {
   console.log('🚗 [CARS API] Searching cars with payload:', payload);
   const location = payload.location || 'Paris CDG Airport';
 
-  const cacheKey = `cars_${(location || '').toLowerCase()}_${payload.pickupDate || ''}_${payload.dropoffDate || ''}_${payload.category || 'all'}`;
+  const isEnhanced = payload.searchType === 'enhanced';
+  const flexDays = payload.flexDays !== undefined ? payload.flexDays : 3;
+  const dropLoc = (payload.dropoffLocation || location).toLowerCase();
+  const cacheKey = `cars_${(location || '').toLowerCase()}_drop${dropLoc}_pick${payload.pickupDate || ''}_dropDate${payload.dropoffDate || ''}_cat${payload.category || 'all'}_st${payload.searchType || 'exact'}_dur${payload.durationDays || 7}_flx${flexDays}_age${payload.driverAge || 30}`;
   const cached = getCachedSearch(cacheKey);
   if (cached) return cached;
 
-  const resp = await fetch(`${apiBase}/api/v1/cars/search`, {
+  const endpoint = isEnhanced ? `${apiBase}/api/v1/cars/search-optimized` : `${apiBase}/api/v1/cars/search`;
+  const body = isEnhanced ? {
+    pickup_location: location,
+    dropoff_location: payload.dropoffLocation || location,
+    pickup_datetime: payload.pickupDate ? `${payload.pickupDate}T10:00:00Z` : '',
+    dropoff_datetime: payload.dropoffDate ? `${payload.dropoffDate}T10:00:00Z` : '',
+    duration_days: payload.durationDays || 7,
+    flex_days: payload.flexDays !== undefined ? payload.flexDays : 3,
+    driver_age: payload.driverAge || 30,
+    category: payload.category || 'all'
+  } : {
+    pickup_location: location,
+    dropoff_location: payload.dropoffLocation || location,
+    pickup_datetime: payload.pickupDate ? `${payload.pickupDate}T10:00:00Z` : '',
+    dropoff_datetime: payload.dropoffDate ? `${payload.dropoffDate}T10:00:00Z` : '',
+    driver_age: payload.driverAge || 30
+  };
+
+  const resp = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      pickup_location: location,
-      dropoff_location: payload.dropoffLocation || location,
-      pickup_datetime: payload.pickupDate ? `${payload.pickupDate}T10:00:00Z` : '',
-      dropoff_datetime: payload.dropoffDate ? `${payload.dropoffDate}T10:00:00Z` : '',
-      driver_age: payload.driverAge || 30
-    })
+    body: JSON.stringify(body)
   });
 
   if (resp.ok && resp.headers.get('content-type')?.includes('json')) {
@@ -205,13 +229,8 @@ export async function searchCars(payload) {
   }
 
   const errText = await resp.text().catch(() => '');
-  let msg = `Car rental search API failed (Status ${resp.status})`;
-  try {
-    const parsed = JSON.parse(errText);
-    msg = parsed.detail || parsed.message || msg;
-    if (Array.isArray(msg)) msg = msg.map(m => m.msg || m.detail || JSON.stringify(m)).join('; ');
-  } catch (e) { }
-  throw new Error(msg);
+  console.error(`❌ [CARS API ERROR ${resp.status}]:`, errText);
+  throw new Error(formatHttpErrorMessage(resp.status, 'car', errText));
 }
 
 export function normalizeCarApiResponse(response, fallbackLocation = 'Paris CDG Airport') {
@@ -342,25 +361,43 @@ export async function searchBundles(payload) {
   const origin = payload.origin || 'ATL';
   const destination = payload.destination || 'CDG';
 
-  const cacheKey = `bundles_${(origin || '').toLowerCase()}_${(destination || '').toLowerCase()}_${payload.depart || ''}_${payload.return || ''}_${payload.travelers || 1}_${payload.bundleTypes || 'flights,hotels,cars'}`;
+  const isEnhanced = payload.searchType === 'enhanced';
+  const flexDays = payload.flexDays !== undefined ? payload.flexDays : 3;
+  const cacheKey = `bundles_${(origin || '').toLowerCase()}_${(destination || '').toLowerCase()}_dep${payload.depart || ''}_ret${payload.return || ''}_p${payload.travelers || 1}_c${payload.cabinClass || 'economy'}_r${payload.rooms || 1}_b${payload.bundleTypes || 'flights,hotels,cars'}_st${payload.searchType || 'exact'}_dur${payload.durationDays || 4}_flx${flexDays}_age${payload.driverAge || 30}`;
   const cached = getCachedSearch(cacheKey);
   if (cached) return cached;
 
-  const resp = await fetch(`${apiBase}/api/v1/bundles/search`, {
+  const endpoint = isEnhanced ? `${apiBase}/api/v1/bundles/search-optimized` : `${apiBase}/api/v1/bundles/search`;
+  const body = isEnhanced ? {
+    origin: origin,
+    destination: destination,
+    departure_date: payload.depart || '',
+    return_date: payload.return || '',
+    duration_days: payload.durationDays || 4,
+    flex_days: payload.flexDays !== undefined ? payload.flexDays : 3,
+    passengers_count: payload.travelers || 1,
+    cabin_class: payload.cabinClass || 'economy',
+    rooms: payload.rooms || 1,
+    driver_age: payload.driverAge || 30,
+    bundle_types: payload.bundleTypes || 'flights,hotels,cars',
+    force_refresh: false
+  } : {
+    origin: origin,
+    destination: destination,
+    departure_date: payload.depart || '',
+    return_date: payload.return || '',
+    passengers_count: payload.travelers || 1,
+    cabin_class: payload.cabinClass || 'economy',
+    rooms: payload.rooms || 1,
+    driver_age: payload.driverAge || 30,
+    bundle_types: payload.bundleTypes || 'flights,hotels,cars',
+    force_refresh: false
+  };
+
+  const resp = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      origin: origin,
-      destination: destination,
-      departure_date: payload.depart || '',
-      return_date: payload.return || '',
-      passengers_count: payload.travelers || 1,
-      cabin_class: payload.cabinClass || 'economy',
-      rooms: payload.rooms || 1,
-      driver_age: payload.driverAge || 30,
-      bundle_types: payload.bundleTypes || 'flights,hotels,cars',
-      force_refresh: false
-    })
+    body: JSON.stringify(body)
   });
 
   if (resp.ok && resp.headers.get('content-type')?.includes('json')) {
@@ -372,13 +409,8 @@ export async function searchBundles(payload) {
   }
 
   const errText = await resp.text().catch(() => '');
-  let msg = `Package bundles search API failed (Status ${resp.status})`;
-  try {
-    const parsed = JSON.parse(errText);
-    msg = parsed.detail || parsed.message || msg;
-    if (Array.isArray(msg)) msg = msg.map(m => m.msg || m.detail || JSON.stringify(m)).join('; ');
-  } catch (e) { }
-  throw new Error(msg);
+  console.error(`❌ [BUNDLES API ERROR ${resp.status}]:`, errText);
+  throw new Error(formatHttpErrorMessage(resp.status, 'package', errText));
 }
 
 export async function bookBundle(payload) {
@@ -546,7 +578,7 @@ export function normalizeBundleApiResponse(response, fallbackOrigin = 'ATL', fal
 export async function generateAiItinerary(payload) {
   console.log('🧠 [AI PLANNER API] Requesting AI Trip Itinerary:', payload);
 
-  const cacheKey = `planner_${(payload.destination || '').toLowerCase()}_${payload.days || 4}_${payload.style || ''}_${payload.budget || ''}_f${payload.include_flights !== false}_h${payload.include_hotels !== false}_c${payload.include_cars !== false}_t${payload.include_trains === true}_b${payload.include_buses === true}_att${payload.include_attractions !== false}_act${payload.include_activities !== false}_satt${payload.include_seasonal_attractions !== false}_sact${payload.include_seasonal_activities !== false}_${(payload.prompt || '').toLowerCase()}`;
+  const cacheKey = `planner_${(payload.destination || '').toLowerCase()}_orig${(payload.origin || '').toLowerCase()}_dep${payload.departure_date || ''}_ret${payload.return_date || ''}_days${payload.days || 4}_p${payload.passengers_count || 1}_c${payload.cabin_class || 'economy'}_r${payload.rooms || 1}_st${payload.style || ''}_bg${payload.budget || ''}_f${payload.include_flights !== false}_h${payload.include_hotels !== false}_c${payload.include_cars !== false}_t${payload.include_trains === true}_b${payload.include_buses === true}_att${payload.include_attractions !== false}_act${payload.include_activities !== false}_satt${payload.include_seasonal_attractions !== false}_sact${payload.include_seasonal_activities !== false}_${(payload.prompt || '').toLowerCase()}`;
   const cached = getCachedSearch(cacheKey);
   if (cached) return cached;
 
@@ -591,13 +623,8 @@ export async function generateAiItinerary(payload) {
   }
 
   const errText = await resp.text().catch(() => '');
-  let msg = `AI Trip Planner API failed (Status ${resp.status})`;
-  try {
-    const parsed = JSON.parse(errText);
-    msg = parsed.detail || parsed.message || msg;
-    if (Array.isArray(msg)) msg = msg.map(m => m.msg || m.detail || JSON.stringify(m)).join('; ');
-  } catch (e) { }
-  throw new Error(msg);
+  console.error(`❌ [AI PLANNER API ERROR ${resp.status}]:`, errText);
+  throw new Error(formatHttpErrorMessage(resp.status, 'planner', errText));
 }
 
 // -----------------------------------------------------------------------------

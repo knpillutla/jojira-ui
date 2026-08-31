@@ -6,6 +6,27 @@ export function initHotelSearch() {
   const form = document.getElementById('hotel-search-form');
   if (!form) return;
 
+  const tabContainer = form.closest('.search-panel') || form.parentElement;
+
+  tabContainer?.querySelectorAll('[data-hotel-search-tab]').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      tabContainer.querySelectorAll('[data-hotel-search-tab]').forEach((t) => {
+        const isActive = t === tab;
+        t.classList.toggle('is-active', isActive);
+        t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+
+      const isEnhanced = tab.dataset.hotelSearchTab === 'enhanced';
+      const durationRow = form.querySelector('[data-hotel-enhanced-duration]');
+      if (durationRow) durationRow.classList.toggle('hidden', !isEnhanced);
+
+      const labelIn = form.querySelector('[data-hotel-date-label-in]');
+      const labelOut = form.querySelector('[data-hotel-date-label-out]');
+      if (labelIn) labelIn.textContent = isEnhanced ? 'Check-in From' : 'Check-in';
+      if (labelOut) labelOut.textContent = isEnhanced ? 'Check-in To' : 'Check-out';
+    });
+  });
+
   attachCityAutocomplete(
     form.querySelector('[name="hotel_location"]'),
     form.querySelector('[data-hotel-location-suggestions]')
@@ -14,24 +35,35 @@ export function initHotelSearch() {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(form);
+    const activeTab = tabContainer?.querySelector('[data-hotel-search-tab].is-active')?.dataset.hotelSearchTab || 'exact';
     
     const payload = {
+      searchType: activeTab,
       location: formData.get('hotel_location') || 'Paris',
       checkIn: formData.get('hotel_checkin') || '',
       checkOut: formData.get('hotel_checkout') || '',
       guests: parseInt(formData.get('hotel_guests') || '2', 10),
-      rooms: parseInt(formData.get('hotel_rooms') || '1', 10)
+      rooms: parseInt(formData.get('hotel_rooms') || '1', 10),
+      durationDays: parseInt(formData.get('hotel_duration_days') || '7', 10),
+      flexDays: parseInt(formData.get('hotel_flex_days') || '3', 10)
     };
 
-    showSearchProgressModal('Searching Hotels', `Finding available hotel stays in ${payload.location}...`, '🏨');
+    const statusMsg = activeTab === 'enhanced'
+      ? `Executing multi-window stay search in ${payload.location} (${payload.durationDays} days)...`
+      : `Finding available hotel stays in ${payload.location}...`;
+
+    showSearchProgressModal('Searching Hotels', statusMsg, '🏨');
 
     saveRecentSearch({
       serviceTab: 'hotels',
+      searchType: payload.searchType,
       location: payload.location,
       checkIn: payload.checkIn,
       checkOut: payload.checkOut,
       guests: payload.guests,
-      rooms: payload.rooms
+      rooms: payload.rooms,
+      durationDays: payload.durationDays,
+      flexDays: payload.flexDays
     });
 
     const container = document.querySelector('[data-hotel-results]');
@@ -41,7 +73,7 @@ export function initHotelSearch() {
           <div class="line-progress-bar"></div>
           <div class="line-progress-status">
             <span class="line-progress-spinner"></span>
-            <span>Searching hotels in ${payload.location}...</span>
+            <span>${statusMsg}</span>
           </div>
         </div>
       `;
@@ -52,9 +84,7 @@ export function initHotelSearch() {
       renderHotelResults(data);
     } catch (err) {
       if (container) {
-        const userMsg = (err && err.message && (err.message.includes('Failed to fetch') || err.message.includes('ERR_CONNECTION_REFUSED')))
-          ? 'Unable to connect to the backend hotel search service (http://127.0.0.1:8000). Please ensure your backend server is running and try again.'
-          : (err?.message?.replace(/^API Error \(\d+\):\s*/i, '') || 'Our hotel search service is currently unavailable. Please try again in a few moments.');
+        const userMsg = err?.message || 'Our hotel search service is temporarily unavailable. Please try again in a few moments.';
         container.innerHTML = `
           <div class="search-error-banner" role="alert" style="background: linear-gradient(135deg, #1f1113 0%, #2a1215 100%); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 16px 20px; color: #ffffff; margin-top: 16px;">
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
