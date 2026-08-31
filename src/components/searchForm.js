@@ -269,7 +269,7 @@ export function switchServiceTab(target) {
   if (!targetTab) return;
 
   try {
-    localStorage.setItem('jojira_active_service_tab', target);
+    sessionStorage.setItem('jojira_active_service_tab', target);
   } catch (e) {}
 
   document.querySelectorAll('[data-service-tab]').forEach((t) => {

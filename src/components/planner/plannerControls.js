@@ -123,7 +123,7 @@ export function initPlannerControls() {
 async function loadItinerary(payload) {
   collapseLeftNav();
   try {
-    localStorage.setItem('jojira_active_service_tab', 'ai-planner');
+    sessionStorage.setItem('jojira_active_service_tab', 'ai-planner');
   } catch (e) {}
   const optionsOverviewContainer = document.getElementById('ai-planner-options-overview');
   const splitViewContainer = document.getElementById('ai-planner-view');

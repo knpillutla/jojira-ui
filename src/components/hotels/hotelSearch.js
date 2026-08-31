@@ -35,7 +35,7 @@ export function initHotelSearch() {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     collapseLeftNav();
-    try { localStorage.setItem('jojira_active_service_tab', 'hotels'); } catch (e) {}
+    try { sessionStorage.setItem('jojira_active_service_tab', 'hotels'); } catch (e) {}
     const formData = new FormData(form);
     const activeTab = tabContainer?.querySelector('[data-hotel-search-tab].is-active')?.dataset.hotelSearchTab || 'exact';
     

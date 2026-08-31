@@ -29,7 +29,7 @@ export function initBundleSearch() {
 
   const triggerSearch = async () => {
     collapseLeftNav();
-    try { localStorage.setItem('jojira_active_service_tab', 'packages'); } catch (e) {}
+    try { sessionStorage.setItem('jojira_active_service_tab', 'packages'); } catch (e) {}
     const formData = new FormData(form);
     const activeTab = tabContainer?.querySelector('[data-bundle-search-tab].is-active')?.dataset.bundleSearchTab || 'exact';
 

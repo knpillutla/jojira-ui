@@ -32,7 +32,7 @@ function initApp() {
 }
 
 function restoreAppStateOnLoad() {
-  const activeTab = localStorage.getItem('jojira_active_service_tab') || 'ai-search';
+  const activeTab = sessionStorage.getItem('jojira_active_service_tab') || 'ai-search';
 
   const restoredFlight = restoreFlightState();
   const restoredHotel = restoreHotelState();
