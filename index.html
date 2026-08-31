@@ -701,53 +701,8 @@
         <div class="service-tab-content hidden" data-service-content="ai-planner">
           <div class="ai-planner-workspace-container">
 
-            <!-- Top Workspace Area: Visual Results & Interactive Map -->
-            <div class="ai-planner-results-workspace">
-              <!-- High-Level 3-Itinerary Options Overview Cards -->
-              <div id="ai-planner-options-overview" class="planner-options-grid-container hidden"></div>
-
-              <!-- Split-View Detailed Itinerary & Interactive Map Interface -->
-              <div id="ai-planner-view" class="ai-planner-split-container hidden">
-                <div id="planner-trip-header"></div>
-
-                <div class="planner-day-filters-bar" id="planner-day-filters"></div>
-
-                <div class="planner-split-layout">
-                  <!-- Left Column: Daily Itinerary List -->
-                  <div class="planner-itinerary-pane">
-                    <div id="planner-itinerary-list"></div>
-                  </div>
-
-                  <!-- Right Column: Interactive Google / Leaflet Map -->
-                  <div class="planner-map-pane">
-                    <div class="map-container-card">
-                      <div class="map-card-header"
-                        style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                        <div>
-                          <span class="map-title">📍 Interactive Route Map</span>
-                          <span class="map-subtitle">Pins & routes color-coded by day</span>
-                        </div>
-                        <div class="map-provider-toggle"
-                          style="display:flex; gap:4px; background:#f1f5f9; padding:3px; border-radius:8px; border:1px solid #cbd5e1;">
-                          <button type="button" class="map-toggle-btn is-active" data-map-provider="google"
-                            style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; border:0; cursor:pointer; background:#ffffff; color:#0f172a; box-shadow:0 1px 2px rgba(0,0,0,0.08);">🗺️
-                            Google Maps</button>
-                          <button type="button" class="map-toggle-btn" data-map-provider="leaflet"
-                            style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; border:0; cursor:pointer; background:transparent; color:#64748b;">🍃
-                            Leaflet</button>
-                        </div>
-                      </div>
-                      <div class="maps-quota-alert-box hidden" data-maps-quota-alert></div>
-                      <div id="trip-map" class="leaflet-map-frame"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Bottom Sticky AI Chat Console (ChatGPT / Gemini Pattern) -->
-            <div class="search-panel ai-planner-search-panel ai-planner-bottom-chat-console"
-              aria-label="AI Trip Planner Chat Console">
+            <!-- Top AI Search & Preference Panel -->
+            <div class="search-panel ai-planner-search-panel" aria-label="AI Trip Planner Search Console">
               <form id="ai-planner-form">
                 <!-- AI Chat Input Bar -->
                 <div class="ai-chat-input-bar">
@@ -840,6 +795,50 @@
                 </div>
               </form>
               <p class="search-error" data-planner-search-error role="alert" aria-live="polite"></p>
+            </div>
+
+            <!-- Workspace Area Below: Visual Results & Interactive Map -->
+            <div class="ai-planner-results-workspace" style="margin-top: 24px;">
+              <!-- High-Level 3-Itinerary Options Overview Cards -->
+              <div id="ai-planner-options-overview" class="planner-options-grid-container hidden"></div>
+
+              <!-- Split-View Detailed Itinerary & Interactive Map Interface -->
+              <div id="ai-planner-view" class="ai-planner-split-container hidden">
+                <div id="planner-trip-header"></div>
+
+                <div class="planner-day-filters-bar" id="planner-day-filters"></div>
+
+                <div class="planner-split-layout">
+                  <!-- Left Column: Daily Itinerary List -->
+                  <div class="planner-itinerary-pane">
+                    <div id="planner-itinerary-list"></div>
+                  </div>
+
+                  <!-- Right Column: Interactive Google / Leaflet Map -->
+                  <div class="planner-map-pane">
+                    <div class="map-container-card">
+                      <div class="map-card-header"
+                        style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                        <div>
+                          <span class="map-title">📍 Interactive Route Map</span>
+                          <span class="map-subtitle">Pins & routes color-coded by day</span>
+                        </div>
+                        <div class="map-provider-toggle"
+                          style="display:flex; gap:4px; background:#f1f5f9; padding:3px; border-radius:8px; border:1px solid #cbd5e1;">
+                          <button type="button" class="map-toggle-btn is-active" data-map-provider="google"
+                            style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; border:0; cursor:pointer; background:#ffffff; color:#0f172a; box-shadow:0 1px 2px rgba(0,0,0,0.08);">🗺️
+                            Google Maps</button>
+                          <button type="button" class="map-toggle-btn" data-map-provider="leaflet"
+                            style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; border:0; cursor:pointer; background:transparent; color:#64748b;">🍃
+                            Leaflet</button>
+                        </div>
+                      </div>
+                      <div class="maps-quota-alert-box hidden" data-maps-quota-alert></div>
+                      <div id="trip-map" class="leaflet-map-frame"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
           </div>
