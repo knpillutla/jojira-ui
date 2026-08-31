@@ -268,9 +268,14 @@ export function switchServiceTab(target) {
   const targetTab = document.querySelector(`[data-service-tab="${target}"]`);
   if (!targetTab) return;
 
+  try {
+    localStorage.setItem('jojira_active_service_tab', target);
+  } catch (e) {}
+
   document.querySelectorAll('[data-service-tab]').forEach((t) => {
-    t.classList.toggle('is-active', t === targetTab);
-    t.setAttribute('aria-selected', t === targetTab ? 'true' : 'false');
+    const isActive = t === targetTab || t.dataset.serviceTab === target;
+    t.classList.toggle('is-active', isActive);
+    t.setAttribute('aria-selected', isActive ? 'true' : 'false');
   });
 
   document.querySelectorAll('[data-service-content]').forEach((c) => {
@@ -279,7 +284,19 @@ export function switchServiceTab(target) {
 
   const resultsSection = document.getElementById('results');
   if (resultsSection) {
-    resultsSection.style.display = (target === 'flights' || target === 'ai-search') ? 'block' : 'none';
+    if (target === 'flights' || target === 'ai-search') {
+      resultsSection.classList.remove('hidden');
+      resultsSection.style.display = 'block';
+    } else {
+      resultsSection.classList.add('hidden');
+      resultsSection.style.display = 'none';
+    }
+  }
+
+  renderRecentSearches();
+
+  if ((target === 'flights' || target === 'ai-search') && (!state.offers || !state.offers.length)) {
+    showInitialTrendingMode();
   }
 }
 
@@ -624,7 +641,42 @@ export function initSearchModeSwitcher() {
   });
 }
 
+export function collapseLeftNav() {
+  const sidebar = document.querySelector('[data-left-nav-sidebar]');
+  const toggleBtn = document.querySelector('[data-left-nav-toggle]');
+  if (sidebar && !sidebar.classList.contains('is-collapsed')) {
+    sidebar.classList.add('is-collapsed');
+    if (toggleBtn) {
+      const iconSpan = toggleBtn.querySelector('.toggle-icon') || toggleBtn;
+      iconSpan.textContent = '▶';
+      toggleBtn.setAttribute('title', 'Expand left menu');
+      toggleBtn.setAttribute('aria-label', 'Expand navigation menu');
+    }
+  }
+}
+
+export function initLeftNavToggle() {
+  const sidebar = document.querySelector('[data-left-nav-sidebar]');
+  const toggleBtn = document.querySelector('[data-left-nav-toggle]');
+  if (!sidebar || !toggleBtn) return;
+
+  const updateToggleUI = (isCollapsed) => {
+    sidebar.classList.toggle('is-collapsed', isCollapsed);
+    const iconSpan = toggleBtn.querySelector('.toggle-icon') || toggleBtn;
+    iconSpan.textContent = isCollapsed ? '▶' : '◀';
+    toggleBtn.setAttribute('title', isCollapsed ? 'Expand left menu' : 'Collapse left menu');
+    toggleBtn.setAttribute('aria-label', isCollapsed ? 'Expand navigation menu' : 'Collapse navigation menu');
+  };
+
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isCurrentlyCollapsed = sidebar.classList.contains('is-collapsed');
+    updateToggleUI(!isCurrentlyCollapsed);
+  });
+}
+
 export async function handleFlightSearch(searchPayload) {
+  collapseLeftNav();
   const lineProgress = $('[data-line-progress]');
   const resultsSection = $('#results');
   const confirmationSection = $('[data-booking-confirmation-section]');
@@ -868,6 +920,15 @@ export async function handleFlightSearch(searchPayload) {
       favoriteAirline: searchPayload.favoriteAirline || ''
     });
 
+    try {
+      sessionStorage.setItem('jojira_state_flights', JSON.stringify({
+        searchPayload,
+        stateOffers: state.offers,
+        categoryHighlights: state.categoryHighlights,
+        routeNames: state.routeNames
+      }));
+    } catch (e) {}
+
     if (state.offers && state.offers.length > 0) {
       $('#results .results-heading')?.classList.remove('hidden');
       $('#results .table-toolbar')?.classList.remove('hidden');
@@ -886,7 +947,7 @@ export async function handleFlightSearch(searchPayload) {
     }
   } catch (err) {
     console.error('Search failed:', err);
-    let userMsg = err?.message || 'Our travel search service is temporarily unavailable. Please try again in a few moments.';
+    let userMsg = err?.message || 'We couldn\'t find flight options matching your search right now. Please check your travel dates or locations and try again.';
 
     const aiResultsPanel = document.querySelector('[data-ai-results-panel]');
     const activeTab = getActiveServiceTab();
@@ -895,12 +956,35 @@ export async function handleFlightSearch(searchPayload) {
       aiResultsPanel.innerHTML = `
         <div class="search-error-banner" role="alert" style="background: linear-gradient(135deg, #1f1113 0%, #2a1215 100%); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 16px 20px; color: #ffffff; margin-top: 16px;">
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-            <span style="font-size: 18px;">⚠️</span>
-            <strong style="color: #ef4444; font-size: 15px;">Search Error</strong>
+            <span style="font-size: 18px;">✈️</span>
+            <strong style="color: #ef4444; font-size: 15px;">Search Unavailable</strong>
           </div>
           <p style="color: #f87171; font-size: 14px; margin: 0; line-height: 1.5; font-weight: 500;">${userMsg}</p>
         </div>
       `;
+    } else if (resultsSection) {
+      resultsSection.classList.remove('hidden');
+      $('#results .results-heading')?.classList.add('hidden');
+      $('#results .table-toolbar')?.classList.add('hidden');
+      $('#results .offer-table-wrap')?.classList.add('hidden');
+      $('#results .table-footnote')?.classList.add('hidden');
+
+      let emptyBanner = $('#results [data-empty-flights-banner]');
+      if (!emptyBanner) {
+        emptyBanner = document.createElement('div');
+        emptyBanner.setAttribute('data-empty-flights-banner', 'true');
+        resultsSection.appendChild(emptyBanner);
+      }
+      emptyBanner.innerHTML = `
+        <div class="search-error-banner" role="alert" style="background: linear-gradient(135deg, #1f1113 0%, #2a1215 100%); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 20px 24px; color: #ffffff; margin-top: 16px;">
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+            <span style="font-size: 18px;">✈️</span>
+            <strong style="color: #ef4444; font-size: 15px;">Search Unavailable</strong>
+          </div>
+          <p style="color: #f87171; font-size: 14px; margin: 0; line-height: 1.5; font-weight: 500;">${userMsg}</p>
+        </div>
+      `;
+      emptyBanner.classList.remove('hidden');
     }
 
     const errorEl = $('[data-search-error]');
@@ -1052,7 +1136,65 @@ export function initPassengerSelector() {
   updatePassengerDisplay();
 }
 
+export function restoreFlightState() {
+  try {
+    const raw = sessionStorage.getItem('jojira_state_flights');
+    if (!raw) return false;
+    const { searchPayload, stateOffers, categoryHighlights, routeNames } = JSON.parse(raw);
+    if (!stateOffers || !stateOffers.length) return false;
+
+    state.offers = stateOffers;
+    state.categoryHighlights = categoryHighlights || {};
+    state.routeNames = routeNames || { origin: '', destination: '' };
+
+    if (searchPayload) {
+      const originCode = searchPayload.origin || 'ATL';
+      const destCode = searchPayload.destination || 'CDG';
+      const originName = routeNames?.origin || originCode;
+      const destName = routeNames?.destination || destCode;
+      updateRouteHeading(originCode, destCode, searchPayload.depart, originName, destName);
+
+      const originInput = document.querySelector('[name="origin"]');
+      const destInput = document.querySelector('[name="destination"]');
+      const departInput = document.querySelector('[name="depart"]');
+      const returnInput = document.querySelector('[name="return"]');
+      if (originInput && searchPayload.origin) originInput.value = searchPayload.origin;
+      if (destInput && searchPayload.destination) destInput.value = searchPayload.destination;
+      if (departInput && searchPayload.depart) departInput.value = searchPayload.depart;
+      if (returnInput && searchPayload.return) returnInput.value = searchPayload.return;
+    }
+
+    populateAirlines();
+    renderOffers();
+    renderStatTiles();
+    renderAiExecutiveInsightsBanner();
+
+    const activeTab = getActiveServiceTab();
+    const resultsSection = document.getElementById('results');
+    if (resultsSection) {
+      if (activeTab === 'flights' || activeTab === 'ai-search') {
+        resultsSection.style.display = 'block';
+        resultsSection.classList.remove('hidden');
+      } else {
+        resultsSection.style.display = 'none';
+        resultsSection.classList.add('hidden');
+      }
+      $('#results .results-heading')?.classList.remove('hidden');
+      $('#results .table-toolbar')?.classList.remove('hidden');
+      $('#results .offer-table-wrap')?.classList.remove('hidden');
+      $('#results .table-footnote')?.classList.remove('hidden');
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 export function clearWholePage() {
+  ['jojira_state_flights', 'jojira_state_hotels', 'jojira_state_cars', 'jojira_state_packages', 'jojira_state_ai-planner'].forEach((k) => {
+    try { sessionStorage.removeItem(k); } catch (e) {}
+  });
+
   const originInput = document.querySelector('[name="origin"]');
   const destInput = document.querySelector('[name="destination"]');
   const departInput = document.querySelector('[name="depart"]');
@@ -1192,7 +1334,16 @@ export function initEndDateDefaults() {
 }
 
 export function showInitialTrendingMode() {
+  const activeTab = getActiveServiceTab();
   const resultsSection = $('#results');
+  if (activeTab !== 'flights' && activeTab !== 'ai-search') {
+    if (resultsSection) {
+      resultsSection.classList.add('hidden');
+      resultsSection.style.display = 'none';
+    }
+    return;
+  }
+
   if (resultsSection) {
     resultsSection.classList.remove('hidden');
     resultsSection.style.display = 'block';
@@ -1411,48 +1562,21 @@ export function initTripTypeSelector() {
 }
 
 
+
+
 export function initServiceTabs() {
   const tabs = document.querySelectorAll('[data-service-tab]');
-  const contents = document.querySelectorAll('[data-service-content]');
 
   tabs.forEach((tab) => {
     tab.addEventListener('click', () => {
       const target = tab.dataset.serviceTab;
-      tabs.forEach((t) => {
-        const isActive = t.dataset.serviceTab === target;
-        t.classList.toggle('is-active', isActive);
-        t.setAttribute('aria-selected', isActive ? 'true' : 'false');
-      });
-
-      contents.forEach((c) => {
-        if (c.dataset.serviceContent === target) {
-          c.classList.remove('hidden');
-        } else {
-          c.classList.add('hidden');
-        }
-      });
-
-      const resultsSection = document.getElementById('results');
-      if (resultsSection) {
-        if (target === 'flights') {
-          resultsSection.classList.remove('hidden');
-        } else {
-          resultsSection.classList.add('hidden');
-        }
-      }
-
-      renderRecentSearches();
-
-      // Re-evaluate trending flights vs trending prompts when hopping between
-      // the ai-search/flights tabs, as long as no search has run yet.
-      if ((target === 'flights' || target === 'ai-search') && !state.offers.length) {
-        showInitialTrendingMode();
-      }
+      switchServiceTab(target);
     });
   });
 }
 
 export function initSearchForm() {
+  initLeftNavToggle();
   initCityAutocomplete();
   initTableSorting();
   initPassengerSelector();

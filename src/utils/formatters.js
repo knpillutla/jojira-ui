@@ -466,10 +466,10 @@ export function formatHttpErrorMessage(status, category = 'flight', rawText = ''
   const code = Number(status) || 0;
 
   const categoryLabels = {
-    flight: 'flight search',
-    flights: 'flight search',
-    hotel: 'hotel search',
-    hotels: 'hotel search',
+    flight: 'flight',
+    flights: 'flight',
+    hotel: 'hotel',
+    hotels: 'hotel',
     car: 'car rental',
     cars: 'car rental',
     package: 'vacation package',
@@ -478,29 +478,29 @@ export function formatHttpErrorMessage(status, category = 'flight', rawText = ''
     planner: 'AI trip planner'
   };
 
-  const catName = categoryLabels[category] || 'travel search';
+  const catName = categoryLabels[category] || 'travel';
 
   if (code === 400 || code === 422) {
-    return `Unable to process request for ${catName}. Please check your selected dates, locations, or options and try again.`;
+    return `We couldn't process your ${catName} search details. Please verify your selected dates, locations, or travel options and try again.`;
   }
   if (code === 401 || code === 403) {
-    return `Session expired or authorization required. Please refresh the page to continue.`;
+    return `Your session has expired. Please refresh the page and try your search again.`;
   }
   if (code === 404) {
-    return `No ${catName} options found for the specified criteria. Please try a different location or date.`;
+    return `No ${catName} search options were found for your selected criteria. Please try different dates or locations.`;
   }
   if (code === 429) {
-    return `Too many requests. Please wait a moment before searching again.`;
+    return `We're experiencing high search volume. Please wait a moment and try again.`;
   }
   if (code === 500) {
-    return `Our ${catName} service encountered an unexpected error. Please check your search details and try again.`;
+    return `We couldn't find ${catName} options matching your search right now. Please check your travel dates or locations and try again.`;
   }
   if (code === 502 || code === 503) {
-    return `Our ${catName} service is temporarily offline for maintenance. Please try again shortly.`;
+    return `Our ${catName} search service is temporarily offline for maintenance. Please try again shortly.`;
   }
   if (code === 504) {
-    return `${catName.charAt(0).toUpperCase() + catName.slice(1)} connection timed out. Please try again.`;
+    return `The ${catName} search connection timed out. Please try again in a few moments.`;
   }
 
-  return `Our ${catName} service is temporarily unavailable. Please try again in a few moments.`;
+  return `Our ${catName} search service is temporarily unavailable. Please try again in a few moments.`;
 }

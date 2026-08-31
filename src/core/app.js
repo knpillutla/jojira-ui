@@ -1,10 +1,10 @@
-import { initSearchForm, initSearchModeSwitcher, renderRecentSearches, clearWholePage, setDefaultDateFields } from '../components/searchForm.js';
+import { initSearchForm, initSearchModeSwitcher, renderRecentSearches, setDefaultDateFields, restoreFlightState, switchServiceTab } from '../components/searchForm.js';
 import { initBookingEvents, hidePaymentProgress } from '../components/flights/flightBookingWizard.js';
-import { initHotelSearch } from '../components/hotels/hotelSearch.js';
+import { initHotelSearch, restoreHotelState } from '../components/hotels/hotelSearch.js';
 import { initStayBookingEvents } from '../components/hotels/stayBookingWizard.js';
-import { initCarSearch } from '../components/cars/carSearch.js';
-import { initBundleSearch } from '../components/bundles/bundleSearch.js';
-import { initPlannerControls } from '../components/planner/plannerControls.js';
+import { initCarSearch, restoreCarState } from '../components/cars/carSearch.js';
+import { initBundleSearch, restoreBundleState } from '../components/bundles/bundleSearch.js';
+import { initPlannerControls, restorePlannerState } from '../components/planner/plannerControls.js';
 import { initTableSorting } from '../components/offerTable.js';
 import { initAuth } from '../utils/authManager.js';
 import { initAccountDashboard } from '../components/accountDashboard.js';
@@ -27,11 +27,25 @@ function initApp() {
 
   renderRecentSearches();
 
-  // On page load/hard refresh: clear out flight search data & results, preserving recent searches
-  clearWholePage();
+  // Restore active service tab and rendered search results across browser refreshes
+  restoreAppStateOnLoad();
+}
 
-  // Default every date field (all tabs) to today+20 / today+27
-  setDefaultDateFields();
+function restoreAppStateOnLoad() {
+  const activeTab = localStorage.getItem('jojira_active_service_tab') || 'ai-search';
+
+  const restoredFlight = restoreFlightState();
+  const restoredHotel = restoreHotelState();
+  const restoredCar = restoreCarState();
+  const restoredBundle = restoreBundleState();
+  const restoredPlanner = restorePlannerState();
+
+  // Ensure active tab view visibility is strictly applied last
+  switchServiceTab(activeTab);
+
+  if (!restoredFlight && !restoredHotel && !restoredCar && !restoredBundle && !restoredPlanner) {
+    setDefaultDateFields();
+  }
 }
 
 

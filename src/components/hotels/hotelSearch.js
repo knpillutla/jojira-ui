@@ -1,6 +1,6 @@
 import { searchHotels } from '../../api/travelApi.js';
 import { renderHotelResults } from './hotelResults.js';
-import { saveRecentSearch, attachCityAutocomplete, showSearchProgressModal, hideSearchProgressModal } from '../searchForm.js';
+import { saveRecentSearch, attachCityAutocomplete, showSearchProgressModal, hideSearchProgressModal, collapseLeftNav } from '../searchForm.js';
 
 export function initHotelSearch() {
   const form = document.getElementById('hotel-search-form');
@@ -34,6 +34,8 @@ export function initHotelSearch() {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    collapseLeftNav();
+    try { localStorage.setItem('jojira_active_service_tab', 'hotels'); } catch (e) {}
     const formData = new FormData(form);
     const activeTab = tabContainer?.querySelector('[data-hotel-search-tab].is-active')?.dataset.hotelSearchTab || 'exact';
     
@@ -81,6 +83,9 @@ export function initHotelSearch() {
 
     try {
       const data = await searchHotels(payload);
+      try {
+        sessionStorage.setItem('jojira_state_hotels', JSON.stringify({ payload, data }));
+      } catch (e) {}
       renderHotelResults(data);
     } catch (err) {
       if (container) {
@@ -109,4 +114,27 @@ export function initHotelSearch() {
       form.querySelector('button[type="submit"]')?.click();
     });
   });
+}
+
+export function restoreHotelState() {
+  try {
+    const raw = sessionStorage.getItem('jojira_state_hotels');
+    if (!raw) return false;
+    const { payload, data } = JSON.parse(raw);
+    if (!data) return false;
+
+    const form = document.getElementById('hotel-search-form');
+    if (form && payload) {
+      if (payload.location && form.querySelector('[name="hotel_location"]')) form.querySelector('[name="hotel_location"]').value = payload.location;
+      if (payload.checkIn && form.querySelector('[name="hotel_checkin"]')) form.querySelector('[name="hotel_checkin"]').value = payload.checkIn;
+      if (payload.checkOut && form.querySelector('[name="hotel_checkout"]')) form.querySelector('[name="hotel_checkout"]').value = payload.checkOut;
+      if (payload.guests && form.querySelector('[name="hotel_guests"]')) form.querySelector('[name="hotel_guests"]').value = String(payload.guests);
+      if (payload.rooms && form.querySelector('[name="hotel_rooms"]')) form.querySelector('[name="hotel_rooms"]').value = String(payload.rooms);
+    }
+
+    renderHotelResults(data);
+    return true;
+  } catch (e) {
+    return false;
+  }
 }

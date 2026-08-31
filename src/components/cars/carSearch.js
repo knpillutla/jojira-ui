@@ -1,6 +1,6 @@
 import { searchCars } from '../../api/travelApi.js';
 import { renderCarResults } from './carResults.js';
-import { saveRecentSearch, showSearchProgressModal, hideSearchProgressModal } from '../searchForm.js';
+import { saveRecentSearch, showSearchProgressModal, hideSearchProgressModal, collapseLeftNav } from '../searchForm.js';
 
 export function initCarSearch() {
   const form = document.getElementById('car-search-form');
@@ -29,6 +29,8 @@ export function initCarSearch() {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    collapseLeftNav();
+    try { localStorage.setItem('jojira_active_service_tab', 'cars'); } catch (e) {}
     const formData = new FormData(form);
     const activeTab = tabContainer?.querySelector('[data-car-search-tab].is-active')?.dataset.carSearchTab || 'exact';
 
@@ -74,6 +76,9 @@ export function initCarSearch() {
 
     try {
       const data = await searchCars(payload);
+      try {
+        sessionStorage.setItem('jojira_state_cars', JSON.stringify({ payload, data }));
+      } catch (e) {}
       renderCarResults(data);
     } catch (err) {
       if (container) {
@@ -102,4 +107,26 @@ export function initCarSearch() {
       form.querySelector('button[type="submit"]')?.click();
     });
   });
+}
+
+export function restoreCarState() {
+  try {
+    const raw = sessionStorage.getItem('jojira_state_cars');
+    if (!raw) return false;
+    const { payload, data } = JSON.parse(raw);
+    if (!data) return false;
+
+    const form = document.getElementById('car-search-form');
+    if (form && payload) {
+      if (payload.location && form.querySelector('[name="car_location"]')) form.querySelector('[name="car_location"]').value = payload.location;
+      if (payload.pickupDate && form.querySelector('[name="car_pickup"]')) form.querySelector('[name="car_pickup"]').value = payload.pickupDate;
+      if (payload.dropoffDate && form.querySelector('[name="car_dropoff"]')) form.querySelector('[name="car_dropoff"]').value = payload.dropoffDate;
+      if (payload.category && form.querySelector('[name="car_category"]')) form.querySelector('[name="car_category"]').value = payload.category;
+    }
+
+    renderCarResults(data);
+    return true;
+  } catch (e) {
+    return false;
+  }
 }

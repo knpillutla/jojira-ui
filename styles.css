@@ -1972,12 +1972,67 @@ footer {
   position: sticky;
   top: 16px;
   z-index: 10;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .left-nav-header {
-  padding: 0 8px 12px;
+  padding: 0 4px 12px;
   margin-bottom: 8px;
   border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.left-nav-toggle-btn {
+  background: var(--paper, #f1f5f9);
+  border: 1px solid var(--line, #cbd5e1);
+  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--ink, #1e293b);
+  font-size: 10px;
+  line-height: 1;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.left-nav-toggle-btn:hover {
+  background: var(--ink, #1e293b);
+  color: #ffffff;
+  border-color: var(--ink, #1e293b);
+}
+
+/* Collapsed state for Left Navigation Panel */
+.left-nav-sidebar.is-collapsed {
+  width: 58px;
+  padding: 16px 6px;
+}
+
+.left-nav-sidebar.is-collapsed .left-nav-title,
+.left-nav-sidebar.is-collapsed .left-nav-label,
+.left-nav-sidebar.is-collapsed .left-nav-badge,
+.left-nav-sidebar.is-collapsed .left-nav-badge-new {
+  display: none !important;
+}
+
+.left-nav-sidebar.is-collapsed .left-nav-header {
+  justify-content: center !important;
+  padding: 0 0 10px !important;
+}
+
+.left-nav-sidebar.is-collapsed .left-nav-item {
+  justify-content: center;
+  padding: 8px 0;
+  gap: 0;
+}
+
+.left-nav-sidebar.is-collapsed .left-nav-icon {
+  font-size: 16px;
 }
 
 .left-nav-title {

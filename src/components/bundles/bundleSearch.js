@@ -1,6 +1,6 @@
 import { searchBundles } from '../../api/travelApi.js';
 import { renderBundleResults } from './bundleResults.js';
-import { saveRecentSearch, showSearchProgressModal, hideSearchProgressModal } from '../searchForm.js';
+import { saveRecentSearch, showSearchProgressModal, hideSearchProgressModal, collapseLeftNav } from '../searchForm.js';
 
 export function initBundleSearch() {
   const form = document.getElementById('bundle-search-form');
@@ -28,6 +28,8 @@ export function initBundleSearch() {
   });
 
   const triggerSearch = async () => {
+    collapseLeftNav();
+    try { localStorage.setItem('jojira_active_service_tab', 'packages'); } catch (e) {}
     const formData = new FormData(form);
     const activeTab = tabContainer?.querySelector('[data-bundle-search-tab].is-active')?.dataset.bundleSearchTab || 'exact';
 
@@ -88,6 +90,9 @@ export function initBundleSearch() {
 
     try {
       const data = await searchBundles(payload);
+      try {
+        sessionStorage.setItem('jojira_state_packages', JSON.stringify({ payload, data }));
+      } catch (e) {}
       renderBundleResults(data);
     } catch (err) {
       if (container) {
@@ -131,5 +136,27 @@ export function initBundleSearch() {
       triggerSearch();
     });
   });
+}
+
+export function restoreBundleState() {
+  try {
+    const raw = sessionStorage.getItem('jojira_state_packages');
+    if (!raw) return false;
+    const { payload, data } = JSON.parse(raw);
+    if (!data) return false;
+
+    const form = document.getElementById('bundle-search-form');
+    if (form && payload) {
+      if (payload.origin && form.querySelector('[name="bundle_origin"]')) form.querySelector('[name="bundle_origin"]').value = payload.origin;
+      if (payload.destination && form.querySelector('[name="bundle_destination"]')) form.querySelector('[name="bundle_destination"]').value = payload.destination;
+      if (payload.depart && form.querySelector('[name="bundle_depart"]')) form.querySelector('[name="bundle_depart"]').value = payload.depart;
+      if (payload.return && form.querySelector('[name="bundle_return"]')) form.querySelector('[name="bundle_return"]').value = payload.return;
+    }
+
+    renderBundleResults(data);
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 

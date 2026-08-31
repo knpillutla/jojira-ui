@@ -169,9 +169,12 @@
   <main id="top">
     <div class="app-sidebar-layout">
       <!-- LEFT NAVIGATION MENU -->
-      <aside class="left-nav-sidebar" aria-label="Services Navigation">
-        <div class="left-nav-header">
+      <aside class="left-nav-sidebar" aria-label="Services Navigation" data-left-nav-sidebar>
+        <div class="left-nav-header" style="display:flex; justify-content:space-between; align-items:center;">
           <span class="left-nav-title">Search Menu</span>
+          <button type="button" class="left-nav-toggle-btn" data-left-nav-toggle title="Collapse left menu" aria-label="Collapse navigation menu">
+            <span class="toggle-icon">◀</span>
+          </button>
         </div>
         <nav class="left-nav-menu" role="tablist" aria-label="Travel Services Navigation">
           <button type="button" class="left-nav-item is-active" data-service-tab="ai-search" role="tab"

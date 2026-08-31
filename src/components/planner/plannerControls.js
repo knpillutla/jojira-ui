@@ -1,4 +1,4 @@
-import { showSearchProgressModal, hideSearchProgressModal, saveRecentSearch } from '../searchForm.js';
+import { showSearchProgressModal, hideSearchProgressModal, saveRecentSearch, collapseLeftNav } from '../searchForm.js';
 import { generateAiItinerary, saveUserTripPlan } from '../../api/travelApi.js';
 import { getUserId } from '../../utils/authManager.js';
 import { renderPlannerItinerary } from './plannerItinerary.js';
@@ -15,6 +15,7 @@ export function initPlannerControls() {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    collapseLeftNav();
 
     const promptVal = form.querySelector('[name="planner_prompt"]')?.value.trim();
     const destVal = form.querySelector('[name="planner_destination"]')?.value.trim();
@@ -120,6 +121,10 @@ export function initPlannerControls() {
 }
 
 async function loadItinerary(payload) {
+  collapseLeftNav();
+  try {
+    localStorage.setItem('jojira_active_service_tab', 'ai-planner');
+  } catch (e) {}
   const optionsOverviewContainer = document.getElementById('ai-planner-options-overview');
   const splitViewContainer = document.getElementById('ai-planner-view');
 
@@ -144,6 +149,10 @@ async function loadItinerary(payload) {
     const options = processRawPlannerResponse(rawData, payload);
     currentAllOptions = options;
 
+    try {
+      sessionStorage.setItem('jojira_state_ai-planner', JSON.stringify({ payload, rawData }));
+    } catch (e) {}
+
     renderPlannerOptionsOverview(options, payload);
   } catch (err) {
     console.error('❌ [AI PLANNER] Error in loadItinerary:', err);
@@ -164,15 +173,77 @@ async function loadItinerary(payload) {
   }
 }
 
+export function restorePlannerState() {
+  try {
+    const raw = sessionStorage.getItem('jojira_state_ai-planner');
+    if (!raw) return false;
+    const { payload, rawData } = JSON.parse(raw);
+    if (!rawData) return false;
+
+    const form = document.getElementById('ai-planner-form');
+    if (form && payload) {
+      if (payload.prompt && form.querySelector('[name="planner_prompt"]')) form.querySelector('[name="planner_prompt"]').value = payload.prompt;
+      if (payload.destination && form.querySelector('[name="planner_destination"]')) form.querySelector('[name="planner_destination"]').value = payload.destination;
+      if (payload.days && form.querySelector('[name="planner_days"]')) form.querySelector('[name="planner_days"]').value = String(payload.days);
+    }
+
+    const options = processRawPlannerResponse(rawData, payload);
+    renderPlannerOptionsOverview(options, payload);
+    const optionsOverviewContainer = document.getElementById('ai-planner-options-overview');
+    if (optionsOverviewContainer) optionsOverviewContainer.classList.remove('hidden');
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function processRawPlannerResponse(rawData, payload) {
   const inner = rawData?.data || rawData || {};
+  let options = [];
   
   if (Array.isArray(inner.options) && inner.options.length > 0) {
-    return inner.options.map((opt, i) => normalizeSingleOption(opt, payload, i));
+    options = inner.options.map((opt, i) => normalizeSingleOption(opt, payload, i));
+  } else {
+    const baseOption = normalizeSingleOption(inner, payload, 0);
+    options = buildThreeItineraryOptions(baseOption, payload);
   }
 
-  const baseOption = normalizeSingleOption(inner, payload, 0);
-  return buildThreeItineraryOptions(baseOption, payload);
+  return sortOptionsBudgetFirst(options);
+}
+
+function sortOptionsBudgetFirst(options) {
+  if (!Array.isArray(options) || options.length <= 1) return options;
+
+  const rankTier = (opt) => {
+    const text = `${opt.badge || ''} ${opt.title || ''} ${opt.badge_class || ''}`.toLowerCase();
+    if (text.includes('budget') || text.includes('saver') || text.includes('economy')) return 1;
+    if (text.includes('balanced') || text.includes('value') || text.includes('highlights')) return 2;
+    if (text.includes('luxury') || text.includes('deluxe') || text.includes('premium')) return 3;
+    return 2;
+  };
+
+  const sorted = [...options].sort((a, b) => {
+    const rA = rankTier(a);
+    const rB = rankTier(b);
+    if (rA !== rB) return rA - rB;
+    return (a.total_cost || 0) - (b.total_cost || 0);
+  });
+
+  return sorted.map((opt, idx) => {
+    const defaultLabels = [
+      '💰 Option 1: Express Budget Saver',
+      '🏆 Option 2: Balanced Highlights',
+      '✨ Option 3: Premium Luxury Experience'
+    ];
+    const defaultClasses = ['option-badge-budget', 'option-badge-balanced', 'option-badge-deluxe'];
+    
+    return {
+      ...opt,
+      option_id: `opt_${idx + 1}`,
+      badge: opt.badge ? opt.badge.replace(/Option \d+[:]?\s*/i, `Option ${idx + 1}: `) : defaultLabels[idx % 3],
+      badge_class: opt.badge_class || defaultClasses[idx % 3]
+    };
+  });
 }
 
 function normalizeSingleOption(rawItem, payload, optionIndex = 0) {
@@ -250,9 +321,9 @@ function normalizeSingleOption(rawItem, payload, optionIndex = 0) {
 
   return {
     option_id: rawItem.option_id || `opt_${optionIndex + 1}`,
-    badge: rawItem.badge || (optionIndex === 0 ? '🏆 Option 1: Best Value' : optionIndex === 1 ? '💰 Option 2: Express Budget Saver' : '✨ Option 3: Deluxe Experience'),
-    badge_class: optionIndex === 0 ? 'option-badge-balanced' : optionIndex === 1 ? 'option-badge-budget' : 'option-badge-deluxe',
-    title: rawItem.title || `${payload.destination} ${optionIndex === 0 ? 'Balanced Highlights & Cultural Tour' : optionIndex === 1 ? 'Express Budget Saver' : 'Premium Deluxe & Gastronomy'}`,
+    badge: rawItem.badge || (optionIndex === 0 ? '💰 Option 1: Express Budget Saver' : optionIndex === 1 ? '🏆 Option 2: Balanced Highlights' : '✨ Option 3: Premium Luxury Experience'),
+    badge_class: optionIndex === 0 ? 'option-badge-budget' : optionIndex === 1 ? 'option-badge-balanced' : 'option-badge-deluxe',
+    title: rawItem.title || `${payload.destination} ${optionIndex === 0 ? 'Express Budget Saver' : optionIndex === 1 ? 'Balanced Highlights & Cultural Tour' : 'Premium Luxury & Gastronomy'}`,
     description: rawItem.description || `Custom ${total_days}-day itinerary tailored for ${payload.destination}.`,
     total_cost: totalCost,
     cost_per_person: Math.round(totalCost / passengers),
@@ -283,28 +354,11 @@ function buildThreeItineraryOptions(baseOpt, payload) {
   const tripDatesStr = `${dateFmt(departDateObj)} – ${dateFmt(returnDateObj)}, ${departDateObj.getFullYear()}`;
   const flightDatesStr = `${dateFmt(departDateObj)} – ${dateFmt(returnDateObj)}`;
 
-  const opt1 = {
+  const budgetPrice = Math.round(basePrice * 0.68);
+  const opt1Budget = {
     ...baseOpt,
     option_id: 'opt_1',
-    badge: '🏆 Option 1: Balanced Highlights',
-    badge_class: 'option-badge-balanced',
-    title: `${destination} Balanced Highlights & Cultural Tour`,
-    trip_dates: tripDatesStr,
-    total_cost: basePrice,
-    cost_per_person: Math.round(basePrice / passengers),
-    bundles: [
-      { icon: '✈️', name: `Roundtrip Flights (${payload.origin || 'ATL'} ➔ ${destination})`, dates: flightDatesStr, price: `$${Math.round(basePrice * 0.35)}` },
-      { icon: '🏨', name: `4★ Central Boutique Hotel (${totalDays} nights)`, dates: flightDatesStr, price: `$${Math.round(basePrice * 0.45)}` },
-      { icon: '🚗', name: `Midsize Rental SUV`, dates: flightDatesStr, price: `$${Math.round(basePrice * 0.12)}` }
-    ],
-    savings: 'Save $350 (20% Bundle Discount)'
-  };
-
-  const budgetPrice = Math.round(basePrice * 0.68);
-  const opt2 = {
-    ...baseOpt,
-    option_id: 'opt_2',
-    badge: '💰 Option 2: Express Budget Saver',
+    badge: '💰 Option 1: Express Budget Saver',
     badge_class: 'option-badge-budget',
     title: `${destination} Express Budget Saver`,
     trip_dates: tripDatesStr,
@@ -318,13 +372,30 @@ function buildThreeItineraryOptions(baseOpt, payload) {
     savings: 'Save $420 (28% Bundle Discount)'
   };
 
+  const opt2Balanced = {
+    ...baseOpt,
+    option_id: 'opt_2',
+    badge: '🏆 Option 2: Balanced Highlights',
+    badge_class: 'option-badge-balanced',
+    title: `${destination} Balanced Highlights & Cultural Tour`,
+    trip_dates: tripDatesStr,
+    total_cost: basePrice,
+    cost_per_person: Math.round(basePrice / passengers),
+    bundles: [
+      { icon: '✈️', name: `Roundtrip Flights (${payload.origin || 'ATL'} ➔ ${destination})`, dates: flightDatesStr, price: `$${Math.round(basePrice * 0.35)}` },
+      { icon: '🏨', name: `4★ Central Boutique Hotel (${totalDays} nights)`, dates: flightDatesStr, price: `$${Math.round(basePrice * 0.45)}` },
+      { icon: '🚗', name: `Midsize Rental SUV`, dates: flightDatesStr, price: `$${Math.round(basePrice * 0.12)}` }
+    ],
+    savings: 'Save $350 (20% Bundle Discount)'
+  };
+
   const deluxePrice = Math.round(basePrice * 1.55);
-  const opt3 = {
+  const opt3Luxury = {
     ...baseOpt,
     option_id: 'opt_3',
-    badge: '✨ Option 3: Premium Deluxe',
+    badge: '✨ Option 3: Premium Luxury Experience',
     badge_class: 'option-badge-deluxe',
-    title: `${destination} Premium Deluxe & Gastronomy`,
+    title: `${destination} Premium Luxury & Gastronomy`,
     trip_dates: tripDatesStr,
     total_cost: deluxePrice,
     cost_per_person: Math.round(deluxePrice / passengers),
@@ -336,7 +407,7 @@ function buildThreeItineraryOptions(baseOpt, payload) {
     savings: 'Save $580 (15% Bundle Discount)'
   };
 
-  return [opt1, opt2, opt3];
+  return [opt1Budget, opt2Balanced, opt3Luxury];
 }
 
 function renderPlannerOptionsOverview(options) {
@@ -452,6 +523,7 @@ function renderMiniMap(containerId, optionData) {
 }
 
 function expandPlannerOption(index) {
+  collapseLeftNav();
   const optionsOverviewContainer = document.getElementById('ai-planner-options-overview');
   const splitViewContainer = document.getElementById('ai-planner-view');
   if (!splitViewContainer || !currentAllOptions[index]) return;
