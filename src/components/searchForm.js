@@ -319,14 +319,18 @@ function repositionRecentSearches(activeTab) {
     hotels: '[data-hotel-results]',
     cars: '[data-car-results]',
     packages: '[data-bundle-results]',
-    'ai-planner': '#ai-planner-view'
+    'ai-planner': '#ai-planner-recent-searches'
   };
 
   const anchorSelector = anchorSelectorByTab[activeTab];
   const anchor = anchorSelector ? $(anchorSelector) : null;
 
-  if (anchor && anchor.parentElement) {
-    anchor.parentElement.insertBefore(card, anchor);
+  if (anchor) {
+    if (activeTab === 'ai-planner') {
+      anchor.appendChild(card);
+    } else if (anchor.parentElement) {
+      anchor.parentElement.insertBefore(card, anchor);
+    }
   } else if (recentSearchesDefaultParent) {
     // flights / ai-search: restore to default position above #results
     recentSearchesDefaultParent.insertBefore(card, recentSearchesDefaultNextSibling);
@@ -337,28 +341,17 @@ export function renderRecentSearches() {
   const activeTab = getActiveServiceTab();
   const allList = getRecentSearches();
 
-  // Strict tab isolation rule:
-  // - Non-AI tabs ('flights', 'hotels', 'cars', 'packages') MUST NEVER display AI searches (items with item.prompt or serviceTab === 'ai-search' / 'ai-planner')
-  // - 'ai-search' tab ONLY displays AI searches
-  // - 'ai-planner' tab ONLY displays planner searches
-  const list = allList.filter((item) => {
-    const isAiItem = Boolean(item.prompt || item.serviceTab === 'ai-search' || item.serviceTab === 'ai-planner');
-
-    if (activeTab === 'ai-search') {
-      return isAiItem || (item.serviceTab || 'ai-search') === 'ai-search';
-    }
-
-    if (activeTab === 'ai-planner') {
-      return item.serviceTab === 'ai-planner';
-    }
-
-    // For all non-AI tabs (flights, hotels, cars, packages), NEVER display AI searches!
-    if (isAiItem) {
-      return false;
-    }
-
-    return (item.serviceTab || 'flights') === activeTab;
+  // 100% Strict Tab Isolation Rule:
+  // Each tab ('ai-search', 'ai-planner', 'flights', 'hotels', 'cars', 'packages')
+  // ONLY displays recent searches created specifically for that tab!
+  let list = allList.filter((item) => {
+    const itemTab = item.serviceTab || (item.prompt ? 'ai-search' : 'flights');
+    return itemTab === activeTab;
   });
+
+  if (activeTab === 'ai-planner') {
+    list = list.slice(0, 3);
+  }
 
   repositionRecentSearches(activeTab);
 
@@ -374,13 +367,31 @@ export function renderRecentSearches() {
 
   card.classList.remove('hidden');
   ul.innerHTML = list.map((item, index) => {
-    if (activeTab === 'ai-search' || activeTab === 'ai-planner') {
+    if (activeTab === 'ai-planner') {
+      const fullPrompt = item.prompt || `${item.destination || item.location} (${item.days || 4} days)`;
+      const metaText = item.destination || item.location || 'AI Trip';
+      return `
+        <div class="recent-search-card is-natural planner-single-line-item" data-recent-index="${index}" title="${fullPrompt.replace(/"/g, '&quot;')}" style="max-width:260px; flex:0 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+          <div class="recent-card-route" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; align-items:center; gap:4px;">
+            <span class="recent-plane-icon" style="flex-shrink:0;">✨</span>
+            <strong class="recent-prompt-text" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11.5px;">"${fullPrompt}"</strong>
+          </div>
+          <div class="recent-card-meta" style="flex-shrink:0; display:flex; align-items:center; gap:4px;">
+            <span class="recent-date-tag" style="font-size:10px;">${metaText}</span>
+            <span class="recent-search-arrow" style="font-size:10px;">→</span>
+            <button type="button" class="recent-delete-btn" data-remove-recent-index="${index}" title="Remove this search" aria-label="Remove this search">✕</button>
+          </div>
+        </div>
+      `;
+    }
+
+    if (activeTab === 'ai-search') {
       const titleText = item.prompt || `${item.destination || item.location} (${item.days || 4} days)`;
       const metaText = item.destination || item.location || 'AI Search';
       return `
-        <div class="recent-search-card is-natural" data-recent-index="${index}" title="Click to populate & run: &quot;${titleText}&quot;">
+        <div class="recent-search-card is-natural" data-recent-index="${index}" title="${titleText.replace(/"/g, '&quot;')}">
           <div class="recent-card-route">
-            <span class="recent-plane-icon">${activeTab === 'ai-planner' ? '✨' : '🧠'}</span>
+            <span class="recent-plane-icon">🧠</span>
             <strong class="recent-prompt-text">"${titleText}"</strong>
           </div>
           <div class="recent-card-meta">
@@ -490,6 +501,12 @@ export function renderRecentSearches() {
           if (daysSelect) daysSelect.value = String(item.days || 4);
           if (styleSelect) styleSelect.value = item.style || '';
           if (budgetSelect) budgetSelect.value = item.budget || '';
+
+          if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+          } else {
+            form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+          }
         }
       } else if (activeTab === 'hotels') {
         const form = document.getElementById('hotel-search-form');

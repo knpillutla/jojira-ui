@@ -705,100 +705,94 @@
             <div class="search-panel ai-planner-search-panel" aria-label="AI Trip Planner Search Console">
               <form id="ai-planner-form">
                 <!-- AI Chat Input Bar -->
-                <div class="ai-chat-input-bar">
+                <div class="ai-chat-input-bar" style="display:flex; align-items:center; gap:8px;">
                   <span class="chat-ai-icon">💬</span>
                   <input name="planner_prompt"
                     placeholder="Ask AI to plan a trip or modify your itinerary (e.g. 4-day romantic trip to Paris with art museums under $2000)..."
                     autocomplete="off" />
+                  <button type="button" id="btn-toggle-planner-options" class="btn-toggle-planner-options" title="Toggle advanced filters & options">
+                    <span>⚙️ Options ▼</span>
+                  </button>
                   <button type="submit" class="chat-send-btn">
                     <span>✨ Generate Itinerary</span>
                     <b>➔</b>
                   </button>
                 </div>
 
-                <div class="planner-options-drawer-title">
-                  <span>💡 Optional Hints & Component Preferences</span>
-                </div>
-
-                <!-- Unified Compact Options Panel -->
-                <div class="planner-unified-options-card">
-                  <div class="planner-fields-subgrid">
-                    <label class="field-compact">
-                      <span>Destination (Optional Hint)</span>
-                      <input name="planner_destination" placeholder="City or country (e.g. Paris)" value=""
-                        autocomplete="off" />
-                    </label>
-                    <label class="field-compact">
-                      <span>Duration</span>
-                      <select name="planner_days">
-                        <option value="" selected>None (Auto-detect)</option>
-                        <option value="2">2 Days Weekend</option>
-                        <option value="3">3 Days Express</option>
-                        <option value="4">4 Days Highlights</option>
-                        <option value="7">7 Days Complete</option>
-                      </select>
-                    </label>
-                    <label class="field-compact">
-                      <span>Travel Style</span>
-                      <select name="planner_style">
-                        <option value="" selected>None (Auto-detect)</option>
-                        <option value="balanced">Balanced Highlights</option>
-                        <option value="culture">Art & Culture</option>
-                        <option value="foodie">Foodie & Dining</option>
-                        <option value="nature">Parks & Relaxation</option>
-                      </select>
-                    </label>
-                    <label class="field-compact">
-                      <span>Budget Tier</span>
-                      <select name="planner_budget">
-                        <option value="" selected>None (Auto-detect)</option>
-                        <option value="budget">Budget Friendly</option>
-                        <option value="moderate">Moderate Comfort</option>
-                        <option value="luxury">Luxury & Premium</option>
-                      </select>
-                    </label>
+                <!-- Collapsible Advanced Options Panel (Default: Collapsed) -->
+                <div id="ai-planner-collapsible-options" class="planner-collapsible-options hidden" style="margin-top: 10px;">
+                  <div class="planner-options-drawer-title">
+                    <span>💡 Optional Hints & Component Preferences</span>
                   </div>
 
-                  <div class="planner-checkboxes-subrow">
-                    <span class="checkboxes-row-title">Include in Trip Plan:</span>
-                    <label class="compact-checkbox"><input type="checkbox" name="include_flights" checked /> <span>✈️
-                        Flights</span></label>
-                    <label class="compact-checkbox"><input type="checkbox" name="include_hotels" checked /> <span>🏨
-                        Hotels</span></label>
-                    <label class="compact-checkbox"><input type="checkbox" name="include_cars" checked /> <span>🚗 Car
-                        Rentals</span></label>
-                    <label class="compact-checkbox"><input type="checkbox" name="include_trains" /> <span>🚆
-                        Trains</span></label>
-                    <label class="compact-checkbox"><input type="checkbox" name="include_buses" /> <span>🚌
-                        Buses</span></label>
-                    <label class="compact-checkbox"><input type="checkbox" name="include_attractions" checked />
-                      <span>🎟️ Attractions</span></label>
-                    <label class="compact-checkbox"><input type="checkbox" name="include_activities" checked /> <span>🏄
-                        Activities & Dining</span></label>
-                    <label class="compact-checkbox"><input type="checkbox" name="include_seasonal_attractions"
-                        checked /> <span>🍂 Seasonal Attractions</span></label>
-                    <label class="compact-checkbox"><input type="checkbox" name="include_seasonal_activities" checked />
-                      <span>❄️ Seasonal Activities</span></label>
-                  </div>
-                </div>
+                  <!-- Unified Compact Options Panel -->
+                  <div class="planner-unified-options-card">
+                    <div class="planner-fields-subgrid" style="grid-template-columns: repeat(2, 1fr);">
+                      <label class="field-compact">
+                        <span>Travel Style</span>
+                        <select name="planner_style">
+                          <option value="" selected>None (Auto-detect)</option>
+                          <option value="balanced">Balanced Highlights</option>
+                          <option value="culture">Art & Culture</option>
+                          <option value="foodie">Foodie & Dining</option>
+                          <option value="nature">Parks & Relaxation</option>
+                        </select>
+                      </label>
+                      <label class="field-compact">
+                        <span>Budget Tier</span>
+                        <select name="planner_budget">
+                          <option value="" selected>None (Auto-detect)</option>
+                          <option value="budget">Budget Friendly</option>
+                          <option value="moderate">Moderate Comfort</option>
+                          <option value="luxury">Luxury & Premium</option>
+                        </select>
+                      </label>
+                    </div>
 
-                <!-- Popular Ideas Preset Chips -->
-                <div class="planner-presets-row"
-                  style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                  <span
-                    style="font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px;">Popular
-                    ideas:</span>
-                  <button type="button" class="preset-chip" data-planner-preset data-preset-dest="Paris"
-                    data-preset-days="4">🇫🇷 Paris 4-Day Trip</button>
-                  <button type="button" class="preset-chip" data-planner-preset data-preset-dest="Tokyo"
-                    data-preset-days="2">🇯🇵 Tokyo Express</button>
+                    <div class="planner-checkboxes-subrow">
+                      <span class="checkboxes-row-title">Include in Trip Plan:</span>
+                      <label class="compact-checkbox"><input type="checkbox" name="include_flights" checked /> <span>✈️
+                          Flights</span></label>
+                      <label class="compact-checkbox"><input type="checkbox" name="include_hotels" checked /> <span>🏨
+                          Hotels</span></label>
+                      <label class="compact-checkbox"><input type="checkbox" name="include_cars" checked /> <span>🚗 Car
+                          Rentals</span></label>
+                      <label class="compact-checkbox"><input type="checkbox" name="include_trains" /> <span>🚆
+                          Trains</span></label>
+                      <label class="compact-checkbox"><input type="checkbox" name="include_buses" /> <span>🚌
+                          Buses</span></label>
+                      <label class="compact-checkbox"><input type="checkbox" name="include_attractions" checked />
+                        <span>🎟️ Attractions</span></label>
+                      <label class="compact-checkbox"><input type="checkbox" name="include_activities" checked /> <span>🏄
+                          Activities & Dining</span></label>
+                      <label class="compact-checkbox"><input type="checkbox" name="include_seasonal_attractions"
+                          checked /> <span>🍂 Seasonal Attractions</span></label>
+                      <label class="compact-checkbox"><input type="checkbox" name="include_seasonal_activities" checked />
+                        <span>❄️ Seasonal Activities</span></label>
+                    </div>
+                  </div>
+
+                  <!-- Popular Ideas Preset Chips -->
+                  <div class="planner-presets-row"
+                    style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <span
+                      style="font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px;">Popular
+                      ideas:</span>
+                    <button type="button" class="preset-chip" data-planner-preset data-preset-dest="Paris"
+                      data-preset-days="4">🇫🇷 Paris 4-Day Trip</button>
+                    <button type="button" class="preset-chip" data-planner-preset data-preset-dest="Tokyo"
+                      data-preset-days="2">🇯🇵 Tokyo Express</button>
+                  </div>
                 </div>
               </form>
-              <p class="search-error" data-planner-search-error role="alert" aria-live="polite"></p>
+              <p class="search-error hidden" data-planner-search-error role="alert" aria-live="polite"></p>
             </div>
 
+            <!-- Recent Searches Section below Search Panel -->
+            <div id="ai-planner-recent-searches" class="planner-recent-searches-container" style="margin-top: 6px; margin-bottom: 6px;"></div>
+
             <!-- Workspace Area Below: Visual Results & Interactive Map -->
-            <div class="ai-planner-results-workspace" style="margin-top: 24px;">
+            <div class="ai-planner-results-workspace" style="margin-top: 8px;">
               <!-- High-Level 3-Itinerary Options Overview Cards -->
               <div id="ai-planner-options-overview" class="planner-options-grid-container hidden"></div>
 
@@ -823,16 +817,24 @@
                           <span class="map-title">📍 Interactive Route Map</span>
                           <span class="map-subtitle">Pins & routes color-coded by day</span>
                         </div>
-                        <div class="map-provider-toggle"
-                          style="display:flex; gap:4px; background:#f1f5f9; padding:3px; border-radius:8px; border:1px solid #cbd5e1;">
-                          <button type="button" class="map-toggle-btn is-active" data-map-provider="google"
-                            style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; border:0; cursor:pointer; background:#ffffff; color:#0f172a; box-shadow:0 1px 2px rgba(0,0,0,0.08);">🗺️
-                            Google Maps</button>
-                          <button type="button" class="map-toggle-btn" data-map-provider="leaflet"
-                            style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; border:0; cursor:pointer; background:transparent; color:#64748b;">🍃
-                            Leaflet</button>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                          <div class="distance-unit-toggle" style="display:flex; gap:2px; background:#f1f5f9; padding:3px; border-radius:8px; border:1px solid #cbd5e1;">
+                            <button type="button" class="unit-toggle-btn" data-distance-unit="mi" title="Display in miles" style="font-size:11px; font-weight:700; padding:3px 8px; border-radius:5px; border:0; cursor:pointer; background:transparent; color:#64748b;">mi</button>
+                            <button type="button" class="unit-toggle-btn" data-distance-unit="km" title="Display in kilometers" style="font-size:11px; font-weight:700; padding:3px 8px; border-radius:5px; border:0; cursor:pointer; background:transparent; color:#64748b;">km</button>
+                          </div>
+                          <div class="map-provider-toggle"
+                            style="display:flex; gap:4px; background:#f1f5f9; padding:3px; border-radius:8px; border:1px solid #cbd5e1;">
+                            <button type="button" class="map-toggle-btn is-active" data-map-provider="google"
+                              style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; border:0; cursor:pointer; background:#ffffff; color:#0f172a; box-shadow:0 1px 2px rgba(0,0,0,0.08);">🗺️
+                              Google Maps</button>
+                            <button type="button" class="map-toggle-btn" data-map-provider="leaflet"
+                              style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:6px; border:0; cursor:pointer; background:transparent; color:#64748b;">🍃
+                              Leaflet</button>
+                          </div>
                         </div>
                       </div>
+                      <!-- Map Legend Bar above the map frame -->
+                      <div id="planner-map-legend" class="planner-map-legend-bar" style="background:#f8fafc; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; padding:8px 14px;"></div>
                       <div class="maps-quota-alert-box hidden" data-maps-quota-alert></div>
                       <div id="trip-map" class="leaflet-map-frame"></div>
                     </div>

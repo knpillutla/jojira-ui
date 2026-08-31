@@ -1,3 +1,4 @@
+import './apiLocationHeaders.js';
 import { LATEST_SEARCH_RESULTS as latestResults } from '../utils/latestResults.js';
 import { normalizeSearchResponse, formatHttpErrorMessage } from '../utils/formatters.js';
 import { getCachedSearch, setCachedSearch } from '../utils/clientCache.js';

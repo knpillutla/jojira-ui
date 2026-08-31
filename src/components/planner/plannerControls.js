@@ -1,7 +1,7 @@
 import { showSearchProgressModal, hideSearchProgressModal, saveRecentSearch, collapseLeftNav } from '../searchForm.js';
 import { generateAiItinerary, saveUserTripPlan } from '../../api/travelApi.js';
 import { getUserId } from '../../utils/authManager.js';
-import { renderPlannerItinerary } from './plannerItinerary.js';
+import { renderPlannerItinerary, extractHotelsFromItinerary } from './plannerItinerary.js';
 import { initOrUpdateMap } from './plannerMap.js';
 
 let currentAllOptions = [];
@@ -13,17 +13,31 @@ export function initPlannerControls() {
   const form = document.getElementById('ai-planner-form');
   if (!form) return;
 
+  const toggleOptionsBtn = document.getElementById('btn-toggle-planner-options');
+  const collapsibleOptions = document.getElementById('ai-planner-collapsible-options');
+
+  if (toggleOptionsBtn && collapsibleOptions) {
+    toggleOptionsBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const isHidden = collapsibleOptions.classList.contains('hidden');
+      collapsibleOptions.classList.toggle('hidden', !isHidden);
+      toggleOptionsBtn.classList.toggle('is-active', isHidden);
+      const textSpan = toggleOptionsBtn.querySelector('span') || toggleOptionsBtn;
+      textSpan.textContent = isHidden ? '⚙️ Options ▲' : '⚙️ Options ▼';
+    });
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     collapseLeftNav();
 
     const promptVal = form.querySelector('[name="planner_prompt"]')?.value.trim();
-    const destVal = form.querySelector('[name="planner_destination"]')?.value.trim();
-    const daysVal = parseInt(form.querySelector('[name="planner_days"]')?.value || '4', 10);
+    const destVal = form.querySelector('[name="planner_destination"]')?.value?.trim() || extractDestinationFromPrompt(promptVal);
+    const daysVal = parseInt(form.querySelector('[name="planner_days"]')?.value || extractDurationFromPrompt(promptVal) || '4', 10);
     const styleVal = form.querySelector('[name="planner_style"]')?.value;
     const budgetVal = form.querySelector('[name="planner_budget"]')?.value;
 
-    const finalPrompt = promptVal || (destVal ? `Plan a ${daysVal}-day ${styleVal || 'balanced'} trip to ${destVal}` : '7-day family trip to Paris');
+    const finalPrompt = promptVal || (destVal ? `Plan a ${daysVal}-day ${styleVal || 'balanced'} trip to ${destVal}` : '4-day trip to Paris');
     const finalDest = destVal || extractDestinationFromPrompt(promptVal) || 'Paris';
 
     const errorEl = document.querySelector('[data-planner-search-error]');
@@ -103,6 +117,15 @@ export function initPlannerControls() {
         errorEl.classList.remove('is-visible');
         errorEl.classList.add('hidden');
       }
+
+      saveRecentSearch({
+        serviceTab: 'ai-planner',
+        prompt: `${days}-day highlights trip to ${dest}`,
+        destination: dest,
+        days: days,
+        style: 'balanced',
+        budget: 'moderate'
+      });
 
       loadItinerary({
         prompt: `${days}-day highlights trip to ${dest}`,
@@ -656,6 +679,13 @@ function renderDayFilterPills(data) {
     `;
   });
 
+  const hotelsCount = extractHotelsFromItinerary(data).length;
+  pillsHtml += `
+    <button type="button" class="day-pill" data-day-filter="hotels" style="--pill-color: #0d9488">
+      🏨 Hotels (${hotelsCount})
+    </button>
+  `;
+
   filterContainer.innerHTML = pillsHtml;
 
   filterContainer.querySelectorAll('[data-day-filter]').forEach(btn => {
@@ -675,4 +705,14 @@ function extractDestinationFromPrompt(promptStr) {
   const match = promptStr.match(/to\s+([A-Za-z\s]+?)(?=\s+in|\s+for|\s+with|\s+under|\s+on|$)/i);
   if (match && match[1]) return match[1].trim();
   return '';
+}
+
+function extractDurationFromPrompt(promptStr) {
+  if (!promptStr) return 4;
+  const match = promptStr.match(/(\d+)\s*(?:day|days|d\b)/i);
+  if (match && match[1]) {
+    const val = parseInt(match[1], 10);
+    if (val >= 1 && val <= 30) return val;
+  }
+  return 4;
 }

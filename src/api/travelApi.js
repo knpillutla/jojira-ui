@@ -1,3 +1,4 @@
+import './apiLocationHeaders.js';
 import { getCachedSearch, setCachedSearch } from '../utils/clientCache.js';
 import { formatHttpErrorMessage } from '../utils/formatters.js';
 const apiBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port !== '8000'

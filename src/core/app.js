@@ -1,3 +1,4 @@
+import '../api/apiLocationHeaders.js';
 import { initSearchForm, initSearchModeSwitcher, renderRecentSearches, setDefaultDateFields, restoreFlightState, switchServiceTab } from '../components/searchForm.js';
 import { initBookingEvents, hidePaymentProgress } from '../components/flights/flightBookingWizard.js';
 import { initHotelSearch, restoreHotelState } from '../components/hotels/hotelSearch.js';
