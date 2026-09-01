@@ -89,7 +89,7 @@ function renderStayStep1Summary() {
   const summaryEl = $('[data-stay-summary]');
   if (!summaryEl) return;
 
-  const destination = hotel.destination || hotel.location_description || 'Paris';
+  const destination = hotel.destination || hotel.location_description;
   const amenitiesText = hotel.amenities ? hotel.amenities.join(' · ') : 'Free High-Speed Wi-Fi · Swimming Pool · Luxury Spa · Breakfast Included';
 
   summaryEl.innerHTML = `
@@ -319,7 +319,7 @@ async function submitStayBooking() {
     bookingState.activeOffer = {
       isHotel: true,
       to: hotel.name,
-      from: hotel.destination || 'Paris',
+      from: hotel.destination,
       price: hotel.total_price,
       hotelDetails: hotel
     };

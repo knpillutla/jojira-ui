@@ -14,7 +14,7 @@ const userServiceBase = (window.location.hostname === 'localhost' || window.loca
 // -----------------------------------------------------------------------------
 export async function searchHotels(payload) {
   console.log('🏨 [HOTELS API] Searching hotels with payload:', payload);
-  const location = payload.location || 'Paris';
+  const location = payload.location;
 
   const isEnhanced = payload.searchType === 'enhanced';
   const flexDays = payload.flexDays !== undefined ? payload.flexDays : 3;
@@ -359,8 +359,8 @@ export async function bookCar(payload) {
 // -----------------------------------------------------------------------------
 export async function searchBundles(payload) {
   console.log('🌴 [BUNDLES API] Searching packages with payload:', payload);
-  const origin = payload.origin || 'ATL';
-  const destination = payload.destination || 'CDG';
+  const origin = payload.origin;
+  const destination = payload.destination;
 
   const isEnhanced = payload.searchType === 'enhanced';
   const flexDays = payload.flexDays !== undefined ? payload.flexDays : 3;
@@ -584,7 +584,7 @@ export async function generateAiItinerary(payload) {
   if (cached) return cached;
 
   const requestBody = {
-    prompt: payload.prompt || `Plan a ${payload.days || 4}-day ${payload.style || 'balanced'} trip to ${payload.destination || 'Paris'} on a ${payload.budget || 'moderate'} budget.`,
+    prompt: payload.prompt || `Plan a ${payload.days || 4}-day ${payload.style || 'balanced'} trip to ${payload.destination} on a ${payload.budget || 'moderate'} budget.`,
     include_flights: payload.include_flights !== undefined ? payload.include_flights : true,
     include_hotels: payload.include_hotels !== undefined ? payload.include_hotels : true,
     include_cars: payload.include_cars !== undefined ? payload.include_cars : true,
@@ -594,7 +594,6 @@ export async function generateAiItinerary(payload) {
     include_activities: payload.include_activities !== undefined ? payload.include_activities : true,
     include_seasonal_attractions: payload.include_seasonal_attractions !== undefined ? payload.include_seasonal_attractions : true,
     include_seasonal_activities: payload.include_seasonal_activities !== undefined ? payload.include_seasonal_activities : true,
-    destination: payload.destination || 'Paris',
     days: Number(payload.days) || 4,
     style: payload.style || 'balanced',
     budget: payload.budget || 'moderate'

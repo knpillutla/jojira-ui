@@ -35,13 +35,13 @@ export function initHotelSearch() {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     collapseLeftNav();
-    try { sessionStorage.setItem('jojira_active_service_tab', 'hotels'); } catch (e) {}
+    try { sessionStorage.setItem('jojira_active_service_tab', 'hotels'); } catch (e) { }
     const formData = new FormData(form);
     const activeTab = tabContainer?.querySelector('[data-hotel-search-tab].is-active')?.dataset.hotelSearchTab || 'exact';
-    
+
     const payload = {
       searchType: activeTab,
-      location: formData.get('hotel_location') || 'Paris',
+      location: formData.get('hotel_location'),
       checkIn: formData.get('hotel_checkin') || '',
       checkOut: formData.get('hotel_checkout') || '',
       guests: parseInt(formData.get('hotel_guests') || '2', 10),
@@ -85,7 +85,7 @@ export function initHotelSearch() {
       const data = await searchHotels(payload);
       try {
         sessionStorage.setItem('jojira_state_hotels', JSON.stringify({ payload, data }));
-      } catch (e) {}
+      } catch (e) { }
       renderHotelResults(data);
     } catch (err) {
       if (container) {

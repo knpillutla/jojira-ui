@@ -34,7 +34,7 @@ function normalizeHighlightOffer(raw) {
   const priceNum = typeof src.total_amount === 'number' ? src.total_amount : parseMoneyVal(src.price);
   const stops = Number(src.max_stops ?? src.stops ?? 0);
   const isOneWay = Boolean(src.is_one_way || src.trip_type === 'one_way');
-  const from = src.origin_code || src.from || 'ATL';
+  const from = src.origin_code || src.from;
   const to = src.destination_code || src.to || 'MCO';
   const formattedDuration = src.total_duration || src.duration || (src.duration_minutes ? `${Math.floor(src.duration_minutes / 60)}h ${src.duration_minutes % 60}m` : '');
 
@@ -317,20 +317,20 @@ export function renderStatTiles() {
       ${tiles.map((tile) => {
     const o = tile.offer;
     const legCodesStr = formatLegCodes(o);
-    const routeStr = `${o.from || 'ATL'} → ${o.to || 'MCO'}`;
+    const routeStr = `${o.from} → ${o.to || 'MCO'}`;
     const durationStr = o.formattedDuration || (o.duration ? `${Math.floor(o.duration / 60)}h ${o.duration % 60}m` : 'N/A');
     const priceStr = o.formattedPrice || money(o.price);
     const legsStr = o.legs || (o.stops === 0 ? 'Non-stop' : `${o.stops} stop${o.stops > 1 ? 's' : ''}`);
-        const isOneWay = Boolean(o.isOneWay || (!o.inboundRouteText && !o.inboundRouteTextWithDuration));
-        const tripTypeLabel = isOneWay ? '✈️ One Way' : '🔄 Round Trip';
-        const isActiveTile = Boolean(state.activeTileKey && state.activeTileKey === tile.key);
+    const isOneWay = Boolean(o.isOneWay || (!o.inboundRouteText && !o.inboundRouteTextWithDuration));
+    const tripTypeLabel = isOneWay ? '✈️ One Way' : '🔄 Round Trip';
+    const isActiveTile = Boolean(state.activeTileKey && state.activeTileKey === tile.key);
 
-        const dateStr = o.dateRangeText || (o.rawDepart ? formatDateShort(o.rawDepart) + (o.rawReturnDepart ? ` – ${formatDateShort(o.rawReturnDepart)}` : '') : '');
-        const outDepTime = o.departTime || (o.outboundDepartDateTime ? formatTimeOnly(o.outboundDepartDateTime) : (o.depart ? formatTimeOnly(o.depart) : ''));
-        const outArrTime = o.arriveTime || (o.outboundArriveDateTime ? formatTimeOnly(o.outboundArriveDateTime) : (o.arrive ? formatTimeOnly(o.arrive) : ''));
-        const timeDisplayStr = (outDepTime && outArrTime) ? `${outDepTime} – ${outArrTime}` : (outDepTime || outArrTime || '');
+    const dateStr = o.dateRangeText || (o.rawDepart ? formatDateShort(o.rawDepart) + (o.rawReturnDepart ? ` – ${formatDateShort(o.rawReturnDepart)}` : '') : '');
+    const outDepTime = o.departTime || (o.outboundDepartDateTime ? formatTimeOnly(o.outboundDepartDateTime) : (o.depart ? formatTimeOnly(o.depart) : ''));
+    const outArrTime = o.arriveTime || (o.outboundArriveDateTime ? formatTimeOnly(o.outboundArriveDateTime) : (o.arrive ? formatTimeOnly(o.arrive) : ''));
+    const timeDisplayStr = (outDepTime && outArrTime) ? `${outDepTime} – ${outArrTime}` : (outDepTime || outArrTime || '');
 
-        return `
+    return `
 
           <div class="stat-tile-card ${tile.badgeClass} ${isActiveTile ? 'is-active' : ''}" data-tile-key="${tile.key}" data-stat-tile-id="${o.id}" title="Click to view details & book ${tile.badgeLabel}">
             <div class="stat-tile-top-row">

@@ -186,7 +186,7 @@ export function clearRecentSearches() {
   const activeTab = getActiveServiceTab();
   const existing = getRecentSearches();
   const updated = existing.filter((item) => (item.serviceTab || 'flights') !== activeTab);
-  
+
   if (updated.length > 0) {
     document.cookie = `${recentSearchCookie}=${encodeURIComponent(JSON.stringify(updated))}; max-age=259200; path=/; SameSite=Lax`;
   } else {
@@ -270,7 +270,7 @@ export function switchServiceTab(target) {
 
   try {
     sessionStorage.setItem('jojira_active_service_tab', target);
-  } catch (e) {}
+  } catch (e) { }
 
   document.querySelectorAll('[data-service-tab]').forEach((t) => {
     const isActive = t === targetTab || t.dataset.serviceTab === target;
@@ -408,7 +408,7 @@ export function renderRecentSearches() {
         <div class="recent-search-card" data-recent-index="${index}" title="Click to populate & search hotels in ${item.location}">
           <div class="recent-card-route">
             <span class="recent-plane-icon">🏨</span>
-            <strong>${item.location || 'Paris'}</strong>
+            <strong>${item.location}</strong>
           </div>
           <div class="recent-card-meta">
             <span class="recent-date-tag">${formatDateLabel(item.checkIn, item.checkOut)}</span>
@@ -705,8 +705,8 @@ export async function handleFlightSearch(searchPayload) {
     errorEl.classList.remove('is-visible');
   }
 
-  const originText = searchPayload.origin || 'ATL';
-  const destText = searchPayload.destination || 'CDG';
+  const originText = searchPayload.origin;
+  const destText = searchPayload.destination;
   const routeText = searchPayload.prompt ? `"${searchPayload.prompt}"` : `${originText} → ${destText}`;
 
   showSearchProgressModal('Searching Live Flights', `Fetching real-time flight options for ${routeText}...`, '✈️');
@@ -734,7 +734,7 @@ export async function handleFlightSearch(searchPayload) {
       if ((!extractedOffers || extractedOffers.length === 0) && resData.category_highlights && typeof resData.category_highlights === 'object') {
         extractedOffers = Object.values(resData.category_highlights).filter(b => b && typeof b === 'object' && (b.price || b.total_amount || b.airline));
       }
-      
+
       normalized = {
         search_type: meta.search_type || resData.search_type || 'flights',
         ai_summary: resData.ai_summary || '',
@@ -784,8 +784,8 @@ export async function handleFlightSearch(searchPayload) {
       if (lineProgress) lineProgress.classList.add('hidden');
       hideAllResultPanels();
 
-      const origin = normalized.searchParams?.origin || searchPayload.origin || 'ATL';
-      const destination = normalized.searchParams?.destination || searchPayload.destination || 'CDG';
+      const origin = normalized.searchParams?.origin || searchPayload.origin;
+      const destination = normalized.searchParams?.destination || searchPayload.destination;
 
       const bundleData = normalizeBundleApiResponse(aiResponse || normalized, origin, destination);
       const pkgContainer = aiResultsPanel || document.querySelector('[data-bundle-results]');
@@ -810,7 +810,7 @@ export async function handleFlightSearch(searchPayload) {
       if (lineProgress) lineProgress.classList.add('hidden');
       hideAllResultPanels();
 
-      const location = normalized.searchParams?.destination || searchPayload.destination || 'Paris';
+      const location = normalized.searchParams?.destination || searchPayload.destination;
       const hotelData = normalizeHotelApiResponse(aiResponse || normalized, location);
       const hotelContainer = aiResultsPanel || document.querySelector('[data-hotel-results]');
       if (hotelContainer) hotelContainer.classList.remove('hidden');
@@ -914,7 +914,7 @@ export async function handleFlightSearch(searchPayload) {
         renderStatTiles();
       });
     }
-    
+
     renderStatTiles();
     saveRecentSearch({
       origin: originCode,
@@ -944,7 +944,7 @@ export async function handleFlightSearch(searchPayload) {
         categoryHighlights: state.categoryHighlights,
         routeNames: state.routeNames
       }));
-    } catch (e) {}
+    } catch (e) { }
 
     if (state.offers && state.offers.length > 0) {
       $('#results .results-heading')?.classList.remove('hidden');
@@ -1016,7 +1016,7 @@ export async function handleFlightSearch(searchPayload) {
       errorEl.classList.add('is-visible');
     }
   }
- finally {
+  finally {
     if (lineProgress) lineProgress.classList.add('hidden');
     hideSearchProgressModal();
   }
@@ -1165,8 +1165,8 @@ export function restoreFlightState() {
     state.routeNames = routeNames || { origin: '', destination: '' };
 
     if (searchPayload) {
-      const originCode = searchPayload.origin || 'ATL';
-      const destCode = searchPayload.destination || 'CDG';
+      const originCode = searchPayload.origin;
+      const destCode = searchPayload.destination;
       const originName = routeNames?.origin || originCode;
       const destName = routeNames?.destination || destCode;
       updateRouteHeading(originCode, destCode, searchPayload.depart, originName, destName);
@@ -1209,7 +1209,7 @@ export function restoreFlightState() {
 
 export function clearWholePage() {
   ['jojira_state_flights', 'jojira_state_hotels', 'jojira_state_cars', 'jojira_state_packages', 'jojira_state_ai-planner'].forEach((k) => {
-    try { sessionStorage.removeItem(k); } catch (e) {}
+    try { sessionStorage.removeItem(k); } catch (e) { }
   });
 
   const originInput = document.querySelector('[name="origin"]');
@@ -1659,7 +1659,7 @@ export function initSearchForm() {
   });
 
   $('#results [data-filter-toggle]')?.addEventListener('click', () => $('#results [data-filter-drawer]')?.classList.toggle('is-open'));
-  
+
   $('#results [data-dates-filter]')?.addEventListener('change', (e) => {
     state.filters.datesFilter = e.target.value;
     renderOffers();
@@ -1743,8 +1743,8 @@ export function initSearchForm() {
       const rawDest = document.querySelector('[name="destination"]')?.value.trim() || '';
       const originRes = resolveCityOrCode(rawOrigin);
       const destRes = resolveCityOrCode(rawDest);
-      const origin = originRes.code || rawOrigin.toUpperCase() || 'ATL';
-      const destination = destRes.code || rawDest.toUpperCase() || 'CDG';
+      const origin = originRes.code || rawOrigin.toUpperCase();
+      const destination = destRes.code || rawDest.toUpperCase();
 
 
       const depart = document.querySelector('[name="depart"]')?.value || '';

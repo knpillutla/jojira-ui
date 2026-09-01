@@ -29,7 +29,7 @@ export function initAuth() {
           await handleCredentialResponse(data.token);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }, 500);
 
   // Cross-window token sync via localStorage storage event
@@ -43,7 +43,7 @@ export function initAuth() {
           clearInterval(pollInterval);
           await handleCredentialResponse(data.token);
         }
-      } catch (e) {}
+      } catch (e) { }
     }
   });
 
@@ -58,7 +58,7 @@ export function initAuth() {
         handleCredentialResponse(data.token);
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 
   window.addEventListener('message', async (event) => {
     if (event.data && event.data.type === 'GOOGLE_OAUTH_TOKEN_SUCCESS') {
@@ -107,7 +107,7 @@ function checkOAuthRedirectHash() {
       token: googleToken,
       time: Date.now()
     }));
-  } catch (e) {}
+  } catch (e) { }
 
   if (window.opener && window.opener !== window) {
     console.log('📤 [POPUP WINDOW] Postmessaging token back to opener window and closing...');
@@ -118,7 +118,7 @@ function checkOAuthRedirectHash() {
         id_token: idToken,
         access_token: accessToken
       }, '*');
-    } catch (e) {}
+    } catch (e) { }
     window.close();
     return true;
   }
@@ -158,7 +158,7 @@ export function getUserProfile() {
         currentUserProfile = parsed;
         return currentUserProfile;
       }
-    } catch (e) {}
+    } catch (e) { }
   }
   const token = getSessionToken();
   if (token) {
@@ -402,7 +402,7 @@ export function updateNavbarUI() {
         currentUserProfile = { ...profile, ...remoteUser };
         try {
           localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(currentUserProfile));
-        } catch (e) {}
+        } catch (e) { }
         updateNavbarUI();
       }
     });
@@ -421,7 +421,7 @@ export function updateNavbarUI() {
     const userName = profile?.name || 'Authenticated User';
     const userEmailAddr = profile?.email || '';
     const userIdVal = profile?.user_id || getUserId() || '';
-    const homeAirport = profile?.preferences?.home_airport || 'ATL';
+    const homeAirport = profile?.preferences?.home_airport;
     const initials = computeUserInitials(userName);
 
     document.querySelectorAll('[data-user-initials], [data-user-initials-large]').forEach(el => {
@@ -526,7 +526,7 @@ function initGoogleGIS() {
   }
 }
 
-window.jojiraAuthTrigger = function(e) {
+window.jojiraAuthTrigger = function (e) {
   if (e && e.preventDefault) e.preventDefault();
   triggerGoogleAuthFlow();
 };

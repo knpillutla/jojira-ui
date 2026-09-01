@@ -38,7 +38,7 @@ export function initPlannerControls() {
     const budgetVal = form.querySelector('[name="planner_budget"]')?.value;
 
     const finalPrompt = promptVal || (destVal ? `Plan a ${daysVal}-day ${styleVal || 'balanced'} trip to ${destVal}` : '4-day trip to Paris');
-    const finalDest = destVal || extractDestinationFromPrompt(promptVal) || 'Paris';
+    const finalDest = destVal || extractDestinationFromPrompt(promptVal);
 
     const errorEl = document.querySelector('[data-planner-search-error]');
     if (errorEl) {
@@ -102,11 +102,11 @@ export function initPlannerControls() {
     btn.addEventListener('click', () => {
       const dest = btn.getAttribute('data-preset-dest');
       const days = parseInt(btn.getAttribute('data-preset-days') || '4', 10);
-      
+
       const promptInput = form.querySelector('[name="planner_prompt"]');
       const destInput = form.querySelector('[name="planner_destination"]');
       const daysSelect = form.querySelector('[name="planner_days"]');
-      
+
       if (promptInput) promptInput.value = `${days}-day highlights trip to ${dest}`;
       if (destInput) destInput.value = dest;
       if (daysSelect) daysSelect.value = String(days);
@@ -147,7 +147,7 @@ async function loadItinerary(payload) {
   collapseLeftNav();
   try {
     sessionStorage.setItem('jojira_active_service_tab', 'ai-planner');
-  } catch (e) {}
+  } catch (e) { }
   const optionsOverviewContainer = document.getElementById('ai-planner-options-overview');
   const splitViewContainer = document.getElementById('ai-planner-view');
 
@@ -174,7 +174,7 @@ async function loadItinerary(payload) {
 
     try {
       sessionStorage.setItem('jojira_state_ai-planner', JSON.stringify({ payload, rawData }));
-    } catch (e) {}
+    } catch (e) { }
 
     renderPlannerOptionsOverview(options, payload);
   } catch (err) {
@@ -427,7 +427,9 @@ function normalizeSingleOption(rawItem, payload, metaData = {}, optionIndex = 0)
     why_choose_this: rawItem.why_choose_this || '',
     ai_summary: rawItem.ai_summary || '',
     destination: metaData.destination || payload.destination || 'Destination',
-    origin: metaData.origin || payload.origin || 'ATL',
+    origin: metaData.origin || metaData.source || payload.origin || '',
+    source: metaData.source || metaData.origin || payload.source || payload.origin || '',
+    meta_data: metaData,
     total_cost: totalCost,
     total_price_display: totalPriceDisplay,
     cost_per_person: tripSummary.price_per_passenger ?? totalCost,
@@ -451,16 +453,34 @@ function normalizeSingleOption(rawItem, payload, metaData = {}, optionIndex = 0)
   };
 }
 
-function renderPlannerOptionsOverview(options) {
+function renderPlannerOptionsOverview(options, payload = {}) {
   const container = document.getElementById('ai-planner-options-overview');
   if (!container) return;
 
   currentAllOptions = options;
 
+  const firstOpt = (Array.isArray(options) && options[0]) ? options[0] : {};
+  const meta = firstOpt.meta_data || {};
+  const source = meta.source || meta.origin || firstOpt.source || firstOpt.origin || payload?.source || payload?.origin || '';
+  const destination = meta.destination || firstOpt.destination || payload?.destination || '';
+
+  let routeText = '';
+  if (source && destination) {
+    routeText = `${source} → ${destination}`;
+  } else if (destination) {
+    routeText = destination;
+  } else if (source) {
+    routeText = source;
+  }
+
+  const headingTitle = routeText
+    ? `✨ Live AI Itinerary Recommendations: ${routeText} (${options.length} Options)`
+    : `✨ Live AI Itinerary Recommendations (${options.length} Options)`;
+
   let cardsHtml = `
     <div class="planner-options-header">
       <div>
-        <h3 class="planner-options-title">✨ Live AI Itinerary Recommendations (${options.length} Options)</h3>
+        <h3 class="planner-options-title">${headingTitle}</h3>
         <p class="planner-options-subtitle">Select an option below to expand into full detailed itinerary view and interactive map.</p>
       </div>
     </div>
@@ -567,7 +587,7 @@ function renderMiniMap(containerId, optionData) {
   if (!container || typeof L === 'undefined') return;
 
   const center = Array.isArray(optionData.map_center) ? optionData.map_center : [52.3667, 13.5033];
-  
+
   container.innerHTML = '';
 
   const miniMap = L.map(containerId, {
@@ -686,7 +706,7 @@ function renderTripSummaryHeader(data, allOptions = [], selectedIdx = 0) {
     });
 
     const packageOpts = (data.bundles || []).map((b, i) => ({
-      bundle_id: b.id || `bdl_top${i+1}_pkg`,
+      bundle_id: b.id || `bdl_top${i + 1}_pkg`,
       title: b.name || b.title || 'Package Deal',
       total_price: parseFloat(String(b.price || '0').replace(/[^0-9.]/g, '')) || data.total_cost
     }));
@@ -694,8 +714,8 @@ function renderTripSummaryHeader(data, allOptions = [], selectedIdx = 0) {
     const payload = {
       title: data.title || `${data.total_days || 5}-Day Trip Plan`,
       prompt: data.query_prompt || data.title || `Plan a trip to ${data.destination}`,
-      destination: data.destination || 'CDG',
-      origin: data.origin || 'ATL',
+      destination: data.destination,
+      origin: data.origin,
       trip_duration_days: parseInt(data.total_days || 5, 10),
       day_by_day_schedule: dayScheduleObj,
       package_options: packageOpts.length > 0 ? packageOpts : [{ bundle_id: 'bdl_top1_pkg', title: data.title, total_price: data.total_cost }],

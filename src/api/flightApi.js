@@ -159,8 +159,8 @@ export async function searchFlights(searchPayload) {
     } else if (searchPayload.searchType === 'enhanced') {
       endpoint = '/api/v1/flights/search-optimized';
       body = {
-        origin: searchPayload.origin || 'ATL',
-        destination: searchPayload.destination || 'CDG',
+        origin: searchPayload.origin,
+        destination: searchPayload.destination,
         departure_date: searchPayload.depart || defaultDepartDate,
         return_date: isOneWay ? null : (searchPayload.return || defaultReturnDate),
         duration_days: searchPayload.durationDays || searchPayload.minDuration || 4,
@@ -176,8 +176,8 @@ export async function searchFlights(searchPayload) {
       endpoint = '/api/v1/flights/search';
       body = {
         trip_type: isOneWay ? 'one_way' : 'round_trip',
-        origin: searchPayload.origin || 'ATL',
-        destination: searchPayload.destination || 'CDG',
+        origin: searchPayload.origin,
+        destination: searchPayload.destination,
         departure_date: searchPayload.depart || defaultDepartDate,
         return_date: isOneWay ? null : (searchPayload.return || defaultReturnDate),
         passengers_count: searchPayload.passengersCount || 1,

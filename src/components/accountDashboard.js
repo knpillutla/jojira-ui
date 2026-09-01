@@ -318,7 +318,7 @@ function renderHydratedOrderCards(container, response) {
         </div>
         ${slices.length > 0 ? `
           <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e2e8f0; font-size: 12.5px; color: #475569;">
-            ${slices.map(s => `<div><strong>${s.origin || 'ATL'} → ${s.destination || 'CDG'}</strong> via ${s.operating_carrier || 'Air France'}</div>`).join('')}
+            ${slices.map(s => `<div><strong>${s.origin} → ${s.destination}</strong> via ${s.operating_carrier || 'Air France'}</div>`).join('')}
           </div>
         ` : ''}
       </div>
@@ -387,7 +387,7 @@ function renderFullPageSettings(userId, profile) {
       <div style="font-size: 13.5px; color: #334155; display: flex; flex-direction: column; gap: 12px;">
         <div><strong>User ID:</strong> <code style="background: #f1f5f9; padding: 3px 8px; border-radius: 6px; font-weight: 700;">${uId}</code></div>
         <div><strong>Account Type:</strong> Google OAuth Authenticated User</div>
-        <div><strong>Home Airport:</strong> ${p.preferences?.home_airport || 'ATL'}</div>
+        <div><strong>Home Airport:</strong> ${p.preferences?.home_airport}</div>
         <div><strong>Status:</strong> <span style="color: #16a34a; font-weight: 700;">Active Session</span></div>
       </div>
     </div>
@@ -403,7 +403,7 @@ function renderFullPagePreferences(userId, profile) {
     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; max-width: 600px; box-shadow: 0 4px 16px rgba(15,23,42,0.03);">
       <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 800; color: #0f172a;">Travel Profile Defaults</h3>
       <div style="display: flex; flex-direction: column; gap: 14px; font-size: 13.5px; color: #334155;">
-        <div><strong>Home Airport Code:</strong> <code style="background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 6px; font-weight: 800;">${p.home_airport || 'ATL'}</code></div>
+        <div><strong>Home Airport Code:</strong> <code style="background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 6px; font-weight: 800;">${p.home_airport}</code></div>
         <div><strong>Preferred Travel Style:</strong> ${p.preferred_style || 'balanced'}</div>
         <div><strong>Preferred Budget Tier:</strong> ${p.preferred_budget || 'moderate'}</div>
         <div><strong>AI Personalization:</strong> Active</div>
@@ -448,9 +448,9 @@ async function renderFullPageTrips(userId) {
 
   combined.forEach((t) => {
     const planId = t.id || t.plan_id || 'plan_default';
-    const titleText = t.title || t.prompt || `${t.trip_duration_days || 5}-Day Trip to ${t.destination || 'Paris'}`;
-    const destination = t.destination || 'CDG';
-    const origin = t.origin || 'ATL';
+    const titleText = t.title || t.prompt || `${t.trip_duration_days || 5}-Day Trip to ${t.destination}`;
+    const destination = t.destination;
+    const origin = t.origin;
     const days = t.trip_duration_days || 5;
     const createdDate = t.created_at ? new Date(t.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Saved';
 

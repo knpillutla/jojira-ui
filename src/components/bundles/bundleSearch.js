@@ -29,7 +29,7 @@ export function initBundleSearch() {
 
   const triggerSearch = async () => {
     collapseLeftNav();
-    try { sessionStorage.setItem('jojira_active_service_tab', 'packages'); } catch (e) {}
+    try { sessionStorage.setItem('jojira_active_service_tab', 'packages'); } catch (e) { }
     const formData = new FormData(form);
     const activeTab = tabContainer?.querySelector('[data-bundle-search-tab].is-active')?.dataset.bundleSearchTab || 'exact';
 
@@ -44,8 +44,8 @@ export function initBundleSearch() {
 
     const payload = {
       searchType: activeTab,
-      origin: formData.get('bundle_origin') || 'ATL',
-      destination: formData.get('bundle_destination') || 'CDG',
+      origin: formData.get('bundle_origin'),
+      destination: formData.get('bundle_destination'),
       depart: formData.get('bundle_depart') || '',
       return: formData.get('bundle_return') || '',
       travelers: parseInt(formData.get('bundle_travelers') || '1', 10),
@@ -92,7 +92,7 @@ export function initBundleSearch() {
       const data = await searchBundles(payload);
       try {
         sessionStorage.setItem('jojira_state_packages', JSON.stringify({ payload, data }));
-      } catch (e) {}
+      } catch (e) { }
       renderBundleResults(data);
     } catch (err) {
       if (container) {
