@@ -3430,6 +3430,27 @@ footer {
   color: #ffffff;
 }
 
+.activity-next-note-box {
+  margin-top: 10px;
+  padding: 7px 11px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #0284c7;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #475569;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.activity-card:hover .activity-next-note-box {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  border-left-color: #0284c7;
+}
+
 /* Map Pane */
 .planner-map-pane {
   position: sticky;

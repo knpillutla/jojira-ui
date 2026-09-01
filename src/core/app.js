@@ -9,6 +9,28 @@ import { initPlannerControls, restorePlannerState } from '../components/planner/
 import { initTableSorting } from '../components/offerTable.js';
 import { initAuth } from '../utils/authManager.js';
 import { initAccountDashboard } from '../components/accountDashboard.js';
+// Suppress benign third-party iframe and browser extension message port errors
+window.addEventListener('unhandledrejection', (event) => {
+  const reason = event.reason?.message || String(event.reason || '');
+  if (
+    reason.includes('Could not establish connection. Receiving end does not exist') ||
+    reason.includes('The message port closed before a response was received') ||
+    reason.includes('ResizeObserver loop') ||
+    reason.includes('Extension context invalidated')
+  ) {
+    event.preventDefault();
+  }
+});
+
+window.addEventListener('error', (event) => {
+  const msg = event.message || '';
+  if (
+    msg.includes('Could not establish connection. Receiving end does not exist') ||
+    msg.includes('The message port closed before a response was received')
+  ) {
+    event.preventDefault();
+  }
+});
 
 function initApp() {
   initAuth();

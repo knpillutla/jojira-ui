@@ -12,6 +12,36 @@ let activeInfoWindow = null;
 
 let lastItineraryData = null;
 let lastSelectedDayFilter = 'all';
+export function extractCenter(itineraryData) {
+  if (!itineraryData) return [52.3667, 13.5033];
+  if (Array.isArray(itineraryData.map_center) && Number.isFinite(itineraryData.map_center[0]) && Number.isFinite(itineraryData.map_center[1])) {
+    return itineraryData.map_center;
+  }
+  if (itineraryData.map_center && Number.isFinite(itineraryData.map_center.latitude) && Number.isFinite(itineraryData.map_center.longitude)) {
+    return [itineraryData.map_center.latitude, itineraryData.map_center.longitude];
+  }
+  if (Array.isArray(itineraryData.days)) {
+    for (const d of itineraryData.days) {
+      for (const act of (d.activities || [])) {
+        const lat = parseFloat(act.lat);
+        const lng = parseFloat(act.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0) {
+          return [lat, lng];
+        }
+      }
+    }
+  }
+  if (Array.isArray(itineraryData.map_pins) && itineraryData.map_pins.length > 0) {
+    const pin = itineraryData.map_pins[0];
+    const lat = parseFloat(pin.latitude ?? pin.lat);
+    const lng = parseFloat(pin.longitude ?? pin.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0) {
+      return [lat, lng];
+    }
+  }
+  return [52.3667, 13.5033];
+}
+
 let isGoogleScriptLoading = false;
 let googleScriptLoaded = false;
 
@@ -25,7 +55,7 @@ if (typeof window !== 'undefined') {
       const daysToRender = lastSelectedDayFilter === 'all'
         ? lastItineraryData.days
         : lastItineraryData.days.filter(d => String(d.day) === String(lastSelectedDayFilter));
-      const center = Array.isArray(lastItineraryData.map_center) ? lastItineraryData.map_center : [48.8566, 2.3522];
+      const center = extractCenter(lastItineraryData);
       renderLeafletMap(mapContainer, lastItineraryData, daysToRender, center);
     }
   };
@@ -86,12 +116,7 @@ export function initOrUpdateMap(itineraryData, selectedDayFilter = 'all') {
   bindMapToggleEvents();
   renderMapLegendUI(itineraryData, selectedDayFilter);
 
-  const DEFAULT_CENTER = [48.8566, 2.3522];
-  const center = Array.isArray(itineraryData.map_center) &&
-    Number.isFinite(itineraryData.map_center[0]) &&
-    Number.isFinite(itineraryData.map_center[1])
-    ? itineraryData.map_center
-    : DEFAULT_CENTER;
+  const center = extractCenter(itineraryData);
 
   if (selectedDayFilter === 'hotels') {
     const hotels = extractHotelsFromItinerary(itineraryData);
@@ -99,7 +124,13 @@ export function initOrUpdateMap(itineraryData, selectedDayFilter = 'all') {
       if (typeof window.google !== 'undefined' && window.google.maps) {
         renderGoogleHotelsMap(mapContainer, itineraryData, hotels, center);
       } else {
-        loadGoogleMapsScript().then(() => renderGoogleHotelsMap(mapContainer, itineraryData, hotels, center));
+        loadGoogleMapsScript()
+          .then(() => renderGoogleHotelsMap(mapContainer, itineraryData, hotels, center))
+          .catch(() => {
+            currentMapProvider = 'leaflet';
+            updateProviderToggleUI();
+            renderLeafletHotelsMap(mapContainer, itineraryData, hotels, center);
+          });
       }
     } else {
       renderLeafletHotelsMap(mapContainer, itineraryData, hotels, center);
@@ -131,6 +162,80 @@ export function initOrUpdateMap(itineraryData, selectedDayFilter = 'all') {
   }
 }
 
+function removeGoogleMarker(item) {
+  if (!item) return;
+  const m = item.marker || item;
+  if (typeof m.setMap === 'function') {
+    m.setMap(null);
+  } else if (m) {
+    m.map = null;
+  }
+}
+
+function openGoogleInfoWindow(infoWindow, marker, mapInstance) {
+  if (!infoWindow || !marker) return;
+  if (window.google?.maps?.marker?.AdvancedMarkerElement && marker instanceof window.google.maps.marker.AdvancedMarkerElement) {
+    infoWindow.open({
+      anchor: marker,
+      map: mapInstance
+    });
+  } else {
+    infoWindow.open(mapInstance, marker);
+  }
+}
+
+function createGoogleMarker({ position, map, title, labelText, color, iconEmoji, legacyIcon, clickHandler }) {
+  let marker;
+  if (window.google?.maps?.marker?.AdvancedMarkerElement) {
+    const pinEl = document.createElement('div');
+    pinEl.className = 'google-custom-marker-pin';
+    if (iconEmoji) {
+      pinEl.style.cssText = `background:${color || '#0d9488'}; color:#ffffff; font-size:14px; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #ffffff; box-shadow:0 2px 6px rgba(0,0,0,0.35); cursor:pointer;`;
+      pinEl.textContent = iconEmoji;
+    } else if (labelText && (labelText.includes('Departure') || labelText.includes('Arrival') || labelText.includes('Airport'))) {
+      pinEl.style.cssText = `background:${color || '#0284c7'}; color:#ffffff; font-weight:800; font-size:10px; padding:3px 8px; border-radius:12px; display:flex; align-items:center; justify-content:center; border:2px solid #ffffff; box-shadow:0 2px 6px rgba(0,0,0,0.35); cursor:pointer; white-space:nowrap;`;
+      pinEl.textContent = labelText;
+    } else {
+      pinEl.style.cssText = `background:${color || '#2563eb'}; color:#ffffff; font-weight:800; font-size:11px; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #ffffff; box-shadow:0 2px 6px rgba(0,0,0,0.35); cursor:pointer;`;
+      pinEl.textContent = labelText || '';
+    }
+
+    marker = new google.maps.marker.AdvancedMarkerElement({
+      position,
+      map,
+      title,
+      content: pinEl
+    });
+  } else {
+    marker = new google.maps.Marker({
+      position,
+      map,
+      title,
+      label: labelText ? {
+        text: labelText,
+        color: '#ffffff',
+        fontWeight: '800',
+        fontSize: '11px'
+      } : undefined,
+      icon: legacyIcon || {
+        path: 'M 12 2 C 7.03 2 3 6.03 3 11 C 3 17.25 12 26 12 26 C 12 26 21 17.25 21 11 C 21 6.03 16.97 2 12 2 Z',
+        fillColor: color || '#2563eb',
+        fillOpacity: 1,
+        strokeColor: '#ffffff',
+        strokeWeight: 2,
+        scale: 1.4,
+        anchor: new google.maps.Point(12, 26),
+        labelOrigin: new google.maps.Point(12, 10)
+      }
+    });
+  }
+
+  if (clickHandler) {
+    marker.addListener('click', clickHandler);
+  }
+  return marker;
+}
+
 function renderGoogleHotelsMap(mapContainer, itineraryData, hotels, center) {
   if (leafletMapInstance) {
     try { leafletMapInstance.remove(); } catch (e) {}
@@ -145,6 +250,7 @@ function renderGoogleHotelsMap(mapContainer, itineraryData, hotels, center) {
     googleMapInstance = new google.maps.Map(mapContainer, {
       center: mapCenterObj,
       zoom: itineraryData.map_zoom || 13,
+      mapId: itineraryData.google_map_id || 'DEMO_MAP_ID',
       mapTypeId: 'roadmap',
       styles: GOOGLE_MAPS_STYLE,
       zoomControl: true,
@@ -152,9 +258,9 @@ function renderGoogleHotelsMap(mapContainer, itineraryData, hotels, center) {
     });
   }
 
-  googleMarkers.forEach(m => m.marker.setMap(null));
+  googleMarkers.forEach(m => removeGoogleMarker(m));
   googleMarkers.clear();
-  googlePolylines.forEach(p => { if (p.setMap) p.setMap(null); });
+  googlePolylines.forEach(p => { if (p.setMap) p.setMap(null); else if (p.map) p.map = null; });
   googlePolylines = [];
   if (activeInfoWindow) activeInfoWindow.close();
 
@@ -163,26 +269,6 @@ function renderGoogleHotelsMap(mapContainer, itineraryData, hotels, center) {
   hotels.forEach((h) => {
     const pos = { lat: h.lat, lng: h.lng };
     bounds.extend(pos);
-
-    const marker = new google.maps.Marker({
-      position: pos,
-      map: googleMapInstance,
-      title: `${h.title} · ${h.rating}`,
-      label: {
-        text: '🏨',
-        fontSize: '14px'
-      },
-      icon: {
-        path: 'M 12 2 C 7.03 2 3 6.03 3 11 C 3 17.25 12 26 12 26 C 12 26 21 17.25 21 11 C 21 6.03 16.97 2 12 2 Z',
-        fillColor: '#0d9488',
-        fillOpacity: 1,
-        strokeColor: '#ffffff',
-        strokeWeight: 2,
-        scale: 1.5,
-        anchor: new google.maps.Point(12, 26),
-        labelOrigin: new google.maps.Point(12, 10)
-      }
-    });
 
     const popupContent = `
       <div class="map-popup-card" style="padding:12px;">
@@ -199,12 +285,29 @@ function renderGoogleHotelsMap(mapContainer, itineraryData, hotels, center) {
     `;
 
     const infoWindow = new google.maps.InfoWindow({ content: popupContent });
-    marker.addListener('click', () => {
-      if (activeInfoWindow) activeInfoWindow.close();
-      infoWindow.open(googleMapInstance, marker);
-      activeInfoWindow = infoWindow;
-      // Note: Assuming highlightItineraryCard exists in your module scope
-      if (typeof highlightItineraryCard === 'function') highlightItineraryCard(h.id);
+
+    const marker = createGoogleMarker({
+      position: pos,
+      map: googleMapInstance,
+      title: `${h.title} · ${h.rating}`,
+      color: '#0d9488',
+      iconEmoji: '🏨',
+      legacyIcon: {
+        path: 'M 12 2 C 7.03 2 3 6.03 3 11 C 3 17.25 12 26 12 26 C 12 26 21 17.25 21 11 C 21 6.03 16.97 2 12 2 Z',
+        fillColor: '#0d9488',
+        fillOpacity: 1,
+        strokeColor: '#ffffff',
+        strokeWeight: 2,
+        scale: 1.5,
+        anchor: new google.maps.Point(12, 26),
+        labelOrigin: new google.maps.Point(12, 10)
+      },
+      clickHandler: () => {
+        if (activeInfoWindow) activeInfoWindow.close();
+        openGoogleInfoWindow(infoWindow, marker, googleMapInstance);
+        activeInfoWindow = infoWindow;
+        if (typeof highlightItineraryCard === 'function') highlightItineraryCard(h.id);
+      }
     });
 
     googleMarkers.set(h.id, { marker, infoWindow, pos });
@@ -338,25 +441,44 @@ export function getDistanceKm(lat1, lon1, lat2, lon2) {
 }
 
 export function getTransportModeBetweenStops(p1, p2, actFrom, actTo) {
+  const nextActObj = actFrom?.next_activity;
+  const mode = (nextActObj?.travel_mode || nextActObj?.transit_mode || actTo?.transit_mode || '').toLowerCase();
+  const durMins = nextActObj?.travel_time_minutes ?? nextActObj?.transit_duration_minutes ?? actTo?.transit_duration_minutes;
+  const durText = nextActObj?.travel_time_display ? ` (${nextActObj.travel_time_display})` : (Number.isFinite(durMins) && durMins > 0 ? ` (~${durMins} min)` : '');
+
+  if (mode === 'flight' || actFrom?.type === 'flight' || actTo?.type === 'flight') {
+    return { mode: 'flight', label: `✈️ Flight${durText}`, color: '#0284c7', dash: '4, 8' };
+  }
+  if (mode === 'walk' || mode === 'walking') {
+    return { mode: 'walk', label: `🚶 Walk${durText || ' (~5 min)'}`, color: '#059669', dash: '6, 6' };
+  }
+  if (mode === 'drive' || mode === 'driving' || mode === 'car' || mode === 'taxi' || mode === 'uber') {
+    return { mode: 'drive', label: `🚗 Drive${durText || ' (~10 min)'}`, color: '#2563eb', dash: null };
+  }
+  if (mode === 'train' || mode === 'rail' || mode === 'metro' || mode === 'subway' || mode === 'transit' || mode === 'bus') {
+    return { mode: 'train', label: `🚆 Transit / Rail${durText}`, color: '#d97706', dash: '12, 4, 2, 4' };
+  }
+  if (mode === 'boat' || mode === 'cruise' || mode === 'ferry' || mode === 'yacht') {
+    return { mode: 'cruise', label: `🚢 Water / Cruise${durText}`, color: '#0891b2', dash: '8, 8' };
+  }
+
   const text = `${actFrom?.title || ''} ${actFrom?.category || ''} ${actTo?.title || ''} ${actTo?.category || ''}`.toLowerCase();
-  
-  if (text.includes('flight') || actFrom?.type === 'flight' || actTo?.type === 'flight') {
+  if (text.includes('flight')) {
     return { mode: 'flight', label: '✈️ Flight', color: '#0284c7', dash: '4, 8' };
   }
-  if (text.includes('cruise') || text.includes('ferry') || text.includes('boat') || text.includes('ship') || text.includes('sailing') || text.includes('yacht')) {
+  if (text.includes('cruise') || text.includes('ferry') || text.includes('boat')) {
     return { mode: 'cruise', label: '🚢 Cruise / Water', color: '#0891b2', dash: '8, 8' };
   }
-  if (text.includes('train') || text.includes('station') || text.includes('rail') || text.includes('metro') || text.includes('subway') || text.includes('gare')) {
+  if (text.includes('train') || text.includes('station') || text.includes('rail')) {
     return { mode: 'train', label: '🚆 Rail Track', color: '#d97706', dash: '12, 4, 2, 4' };
   }
-  
-  const lat1 = Array.isArray(p1) ? p1[0] : p1.lat;
-  const lon1 = Array.isArray(p1) ? p1[1] : p1.lng;
-  const lat2 = Array.isArray(p2) ? p2[0] : p2.lat;
-  const lon2 = Array.isArray(p2) ? p2[1] : p2.lng;
+
+  const lat1 = Array.isArray(p1) ? p1[0] : p1?.lat;
+  const lon1 = Array.isArray(p1) ? p1[1] : p1?.lng;
+  const lat2 = Array.isArray(p2) ? p2[0] : p2?.lat;
+  const lon2 = Array.isArray(p2) ? p2[1] : p2?.lng;
 
   const dist = getDistanceKm(lat1, lon1, lat2, lon2);
-
   if (dist < 1.8) {
     const mins = Math.max(5, Math.round(dist * 14));
     return { mode: 'walking', label: `🚶 Walk (${mins} min)`, color: '#059669', dash: '6, 6' };
@@ -480,6 +602,21 @@ export function correctActivityTitle(title, startMins, category = '') {
 }
 
 export function formatStopTimes(act, actIdx = 0, dayActivities = []) {
+  if (act.departure_time || act.arrival_time) {
+    const startTime = act.departure_time || '09:00 AM';
+    const endTime = act.arrival_time || startTime;
+    return {
+      startTime,
+      endTime,
+      durationStr: act.duration || '2 hrs',
+      periodLabel: getTimePeriodLabel(parseTimeToMins(startTime, 540)),
+      correctedTitle: act.title,
+      startMins: parseTimeToMins(startTime, 540),
+      endMins: parseTimeToMins(endTime, 660),
+      displayRange: `${startTime} – ${endTime}`
+    };
+  }
+
   let startMins = 540; // Default 09:00 AM
 
   if (Array.isArray(dayActivities) && dayActivities.length > 0) {
@@ -543,47 +680,54 @@ export function setDistanceUnit(unit) {
 }
 
 export function getSegmentDistTimeText(p1, p2, actFrom, actTo) {
-  const lat1 = Array.isArray(p1) ? p1[0] : p1.lat;
-  const lon1 = Array.isArray(p1) ? p1[1] : p1.lng;
-  const lat2 = Array.isArray(p2) ? p2[0] : p2.lat;
-  const lon2 = Array.isArray(p2) ? p2[1] : p2.lng;
+  const unit = getUserDistanceUnit();
+  const nextActObj = actFrom?.next_activity;
+
+  if (nextActObj) {
+    const durStr = nextActObj.travel_time_display || (Number.isFinite(nextActObj.travel_time_minutes) && nextActObj.travel_time_minutes > 0 ? `~${nextActObj.travel_time_minutes} mins` : '');
+    if (unit === 'mi' && Number.isFinite(nextActObj.distance_miles) && nextActObj.distance_miles > 0) {
+      return durStr ? `${nextActObj.distance_miles.toFixed(2)} mi, ${durStr}` : `${nextActObj.distance_miles.toFixed(2)} mi`;
+    }
+    if (unit === 'km' && Number.isFinite(nextActObj.distance_km) && nextActObj.distance_km > 0) {
+      return durStr ? `${nextActObj.distance_km.toFixed(2)} km, ${durStr}` : `${nextActObj.distance_km.toFixed(2)} km`;
+    }
+    if (Number.isFinite(nextActObj.distance_miles) && nextActObj.distance_miles > 0) {
+      return durStr ? `${nextActObj.distance_miles.toFixed(2)} mi, ${durStr}` : `${nextActObj.distance_miles.toFixed(2)} mi`;
+    }
+    if (Number.isFinite(nextActObj.distance_km) && nextActObj.distance_km > 0) {
+      return durStr ? `${nextActObj.distance_km.toFixed(2)} km, ${durStr}` : `${nextActObj.distance_km.toFixed(2)} km`;
+    }
+  }
+
+  if (actTo) {
+    const durMins = actTo.transit_duration_minutes;
+    const durStr = Number.isFinite(durMins) && durMins > 0 ? `~${durMins} mins` : '';
+
+    if (unit === 'mi' && Number.isFinite(actTo.distance_miles) && actTo.distance_miles > 0) {
+      return durStr ? `${actTo.distance_miles.toFixed(2)} mi, ${durStr}` : `${actTo.distance_miles.toFixed(2)} mi`;
+    }
+    if (unit === 'km' && Number.isFinite(actTo.distance_km) && actTo.distance_km > 0) {
+      return durStr ? `${actTo.distance_km.toFixed(2)} km, ${durStr}` : `${actTo.distance_km.toFixed(2)} km`;
+    }
+  }
+
+  const lat1 = Array.isArray(p1) ? p1[0] : p1?.lat;
+  const lon1 = Array.isArray(p1) ? p1[1] : p1?.lng;
+  const lat2 = Array.isArray(p2) ? p2[0] : p2?.lat;
+  const lon2 = Array.isArray(p2) ? p2[1] : p2?.lng;
 
   const distKm = getDistanceKm(lat1, lon1, lat2, lon2);
-  const unit = getUserDistanceUnit();
 
   let distStr = '';
   if (unit === 'mi') {
     const distMiles = distKm * 0.621371;
-    if (distMiles < 0.2) {
-      const feet = Math.round(distMiles * 5280);
-      distStr = `${Math.max(100, feet)} ft`;
-    } else {
-      distStr = `${distMiles.toFixed(1)} mi`;
-    }
+    distStr = `${distMiles.toFixed(1)} mi`;
   } else {
-    if (distKm < 0.95) {
-      distStr = `${Math.max(100, Math.round(distKm * 1000))} m`;
-    } else {
-      distStr = `${distKm.toFixed(1)} km`;
-    }
+    distStr = `${distKm.toFixed(1)} km`;
   }
 
-  let timeStr = '';
-  if (distKm < 1.8) {
-    const mins = Math.max(4, Math.round(distKm * 14));
-    timeStr = `${mins} mins`;
-  } else if (distKm < 30) {
-    const mins = Math.max(6, Math.round(distKm * 2.5));
-    timeStr = `${mins} mins`;
-  } else {
-    const mins = Math.round(distKm * 1.8);
-    if (mins >= 60) {
-      const hrs = (mins / 60).toFixed(1);
-      timeStr = `${hrs} hrs`;
-    } else {
-      timeStr = `${mins} mins`;
-    }
-  }
+  const mins = Math.max(5, Math.round(distKm * 2.5));
+  const timeStr = `${mins} mins`;
 
   return `${distStr}, ${timeStr}`;
 }
@@ -603,6 +747,7 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
     googleMapInstance = new google.maps.Map(mapContainer, {
       center: mapCenterObj,
       zoom: itineraryData.map_zoom || 13,
+      mapId: itineraryData.google_map_id || 'DEMO_MAP_ID',
       mapTypeId: 'roadmap',
       styles: GOOGLE_MAPS_STYLE,
       zoomControl: true,
@@ -615,11 +760,11 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
   recordGoogleMapsCall(1);
   checkQuotaAlerts();
 
-  googleMarkers.forEach(m => m.marker.setMap(null));
+  googleMarkers.forEach(m => removeGoogleMarker(m));
   googleMarkers.clear();
   googlePolylines.forEach(p => {
-      if (p.setMap) p.setMap(null);
-      else p.setMap(null);
+    if (p.setMap) p.setMap(null);
+    else if (p.map) p.map = null;
   });
   googlePolylines = [];
   if (activeInfoWindow) activeInfoWindow.close();
@@ -628,8 +773,8 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
   let hasValidPoints = false;
   let globalStopNumber = 0;
 
-  const centerLat = Array.isArray(center) ? center[0] : (center.lat || 48.8566);
-  const centerLng = Array.isArray(center) ? center[1] : (center.lng || 2.3522);
+  const centerLat = Array.isArray(center) ? center[0] : (center.lat ?? center.latitude ?? 52.3667);
+  const centerLng = Array.isArray(center) ? center[1] : (center.lng ?? center.longitude ?? 13.5033);
 
   daysToRender.forEach((day, dayIndex) => {
     const paletteColor = DAY_COLOR_PALETTE[dayIndex % DAY_COLOR_PALETTE.length];
@@ -673,17 +818,13 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
         googlePolylines.push(fullFlightLine);
 
         if (isLongHaul) {
-          const originMarker = new google.maps.Marker({
+          const originMarker = createGoogleMarker({
             position: originPos,
             map: googleMapInstance,
             title: `✈️ [Airport] Flight Departure: ${act.title}`,
-            label: {
-              text: `✈️ Departure`,
-              color: '#ffffff',
-              fontWeight: '800',
-              fontSize: '10px'
-            },
-            icon: {
+            labelText: `✈️ Departure`,
+            color: '#0369a1',
+            legacyIcon: {
               path: 'M -35,-11 L 35,-11 C 39,-11 41,-8 41,-4 L 41,4 C 41,8 39,11 35,11 L -35,11 C -39,11 -41,8 -41,4 L -41,-4 C -41,-8 -39,-11 -35,-11 Z',
               fillColor: '#0369a1',
               fillOpacity: 0.95,
@@ -696,17 +837,13 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
           googlePolylines.push(originMarker);
         }
 
-        const flightMarker = new google.maps.Marker({
+        const flightMarker = createGoogleMarker({
           position: flightDestPos,
           map: googleMapInstance,
           title: `✈️ [Airport] Flight Arrival: ${act.title}`,
-          label: {
-            text: `✈️ Arrival`,
-            color: '#ffffff',
-            fontWeight: '800',
-            fontSize: '10px'
-          },
-          icon: {
+          labelText: `✈️ Arrival`,
+          color: '#0284c7',
+          legacyIcon: {
             path: 'M -38,-11 L 38,-11 C 42,-11 44,-8 44,-4 L 44,4 C 44,8 42,11 38,11 L -38,11 C -42,11 -44,8 -44,4 L -44,-4 C -44,-8 -42,-11 -38,-11 Z',
             fillColor: '#0284c7',
             fillOpacity: 0.95,
@@ -729,28 +866,6 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
       bounds.extend(pos);
       hasValidPoints = true;
 
-      const marker = new google.maps.Marker({
-        position: pos,
-        map: googleMapInstance,
-        title: `[${catInfo.label}] Day ${day.day} · Stop #${stopNumLabel}: ${act.title}`,
-        label: {
-          text: stopNumLabel,
-          color: '#ffffff',
-          fontWeight: '800',
-          fontSize: '11px'
-        },
-        icon: {
-          path: 'M 12 2 C 7.03 2 3 6.03 3 11 C 3 17.25 12 26 12 26 C 12 26 21 17.25 21 11 C 21 6.03 16.97 2 12 2 Z',
-          fillColor: dayColor,
-          fillOpacity: 1,
-          strokeColor: '#ffffff',
-          strokeWeight: 2,
-          scale: 1.4,
-          anchor: new google.maps.Point(12, 26),
-          labelOrigin: new google.maps.Point(12, 10)
-        }
-      });
-
       const times = formatStopTimes(act);
       const popupContent = `
         <div class="map-popup-card">
@@ -769,11 +884,28 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
 
       const infoWindow = new google.maps.InfoWindow({ content: popupContent });
 
-      marker.addListener('click', () => {
-        if (activeInfoWindow) activeInfoWindow.close();
-        infoWindow.open(googleMapInstance, marker);
-        activeInfoWindow = infoWindow;
-        highlightItineraryCard(act.id);
+      const marker = createGoogleMarker({
+        position: pos,
+        map: googleMapInstance,
+        title: `[${catInfo.label}] Day ${day.day} · Stop #${stopNumLabel}: ${act.title}`,
+        labelText: stopNumLabel,
+        color: dayColor,
+        legacyIcon: {
+          path: 'M 12 2 C 7.03 2 3 6.03 3 11 C 3 17.25 12 26 12 26 C 12 26 21 17.25 21 11 C 21 6.03 16.97 2 12 2 Z',
+          fillColor: dayColor,
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 2,
+          scale: 1.4,
+          anchor: new google.maps.Point(12, 26),
+          labelOrigin: new google.maps.Point(12, 10)
+        },
+        clickHandler: () => {
+          if (activeInfoWindow) activeInfoWindow.close();
+          openGoogleInfoWindow(infoWindow, marker, googleMapInstance);
+          activeInfoWindow = infoWindow;
+          highlightItineraryCard(act.id);
+        }
       });
 
       googleMarkers.set(act.id, { marker, infoWindow, pos });
@@ -909,8 +1041,8 @@ function renderLeafletMap(mapContainer, itineraryData, daysToRender, center) {
   const allLatLngs = [];
   let globalLeafletStopNumber = 0;
 
-  const centerLat = Array.isArray(center) ? center[0] : (center.lat || 48.8566);
-  const centerLng = Array.isArray(center) ? center[1] : (center.lng || 2.3522);
+  const centerLat = Array.isArray(center) ? center[0] : (center.lat ?? center.latitude ?? 52.3667);
+  const centerLng = Array.isArray(center) ? center[1] : (center.lng ?? center.longitude ?? 13.5033);
 
   daysToRender.forEach((day, dayIndex) => {
     const paletteColor = DAY_COLOR_PALETTE[dayIndex % DAY_COLOR_PALETTE.length];
@@ -1055,7 +1187,7 @@ export function panToActivityMarker(activityId, lat, lng) {
     const item = googleMarkers.get(activityId);
     if (item && item.infoWindow) {
       if (activeInfoWindow) activeInfoWindow.close();
-      item.infoWindow.open(googleMapInstance, item.marker);
+      openGoogleInfoWindow(item.infoWindow, item.marker, googleMapInstance);
       activeInfoWindow = item.infoWindow;
     }
     return;
@@ -1073,12 +1205,14 @@ export function panToActivityMarker(activityId, lat, lng) {
 }
 
 async function fetchConfigApiKey() {
-  if (window.GOOGLE_MAPS_API_KEY) return window.GOOGLE_MAPS_API_KEY;
+  if (window.GOOGLE_MAPS_API_KEY && typeof window.GOOGLE_MAPS_API_KEY === 'string' && !window.GOOGLE_MAPS_API_KEY.startsWith('${')) {
+    return window.GOOGLE_MAPS_API_KEY;
+  }
   try {
     const res = await fetch('/config.json');
     if (res.ok) {
       const cfg = await res.json();
-      if (cfg.google_maps_api_key) {
+      if (cfg && cfg.google_maps_api_key && typeof cfg.google_maps_api_key === 'string' && !cfg.google_maps_api_key.startsWith('${')) {
         window.GOOGLE_MAPS_API_KEY = cfg.google_maps_api_key;
         return cfg.google_maps_api_key;
       }
@@ -1094,6 +1228,10 @@ async function loadGoogleMapsScript() {
   if (googleScriptLoaded) return Promise.resolve();
 
   const apiKey = await fetchConfigApiKey();
+  if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim() || apiKey.startsWith('${')) {
+    console.warn('ℹ️ [GOOGLE MAPS] No valid google_maps_api_key configured in config.json. Auto-switching to Leaflet Maps.');
+    return Promise.reject(new Error('Google Maps API key is not configured'));
+  }
 
   if (isGoogleScriptLoading) {
     return new Promise((resolve, reject) => {

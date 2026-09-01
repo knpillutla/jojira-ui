@@ -222,68 +222,42 @@ export function restorePlannerState() {
 
 function processRawPlannerResponse(rawData, payload) {
   const inner = rawData?.data || rawData || {};
-  let options = [];
-  
-  if (Array.isArray(inner.options) && inner.options.length > 0) {
-    options = inner.options.map((opt, i) => normalizeSingleOption(opt, payload, i));
-  } else {
-    const baseOption = normalizeSingleOption(inner, payload, 0);
-    options = buildThreeItineraryOptions(baseOption, payload);
+  const metaData = rawData?.meta_data || {};
+  let rawOptionsList = [];
+
+  if (Array.isArray(inner.itinerary_options) && inner.itinerary_options.length > 0) {
+    rawOptionsList = inner.itinerary_options;
+  } else if (Array.isArray(rawData.itinerary_options) && rawData.itinerary_options.length > 0) {
+    rawOptionsList = rawData.itinerary_options;
+  } else if (Array.isArray(inner.options) && inner.options.length > 0) {
+    rawOptionsList = inner.options;
+  } else if (Array.isArray(rawData.options) && rawData.options.length > 0) {
+    rawOptionsList = rawData.options;
+  } else if (Array.isArray(inner)) {
+    rawOptionsList = inner;
+  } else if (inner.daily_itinerary || inner.itinerary || inner.items || inner.days) {
+    rawOptionsList = [inner];
   }
 
-  return sortOptionsBudgetFirst(options);
+  const options = rawOptionsList.map((opt, i) => normalizeSingleOption(opt, payload, metaData, i));
+  return options;
 }
 
-function sortOptionsBudgetFirst(options) {
-  if (!Array.isArray(options) || options.length <= 1) return options;
-
-  const rankTier = (opt) => {
-    const text = `${opt.badge || ''} ${opt.title || ''} ${opt.badge_class || ''}`.toLowerCase();
-    if (text.includes('budget') || text.includes('saver') || text.includes('economy')) return 1;
-    if (text.includes('balanced') || text.includes('value') || text.includes('highlights')) return 2;
-    if (text.includes('luxury') || text.includes('deluxe') || text.includes('premium')) return 3;
-    return 2;
-  };
-
-  const sorted = [...options].sort((a, b) => {
-    const rA = rankTier(a);
-    const rB = rankTier(b);
-    if (rA !== rB) return rA - rB;
-    return (a.total_cost || 0) - (b.total_cost || 0);
-  });
-
-  return sorted.map((opt, idx) => {
-    const defaultLabels = [
-      '💰 Option 1: Express Budget Saver',
-      '🏆 Option 2: Balanced Highlights',
-      '✨ Option 3: Premium Luxury Experience'
-    ];
-    const defaultClasses = ['option-badge-budget', 'option-badge-balanced', 'option-badge-deluxe'];
-    
-    return {
-      ...opt,
-      option_id: `opt_${idx + 1}`,
-      badge: opt.badge ? opt.badge.replace(/Option \d+[:]?\s*/i, `Option ${idx + 1}: `) : defaultLabels[idx % 3],
-      badge_class: opt.badge_class || defaultClasses[idx % 3]
-    };
-  });
-}
-
-function normalizeSingleOption(rawItem, payload, optionIndex = 0) {
-  const rawDailyList = rawItem.daily_itinerary || rawItem.itinerary || [];
+function normalizeSingleOption(rawItem, payload, metaData = {}, optionIndex = 0) {
+  const rawDailyList = rawItem.daily_itinerary || rawItem.itinerary || rawItem.days || [];
   const dayColors = ['#ea580c', '#2563eb', '#059669', '#7c3aed', '#d97706', '#db2777', '#0891b2'];
 
-  const days = rawDailyList.map((dayItem, i) => {
-    // Geographic neighborhood offsets per day to spread days visually across destination area
-    const DAY_GEO_OFFSETS = [
-      { dLat: 0.018, dLng: 0.024 },
-      { dLat: -0.022, dLng: -0.030 },
-      { dLat: 0.038, dLng: -0.012 },
-      { dLat: -0.028, dLng: 0.032 },
-      { dLat: 0.010, dLng: -0.045 }
-    ];
-    const dayOffset = DAY_GEO_OFFSETS[i % DAY_GEO_OFFSETS.length];
+  const mapCenterLat = Number.isFinite(metaData.map_center?.latitude)
+    ? metaData.map_center.latitude
+    : (Array.isArray(rawItem.map_center) ? rawItem.map_center[0] : 52.3667);
+  const mapCenterLng = Number.isFinite(metaData.map_center?.longitude)
+    ? metaData.map_center.longitude
+    : (Array.isArray(rawItem.map_center) ? rawItem.map_center[1] : 13.5033);
+  const mapCenter = [mapCenterLat, mapCenterLng];
 
+  const mapPins = Array.isArray(rawItem.map_pins) ? rawItem.map_pins : [];
+
+  const days = rawDailyList.map((dayItem, i) => {
     const rawActivities = dayItem.activities || dayItem.items || [];
     const activities = rawActivities.map((item, actIdx) => {
       const typeIconMap = {
@@ -294,143 +268,187 @@ function normalizeSingleOption(rawItem, payload, optionIndex = 0) {
         activity: '🏄'
       };
       const icon = item.icon || typeIconMap[item.type] || '📍';
-      const title = item.title || item.name || 'Activity';
+      const title = item.title || item.name || item.activity_name || item.attraction_name || 'Activity';
 
-      let lat = item.geo_location?.latitude ?? item.lat;
-      let lng = item.geo_location?.longitude ?? item.lng;
+      let lat = parseFloat(item.geo_location?.latitude ?? item.latitude ?? item.lat);
+      let lng = parseFloat(item.geo_location?.longitude ?? item.longitude ?? item.lng);
 
-      // Spread default/fallback coordinates into distinct geographical routes per day!
-      if (!lat || lat === 48.8566 || (actIdx > 0 && lat === rawActivities[0]?.lat)) {
-        lat = 48.8566 + dayOffset.dLat + (actIdx * 0.009);
+      if (isNaN(lat) || isNaN(lng)) {
+        const matchingPin = mapPins.find(p => p.id === item.id || (p.title && item.title && p.title.toLowerCase() === item.title.toLowerCase()));
+        if (matchingPin && Number.isFinite(matchingPin.latitude) && Number.isFinite(matchingPin.longitude)) {
+          lat = matchingPin.latitude;
+          lng = matchingPin.longitude;
+        } else {
+          lat = mapCenterLat;
+          lng = mapCenterLng;
+        }
       }
-      if (!lng || lng === 2.3522 || (actIdx > 0 && lng === rawActivities[0]?.lng)) {
-        lng = 2.3522 + dayOffset.dLng + (actIdx * 0.014);
+
+      const address = item.geo_location?.address || item.address || item.geo_location?.name || '';
+      const timeStr = item.time_slot || (item.departure_time ? `${item.departure_time}${item.arrival_time ? ' – ' + item.arrival_time : ''}` : '');
+
+      let priceStr = item.price_display;
+      if (!priceStr) {
+        if (item.min_price_per_person != null && item.max_price_per_person != null) {
+          if (item.min_price_per_person === item.max_price_per_person) {
+            priceStr = item.min_price_per_person > 0 ? `$${item.min_price_per_person.toFixed(0)} / person` : 'Free Entry';
+          } else {
+            priceStr = `$${item.min_price_per_person.toFixed(0)} – $${item.max_price_per_person.toFixed(0)} / person`;
+          }
+        } else if (item.is_price_tbd) {
+          priceStr = 'Price TBD';
+        } else if (item.price > 0) {
+          priceStr = `$${item.price.toFixed(2)} ${item.currency || 'USD'}`;
+        } else if (item.type === 'flight' || item.type === 'hotel' || item.type === 'car') {
+          priceStr = 'Included in bundle';
+        } else {
+          priceStr = 'Free Entry';
+        }
       }
 
-      const address = item.geo_location?.address || item.geo_location?.name || item.address || '';
-      const timeStr = item.time_slot || item.time || (actIdx === 0 ? '9:00 AM' : (actIdx === 1 ? '1:00 PM' : '6:00 PM'));
-      const priceStr = item.price ? `$${item.price} ${item.currency || 'USD'}` : (item.cost || 'Included');
+      let nextActivity = null;
+      if (item.next_activity && typeof item.next_activity === 'object') {
+        const na = item.next_activity;
+        nextActivity = {
+          name: na.name || na.title || '',
+          distance_miles: Number.isFinite(na.distance_miles) ? na.distance_miles : (Number.isFinite(na.distance_mi) ? na.distance_mi : null),
+          distance_km: Number.isFinite(na.distance_km) ? na.distance_km : null,
+          travel_time_minutes: Number.isFinite(na.travel_time_minutes) ? na.travel_time_minutes : (Number.isFinite(na.transit_duration_minutes) ? na.transit_duration_minutes : null),
+          travel_time_display: na.travel_time_display || (na.travel_time_minutes ? `${na.travel_time_minutes} mins` : (na.transit_duration_minutes ? `${na.transit_duration_minutes} mins` : '')),
+          travel_mode: (na.travel_mode || na.transit_mode || 'drive').toLowerCase(),
+          transit_summary: na.transit_summary || ''
+        };
+      }
 
       return {
         id: item.id || `act-${i + 1}-${actIdx + 1}`,
-        type: item.type || 'attraction',
+        type: item.type || 'activity',
         title: title,
+        name: title,
         description: item.description || '',
-        category: (item.type || 'Activity').toUpperCase(),
+        category: item.category || (item.type || 'Activity').toUpperCase(),
         duration: item.time_slot ? item.time_slot : (item.duration || '2 hrs'),
         cost: priceStr,
+        price: item.price ?? 0,
+        price_display: item.price_display || priceStr,
+        is_price_tbd: Boolean(item.is_price_tbd || item.price_display === 'TBD'),
+        min_price_per_person: item.min_price_per_person,
+        max_price_per_person: item.max_price_per_person,
         icon: icon,
         lat: lat,
         lng: lng,
         time: timeStr,
-        address: address
+        departure_time: item.departure_time || '',
+        arrival_time: item.arrival_time || '',
+        address: address,
+        phone_number: item.phone_number || item.geo_location?.phone_number || '',
+        rating: item.rating ?? item.geo_location?.rating ? `${item.rating ?? item.geo_location?.rating}` : '',
+        reviews_count: item.reviews_count ?? item.geo_location?.reviews_count ?? item.review_count ?? 0,
+        transit_mode: item.transit_mode || nextActivity?.travel_mode || 'drive',
+        transit_duration_minutes: item.transit_duration_minutes ?? nextActivity?.travel_time_minutes ?? 0,
+        transit_summary: item.transit_summary || nextActivity?.transit_summary || '',
+        distance_miles: item.distance_miles ?? nextActivity?.distance_miles ?? 0,
+        distance_km: item.distance_km ?? nextActivity?.distance_km ?? 0,
+        next_activity: nextActivity
       };
     });
 
     return {
       day: dayItem.day_number || dayItem.day || (i + 1),
       date: dayItem.date || '',
-      title: dayItem.title || `Day ${i + 1}: ${payload.destination} Exploration`,
+      title: dayItem.title || `Day ${i + 1}: ${payload.destination || metaData.destination || 'Destination'} Exploration`,
       themeColor: dayColors[i % dayColors.length],
       daily_total_cost: dayItem.daily_total_cost || 0,
       activities: activities
     };
   });
 
-  const total_days = days.length || Number(payload.days) || 4;
-  const tripSummary = rawItem.trip_summary || {};
-  const totalCost = tripSummary.total_trip_price || 2450;
-  const passengers = tripSummary.occupancy_details?.passengers_count || 2;
+  const total_days = metaData.trip_duration_days || (days.length > 0 ? days.length : (Number(payload.days) || 4));
+  const tripSummary = rawItem.trip_summary || metaData.trip_summary || {};
+  const totalCost = tripSummary.total_trip_price ?? (typeof tripSummary.total_price === 'number' ? tripSummary.total_price : 0);
+  const passengers = tripSummary.occupancy_details?.passengers || metaData.passengers_count || 1;
+  const totalPriceDisplay = tripSummary.total_price_display || (totalCost > 0 ? `$${totalCost.toFixed(2)} ${tripSummary.currency || 'USD'}` : 'Price TBD');
+  const pricePerPersonDisplay = tripSummary.price_per_passenger_display || (tripSummary.price_per_passenger != null ? `$${tripSummary.price_per_passenger.toFixed(2)} ${tripSummary.currency || 'USD'}` : totalPriceDisplay);
+
+  const optionNumber = rawItem.option_number || (optionIndex + 1);
+  const styleStr = rawItem.style || 'balanced';
+  const budgetStr = rawItem.budget || 'moderate';
+
+  const defaultBadgeClasses = {
+    budget: 'option-badge-budget',
+    balanced: 'option-badge-balanced',
+    moderate: 'option-badge-balanced',
+    luxury: 'option-badge-deluxe',
+    luxury_vip: 'option-badge-deluxe'
+  };
+
+  const badgeClass = defaultBadgeClasses[styleStr] || defaultBadgeClasses[budgetStr] || (optionIndex === 0 ? 'option-badge-budget' : optionIndex === 1 ? 'option-badge-balanced' : 'option-badge-deluxe');
+
+  // Build live bundle list strictly from live API category_highlights or actual components:
+  const catHighlights = rawItem.category_highlights || {};
+  const tierKey = catHighlights[budgetStr] ? budgetStr : (catHighlights[styleStr] ? styleStr : (Object.keys(catHighlights)[0] || 'moderate'));
+  const currentTier = catHighlights[tierKey];
+
+  let bundles = [];
+  let bundleSummaryLine = '';
+
+  if (currentTier?.bundle_contents) {
+    const bc = currentTier.bundle_contents;
+    if (bc.flights?.description) bundles.push({ icon: '✈️', name: bc.flights.description, status: 'Live API' });
+    if (bc.hotels?.description) bundles.push({ icon: '🏨', name: bc.hotels.description, status: bc.hotels.included ? 'Included' : '' });
+    if (bc.cars?.description) bundles.push({ icon: '🚗', name: bc.cars.description, status: bc.cars.included ? 'Included' : '' });
+    if (bc.attractions?.description) bundles.push({ icon: '🎟️', name: bc.attractions.description, price: tripSummary.total_attractions_cost ? `$${tripSummary.total_attractions_cost.toFixed(2)}` : '' });
+    if (bc.activities?.description) bundles.push({ icon: '🏄', name: bc.activities.description, status: 'Live LLM' });
+    bundleSummaryLine = bc.summary_line || currentTier.description || '';
+  } else {
+    const flightAct = days.flatMap(d => d.activities).find(a => a.type === 'flight');
+    const hotelAct = days.flatMap(d => d.activities).find(a => a.type === 'hotel');
+    const carAct = days.flatMap(d => d.activities).find(a => a.type === 'car');
+    if (flightAct) bundles.push({ icon: '✈️', name: flightAct.title, status: flightAct.cost });
+    if (hotelAct) bundles.push({ icon: '🏨', name: hotelAct.title, status: hotelAct.cost });
+    if (carAct) bundles.push({ icon: '🚗', name: carAct.title, status: carAct.cost });
+  }
+
+  const startDate = metaData.start_date || (days[0]?.date) || '';
+  const endDate = metaData.end_date || (days[days.length - 1]?.date) || '';
+  let tripDatesStr = '';
+  if (startDate && endDate) {
+    tripDatesStr = `${startDate} → ${endDate}`;
+  }
 
   return {
-    option_id: rawItem.option_id || `opt_${optionIndex + 1}`,
-    badge: rawItem.badge || (optionIndex === 0 ? '💰 Option 1: Express Budget Saver' : optionIndex === 1 ? '🏆 Option 2: Balanced Highlights' : '✨ Option 3: Premium Luxury Experience'),
-    badge_class: optionIndex === 0 ? 'option-badge-budget' : optionIndex === 1 ? 'option-badge-balanced' : 'option-badge-deluxe',
-    title: rawItem.title || `${payload.destination} ${optionIndex === 0 ? 'Express Budget Saver' : optionIndex === 1 ? 'Balanced Highlights & Cultural Tour' : 'Premium Luxury & Gastronomy'}`,
-    description: rawItem.description || `Custom ${total_days}-day itinerary tailored for ${payload.destination}.`,
+    option_id: rawItem.itinerary_id || rawItem.option_id || `opt_${optionNumber}`,
+    option_number: optionNumber,
+    badge: rawItem.title || `Option ${optionNumber}`,
+    badge_class: badgeClass,
+    title: rawItem.title || `Option ${optionNumber}: ${metaData.destination || payload.destination || 'Trip'} Plan`,
+    description: rawItem.llm_description || rawItem.description || rawItem.ai_summary || '',
+    highlights: Array.isArray(rawItem.highlights) ? rawItem.highlights : [],
+    why_choose_this: rawItem.why_choose_this || '',
+    ai_summary: rawItem.ai_summary || '',
+    destination: metaData.destination || payload.destination || 'Destination',
+    origin: metaData.origin || payload.origin || 'ATL',
     total_cost: totalCost,
-    cost_per_person: Math.round(totalCost / passengers),
-    bundles: rawItem.bundles || [
-      { icon: '✈️', name: `Roundtrip Air France (${payload.origin || 'ATL'} ➔ ${payload.destination})`, price: `$${Math.round(totalCost * 0.35)}` },
-      { icon: '🏨', name: `4★ Boutique Hotel Stay (${total_days} nights)`, price: `$${Math.round(totalCost * 0.45)}` },
-      { icon: '🚗', name: `Car Rental SUV`, price: `$${Math.round(totalCost * 0.12)}` }
-    ],
-    savings: rawItem.savings || '$350 (Save 20%)',
+    total_price_display: totalPriceDisplay,
+    cost_per_person: tripSummary.price_per_passenger ?? totalCost,
+    price_per_passenger_display: pricePerPersonDisplay,
+    currency: tripSummary.currency || 'USD',
+    is_hotel_price_tbd: Boolean(tripSummary.is_hotel_price_tbd),
+    is_car_price_tbd: Boolean(tripSummary.is_car_price_tbd),
+    tbd_components: Array.isArray(tripSummary.tbd_components) ? tripSummary.tbd_components : [],
+    category_highlights: catHighlights,
+    bundles: bundles,
+    bundle_summary_line: bundleSummaryLine,
+    trip_dates: tripDatesStr,
     days: days,
-    map_center: rawItem.map_center || [48.8566, 2.3522],
+    map_center: mapCenter,
+    map_pins: mapPins,
     map_zoom: rawItem.map_zoom || 13,
     total_days: total_days,
-    total_attractions: days.reduce((acc, d) => acc + (d.activities?.length || 0), 0)
+    passengers: passengers,
+    total_attractions: days.reduce((acc, d) => acc + (d.activities?.length || 0), 0),
+    service_execution_summary: tripSummary.service_execution_summary || metaData.service_execution_summary || {}
   };
-}
-
-function buildThreeItineraryOptions(baseOpt, payload) {
-  const destination = payload.destination || 'Paris';
-  const totalDays = baseOpt.total_days || 4;
-  const days = baseOpt.days || [];
-  const basePrice = baseOpt.total_cost || 2450;
-  const passengers = 2;
-
-  const departDateObj = payload.depart ? new Date(payload.depart) : new Date(Date.now() + 20 * 86400000);
-  const returnDateObj = payload.return ? new Date(payload.return) : new Date(departDateObj.getTime() + totalDays * 86400000);
-  const dateFmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const tripDatesStr = `${dateFmt(departDateObj)} – ${dateFmt(returnDateObj)}, ${departDateObj.getFullYear()}`;
-  const flightDatesStr = `${dateFmt(departDateObj)} – ${dateFmt(returnDateObj)}`;
-
-  const budgetPrice = Math.round(basePrice * 0.68);
-  const opt1Budget = {
-    ...baseOpt,
-    option_id: 'opt_1',
-    badge: '💰 Option 1: Express Budget Saver',
-    badge_class: 'option-badge-budget',
-    title: `${destination} Express Budget Saver`,
-    trip_dates: tripDatesStr,
-    total_cost: budgetPrice,
-    cost_per_person: Math.round(budgetPrice / passengers),
-    bundles: [
-      { icon: '✈️', name: `Express Roundtrip Flight (${payload.origin || 'ATL'} ➔ ${destination})`, dates: flightDatesStr, price: `$${Math.round(budgetPrice * 0.38)}` },
-      { icon: '🏨', name: `3★ City Center Hotel (${totalDays} nights)`, dates: flightDatesStr, price: `$${Math.round(budgetPrice * 0.42)}` },
-      { icon: '🚗', name: `Compact Economy Car`, dates: flightDatesStr, price: `$${Math.round(budgetPrice * 0.10)}` }
-    ],
-    savings: 'Save $420 (28% Bundle Discount)'
-  };
-
-  const opt2Balanced = {
-    ...baseOpt,
-    option_id: 'opt_2',
-    badge: '🏆 Option 2: Balanced Highlights',
-    badge_class: 'option-badge-balanced',
-    title: `${destination} Balanced Highlights & Cultural Tour`,
-    trip_dates: tripDatesStr,
-    total_cost: basePrice,
-    cost_per_person: Math.round(basePrice / passengers),
-    bundles: [
-      { icon: '✈️', name: `Roundtrip Flights (${payload.origin || 'ATL'} ➔ ${destination})`, dates: flightDatesStr, price: `$${Math.round(basePrice * 0.35)}` },
-      { icon: '🏨', name: `4★ Central Boutique Hotel (${totalDays} nights)`, dates: flightDatesStr, price: `$${Math.round(basePrice * 0.45)}` },
-      { icon: '🚗', name: `Midsize Rental SUV`, dates: flightDatesStr, price: `$${Math.round(basePrice * 0.12)}` }
-    ],
-    savings: 'Save $350 (20% Bundle Discount)'
-  };
-
-  const deluxePrice = Math.round(basePrice * 1.55);
-  const opt3Luxury = {
-    ...baseOpt,
-    option_id: 'opt_3',
-    badge: '✨ Option 3: Premium Luxury Experience',
-    badge_class: 'option-badge-deluxe',
-    title: `${destination} Premium Luxury & Gastronomy`,
-    trip_dates: tripDatesStr,
-    total_cost: deluxePrice,
-    cost_per_person: Math.round(deluxePrice / passengers),
-    bundles: [
-      { icon: '✈️', name: `Business Class Roundtrip (${payload.origin || 'ATL'} ➔ ${destination})`, dates: flightDatesStr, price: `$${Math.round(deluxePrice * 0.45)}` },
-      { icon: '🏨', name: `5★ Luxury Palace Resort (${totalDays} nights)`, dates: flightDatesStr, price: `$${Math.round(deluxePrice * 0.40)}` },
-      { icon: '🚗', name: `Full-Size Executive Luxury SUV`, dates: flightDatesStr, price: `$${Math.round(deluxePrice * 0.10)}` }
-    ],
-    savings: 'Save $580 (15% Bundle Discount)'
-  };
-
-  return [opt1Budget, opt2Balanced, opt3Luxury];
 }
 
 function renderPlannerOptionsOverview(options) {
@@ -442,7 +460,7 @@ function renderPlannerOptionsOverview(options) {
   let cardsHtml = `
     <div class="planner-options-header">
       <div>
-        <h3 class="planner-options-title">✨ AI Itinerary Recommendations (${options.length} Options)</h3>
+        <h3 class="planner-options-title">✨ Live AI Itinerary Recommendations (${options.length} Options)</h3>
         <p class="planner-options-subtitle">Select an option below to expand into full detailed itinerary view and interactive map.</p>
       </div>
     </div>
@@ -450,23 +468,69 @@ function renderPlannerOptionsOverview(options) {
   `;
 
   options.forEach((opt, idx) => {
+    const highlightsHtml = (opt.highlights && opt.highlights.length > 0)
+      ? `
+        <div class="option-highlights-list" style="margin-bottom:12px; background:#faf5ff; border:1px solid #f3e8ff; border-radius:10px; padding:10px 12px;">
+          <div style="font-weight:800; font-size:11.5px; color:#6b21a8; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">🌟 Curated Highlights:</div>
+          <ul style="margin:0; padding-left:18px; font-size:12px; color:#4a044e; line-height:1.5;">
+            ${opt.highlights.map(h => `<li>${h}</li>`).join('')}
+          </ul>
+        </div>
+      `
+      : '';
+
+    const whyChooseHtml = opt.why_choose_this
+      ? `<div style="font-size:12px; color:#0369a1; background:#f0f9ff; border:1px solid #e0f2fe; padding:6px 10px; border-radius:8px; margin-bottom:12px; font-weight:600;">💡 ${opt.why_choose_this}</div>`
+      : '';
+
+    const summaryLineHtml = opt.bundle_summary_line
+      ? `<div style="font-size:11.5px; color:#475569; font-weight:600; margin-top:6px; border-top:1px dashed #e2e8f0; padding-top:6px;">📋 ${opt.bundle_summary_line}</div>`
+      : '';
+
+    const tbdNoticeHtml = (opt.tbd_components && opt.tbd_components.length > 0)
+      ? `<div style="font-size:11px; color:#b45309; background:#fffbeb; border:1px solid #fef3c7; padding:4px 8px; border-radius:6px; margin-top:6px; font-weight:700;">ℹ️ ${opt.tbd_components.join(' & ')} rates TBD via Live Provider</div>`
+      : '';
+
+    const bundlesHtml = (opt.bundles && opt.bundles.length > 0)
+      ? `
+        <div class="option-bundles-list">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+            <strong style="color:#0f172a; font-size:12.5px;">📦 Live Package Bundle Breakdown:</strong>
+            ${opt.trip_dates ? `<span style="font-size:11px; font-weight:800; color:#4338ca; background:#e0e7ff; padding:2px 8px; border-radius:8px;">📅 ${opt.trip_dates}</span>` : ''}
+          </div>
+          ${opt.bundles.map(b => `
+            <div class="bundle-item-row">
+              <span style="font-size:16px;">${b.icon}</span>
+              <span style="flex:1; font-size:12px; color:#1e293b;">${b.name}</span>
+              ${b.price ? `<strong style="margin-left:auto; color:#0f172a; font-size:12px;">${b.price}</strong>` : (b.status ? `<span style="margin-left:auto; font-size:11px; color:#059669; font-weight:700; background:#ecfdf5; padding:1px 6px; border-radius:6px;">${b.status}</span>` : '')}
+            </div>
+          `).join('')}
+          ${summaryLineHtml}
+          ${tbdNoticeHtml}
+        </div>
+      `
+      : '';
+
     cardsHtml += `
       <div class="option-overview-card" data-option-card-index="${idx}">
         <span class="option-card-badge ${opt.badge_class || 'option-badge-balanced'}">${opt.badge}</span>
         <h4 class="option-card-title">${opt.title}</h4>
-        <div class="option-card-pricing">
-          <span class="option-total-cost">$${opt.total_cost.toLocaleString()}</span>
-          <span class="option-per-person">($${opt.cost_per_person}/person) · ${opt.total_days} Days</span>
+        ${opt.description ? `<p style="font-size:12.5px; color:#475569; margin:0 0 10px 0; line-height:1.5;">${opt.description}</p>` : ''}
+        ${whyChooseHtml}
+
+        <div class="option-card-pricing" style="background:#f8fafc; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:12px;">
+          <div>
+            <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Estimated Trip Total</div>
+            <div class="option-total-cost" style="color:var(--coral); font-size:18px; font-weight:900;">${opt.total_price_display}</div>
+          </div>
+          <div style="margin-left:auto; text-align:right;">
+            <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Per Passenger</div>
+            <div class="option-per-person" style="font-size:13px; font-weight:800; color:#0f172a;">${opt.price_per_passenger_display}</div>
+          </div>
         </div>
 
-        <div class="option-bundles-list">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
-            <strong style="color:#0f172a; font-size:12.5px;">📦 Package Bundle Included:</strong>
-            <span style="font-size:11px; font-weight:800; color:#4338ca; background:#e0e7ff; padding:2px 8px; border-radius:8px;">📅 ${opt.trip_dates}</span>
-          </div>
-          ${opt.bundles.map(b => `<div class="bundle-item-row"><span>${b.icon}</span> <span>${b.name} ${b.dates ? `<small style="color:#64748b; font-weight:600;">(${b.dates})</small>` : ''}</span> <strong style="margin-left:auto; color:#0f172a;">${b.price}</strong></div>`).join('')}
-          <div class="bundle-savings-pill">🏷️ ${opt.savings}</div>
-        </div>
+        ${highlightsHtml}
+        ${bundlesHtml}
 
         <div class="option-mini-map-container" id="mini-map-opt-${idx}"></div>
 
@@ -502,7 +566,7 @@ function renderMiniMap(containerId, optionData) {
   const container = document.getElementById(containerId);
   if (!container || typeof L === 'undefined') return;
 
-  const center = Array.isArray(optionData.map_center) ? optionData.map_center : [48.8566, 2.3522];
+  const center = Array.isArray(optionData.map_center) ? optionData.map_center : [52.3667, 13.5033];
   
   container.innerHTML = '';
 
@@ -575,11 +639,15 @@ function renderTripSummaryHeader(data, allOptions = [], selectedIdx = 0) {
     </button>
   `).join('');
 
+  const serviceSummary = data.service_execution_summary || {};
+  const plannerModel = serviceSummary.itinerary_planner?.llm_model || 'gpt-4o-mini';
+  const totalCalls = serviceSummary.service_calls?.total_calls_count || 3;
+
   headerContainer.innerHTML = `
     <div class="trip-header-card" style="background:#ffffff; border:1px solid var(--line); border-radius:14px; padding:18px; box-shadow:0 4px 16px rgba(0,0,0,0.04); margin-bottom:16px;">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px; border-bottom:1px solid #e2e8f0; padding-bottom:12px;">
         <button type="button" class="btn-back-to-options" id="btn-back-to-overview">
-          <span>← Back to All 3 Options</span>
+          <span>← Back to All ${allOptions.length} Options</span>
         </button>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           ${optionPillsHtml}
@@ -587,18 +655,20 @@ function renderTripSummaryHeader(data, allOptions = [], selectedIdx = 0) {
       </div>
 
       <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
-        <div class="trip-header-title">
+        <div class="trip-header-title" style="flex:1; min-width:280px;">
           <h2 style="font-family:'Space Grotesk',sans-serif; font-size:20px; font-weight:700; margin:0 0 4px 0; color:var(--ink);">✨ ${data.title}</h2>
-          <p class="muted" style="margin:0; font-size:13px; color:var(--muted);">
-            ${data.total_days} Days · ${data.total_attractions} Stops & Experiences · Total Price: <strong style="color:var(--coral); font-size:15px;">$${data.total_cost.toLocaleString()} USD</strong> ($${data.cost_per_person}/person)
+          <p class="muted" style="margin:0 0 8px 0; font-size:13px; color:var(--muted);">
+            ${data.total_days} Days · ${data.total_attractions} Stops & Experiences · Total Price: <strong style="color:var(--coral); font-size:15px;">${data.total_price_display}</strong> (${data.price_per_passenger_display} / person)
           </p>
+          ${data.description ? `<p style="margin:0 0 8px 0; font-size:12.5px; color:#475569; line-height:1.5;">${data.description}</p>` : ''}
+          ${data.why_choose_this ? `<div style="font-size:12px; color:#0369a1; background:#f0f9ff; border:1px solid #e0f2fe; padding:6px 10px; border-radius:8px; font-weight:600; display:inline-block;">💡 Why Choose This: ${data.why_choose_this}</div>` : ''}
         </div>
         <div class="trip-badges" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <button type="button" id="btn-save-ai-trip-plan" style="background:#0f172a; color:#ffffff; font-weight:800; font-size:12px; padding:6px 14px; border:none; border-radius:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(15,23,42,0.2); transition:all 0.15s ease;">
+          <button type="button" id="btn-save-ai-trip-plan" style="background:#0f172a; color:#ffffff; font-weight:800; font-size:12px; padding:8px 14px; border:none; border-radius:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(15,23,42,0.2); transition:all 0.15s ease;">
             <span>💾 Save AI Trip Plan</span>
           </button>
-          <span class="badge-ai" style="padding:4px 10px; border-radius:12px; background:rgba(99,102,241,0.1); color:#6366f1; font-weight:700; font-size:11px;">✦ AI Generated</span>
-          <span class="badge-route" style="padding:4px 10px; border-radius:12px; background:rgba(16,185,129,0.1); color:#10b981; font-weight:700; font-size:11px;">🗺️ Interactive Map</span>
+          <span class="badge-ai" style="padding:4px 10px; border-radius:12px; background:rgba(99,102,241,0.1); color:#6366f1; font-weight:700; font-size:11px;">✦ Live LLM (${plannerModel})</span>
+          <span class="badge-route" style="padding:4px 10px; border-radius:12px; background:rgba(16,185,129,0.1); color:#10b981; font-weight:700; font-size:11px;">✈️ Live Duffel API (${totalCalls} Calls)</span>
         </div>
       </div>
     </div>

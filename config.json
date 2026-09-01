@@ -1,1 +1,5 @@
-if the prompt text is same as the recently searched text or same text is searched again and again, then do not do live call until the cache expires
+{
+  "google_oauth_client_id": "902031561179-a55usf1op5d3sukbm6vr1c2uqs0k6t95.apps.googleusercontent.com",
+  "google_maps_api_key": "",
+  "environment": "local"
+}
