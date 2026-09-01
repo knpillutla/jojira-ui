@@ -416,14 +416,26 @@ export function getCategoryInfo(act) {
   if (cat.includes('cruise') || cat.includes('ferry') || cat.includes('boat') || cat.includes('ship') || title.includes('cruise') || title.includes('ferry') || title.includes('boat') || title.includes('sailing')) {
     return { icon: '🚢', label: 'Cruise / Ferry', code: 'cruise', color: '#0891b2' };
   }
-  if (cat.includes('attraction') || cat.includes('museum') || cat.includes('sight') || cat.includes('monument') || title.includes('museum') || title.includes('louvre') || title.includes('eiffel') || title.includes('tower') || title.includes('park') || title.includes('cathedral') || title.includes('palace')) {
+  if (cat.includes('shopping') || title.includes('shopping') || title.includes('market') || title.includes('mall')) {
+    return { icon: '🛍️', label: 'Shopping', code: 'shopping', color: '#db2777' };
+  }
+  if (cat.includes('nature') || title.includes('falls') || title.includes('park') || title.includes('forest') || title.includes('orchard') || title.includes('trail')) {
+    return { icon: '🌲', label: 'Nature / Outdoors', code: 'nature', color: '#15803d' };
+  }
+  if (cat.includes('food') || cat.includes('dining') || cat.includes('restaurant') || title.includes('bistro') || title.includes('dinner') || title.includes('lunch') || title.includes('cafe') || title.includes('bakery')) {
+    return { icon: '🍽️', label: 'Dining', code: 'dining', color: '#e11d48' };
+  }
+  if (cat.includes('attraction') || cat.includes('museum') || cat.includes('sight') || cat.includes('monument') || title.includes('museum') || title.includes('louvre') || title.includes('eiffel') || title.includes('tower') || title.includes('cathedral') || title.includes('palace')) {
     return { icon: '🎟️', label: 'Attraction', code: 'attraction', color: '#7c3aed' };
   }
   if (cat.includes('train') || cat.includes('rail') || cat.includes('station') || cat.includes('subway') || title.includes('train') || title.includes('station') || title.includes('gare') || title.includes('metro')) {
     return { icon: '🚆', label: 'Train Station', code: 'train', color: '#d97706' };
   }
-  if (cat.includes('food') || cat.includes('dining') || cat.includes('restaurant') || title.includes('bistro') || title.includes('dinner') || title.includes('lunch') || title.includes('cafe') || title.includes('bakery')) {
-    return { icon: '🍽️', label: 'Dining', code: 'dining', color: '#e11d48' };
+  if (cat.includes('drive') || title.includes('drive') || title.includes('departure') || title.includes('journey')) {
+    return { icon: '🚗', label: 'Drive / Travel', code: 'drive', color: '#2563eb' };
+  }
+  if (cat.includes('leisure') || title.includes('stroll') || title.includes('walk')) {
+    return { icon: '🚶', label: 'Leisure / Walk', code: 'leisure', color: '#0891b2' };
   }
   return { icon: '🏄', label: 'Activity', code: 'activity', color: '#2563eb' };
 }
@@ -454,6 +466,9 @@ export function getTransportModeBetweenStops(p1, p2, actFrom, actTo) {
   }
   if (mode === 'drive' || mode === 'driving' || mode === 'car' || mode === 'taxi' || mode === 'uber') {
     return { mode: 'drive', label: `🚗 Drive${durText || ' (~10 min)'}`, color: '#2563eb', dash: null };
+  }
+  if (mode === 'stay' || mode === 'rest' || mode === 'hotel') {
+    return { mode: 'stay', label: `🏨 Rest / Hotel Stay${durText}`, color: '#0d9488', dash: '2, 6' };
   }
   if (mode === 'train' || mode === 'rail' || mode === 'metro' || mode === 'subway' || mode === 'transit' || mode === 'bus') {
     return { mode: 'train', label: `🚆 Transit / Rail${durText}`, color: '#d97706', dash: '12, 4, 2, 4' };
