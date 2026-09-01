@@ -25,6 +25,7 @@
 - **Always Modularize the Code**: Design software in decoupled, single-responsibility modules and components with clear interfaces.
 - **Create Reusable Code**: Write functions, classes, and utilities designed for maximum reusability across services, adapters, and UI components.
 - **Reuse Code As Much As Possible**: Always inspect existing modules and helper functions before implementation. Reuse pre-existing utilities, abstractions, and functions rather than re-creating duplicate or overlapping logic.
+- **Enforce File Size Limits (200–300 Lines Maximum)**: Ensure no file exceeds 200–300 lines. If any file grows beyond this threshold, split it into new, reusable, and single-responsibility sub-modules/files within the same module directory.
 
 ## Token & Communication Efficiency Rules
 
