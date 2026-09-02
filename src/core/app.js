@@ -5,7 +5,7 @@ import { initHotelSearch, restoreHotelState } from '../components/hotels/hotelSe
 import { initStayBookingEvents } from '../components/hotels/stayBookingWizard.js';
 import { initCarSearch, restoreCarState } from '../components/cars/carSearch.js';
 import { initBundleSearch, restoreBundleState } from '../components/bundles/bundleSearch.js';
-import { initPlannerControls, restorePlannerState } from '../components/planner/plannerControls.js';
+import { initPlannerControls, restorePlannerState } from '../components/planner/plannerControls.js?v=3';
 import { initTableSorting } from '../components/offerTable.js';
 import { initAuth } from '../utils/authManager.js';
 import { initAccountDashboard } from '../components/accountDashboard.js';
