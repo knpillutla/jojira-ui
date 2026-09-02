@@ -43,7 +43,7 @@ export function renderTripSummaryHeader(data, allOptions = [], selectedIdx = 0, 
           <h2 style="font-family:'Space Grotesk',sans-serif; font-size:20px; font-weight:700; margin:0 0 4px 0; color:var(--ink);">✨ ${data.title}</h2>
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
             <p class="muted" style="margin:0; font-size:13px; color:var(--muted);">
-              ${data.total_days} Days · ${data.total_attractions} Stops & Experiences · Total Price: <strong style="color:var(--coral); font-size:15px;">${data.total_price_display}</strong> (${data.price_per_passenger_display} / person)
+              ${data.total_days} Days · ${data.total_attractions} Stops & Experiences · Total Price: <strong style="color:var(--coral); font-size:15px;">${data.total_price_display}</strong> (${data.price_per_passenger_display} / person · 👥 ${data.passengers || data.number_of_passengers || 1} Passenger${(data.passengers || data.number_of_passengers || 1) > 1 ? 's' : ''})
             </p>
             ${categoryBadge}
             ${travelDaysBadge}
@@ -129,9 +129,10 @@ export function renderDayFilterPills(data, onFilterChange = null) {
 
   data.days.forEach((d, i) => {
     const color = d.themeColor || DAY_COLOR_PALETTE[i % DAY_COLOR_PALETTE.length];
+    const dateText = d.date ? ` <span style="font-size:10.5px; opacity:0.85;">(${d.date.replace(/^202\d-/, '')})</span>` : '';
     pillsHtml += `
       <button type="button" class="day-pill" data-day-filter="${d.day}" style="--pill-color: ${color}">
-        <span class="pill-dot" style="background: ${color}; width:10px; height:10px; border-radius:50%; display:inline-block;"></span> Day ${d.day}
+        <span class="pill-dot" style="background: ${color}; width:10px; height:10px; border-radius:50%; display:inline-block;"></span> Day ${d.day}${dateText}
       </button>
     `;
   });

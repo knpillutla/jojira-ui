@@ -90,14 +90,20 @@ export function renderPlannerOptionsOverview(options, payload = {}, onSelectOpti
         ${opt.description ? `<p style="font-size:12.5px; color:#475569; margin:0 0 10px 0; line-height:1.5;">${opt.description}</p>` : ''}
         ${whyChooseHtml}
 
-        <div class="option-card-pricing" style="background:#f8fafc; padding:10px 14px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:12px;">
-          <div>
-            <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Estimated Trip Total</div>
-            <div class="option-total-cost" style="color:var(--coral); font-size:18px; font-weight:900;">${opt.total_price_display}</div>
+        <div class="option-card-pricing" style="background:#f8fafc; padding:12px 14px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:12px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px;">Estimated Trip Total</div>
+              <div class="option-total-cost" style="color:var(--coral); font-size:20px; font-weight:900;">${opt.total_price_display}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:10.5px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.4px;">Cost / Passenger</div>
+              <div class="option-per-person" style="font-size:14px; font-weight:800; color:#0f172a;">${opt.price_per_passenger_display}</div>
+            </div>
           </div>
-          <div style="margin-left:auto; text-align:right;">
-            <div style="font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Per Passenger</div>
-            <div class="option-per-person" style="font-size:13px; font-weight:800; color:#0f172a;">${opt.price_per_passenger_display}</div>
+          <div style="font-size:11px; color:#475569; font-weight:600; padding-top:6px; border-top:1px dashed #e2e8f0; display:flex; align-items:center; justify-content:space-between;">
+            <span>👥 <strong>${opt.passengers || opt.number_of_passengers || 1} Passenger${(opt.passengers || opt.number_of_passengers || 1) > 1 ? 's' : ''}</strong></span>
+            <span style="color:#059669; font-size:10.5px; font-weight:700; background:#dcfce7; padding:1px 6px; border-radius:4px;">All Taxes & Fees Included</span>
           </div>
         </div>
 

@@ -46,7 +46,7 @@ export function renderSummaryView(container, itineraryData) {
       <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:6px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
           <div>
-            <span style="font-size:10.5px; font-weight:800; color:#0d9488; background:rgba(13,148,136,0.1); padding:2px 6px; border-radius:4px;">Night ${h.night_number} · ${h.date}</span>
+            <span style="font-size:10.5px; font-weight:800; color:#0d9488; background:rgba(13,148,136,0.1); padding:2px 6px; border-radius:4px;">Night ${h.night_number} · ${h.date} · 🔑 Check-In: ${h.check_in_time || '03:00 PM'}</span>
             <h4 style="margin:4px 0 2px 0; font-size:14px; font-weight:700; color:#0f172a;">🏨 ${h.hotel_name}</h4>
             <div style="font-size:11.5px; color:#64748b;">📍 ${h.city || 'Destination'} ${h.star_rating ? `· ⭐ ${h.star_rating}` : ''} ${h.reviews_count ? `(${h.reviews_count} reviews)` : ''}</div>
           </div>
@@ -118,7 +118,7 @@ export function renderSummaryView(container, itineraryData) {
           <div style="text-align:right; background:rgba(255,255,255,0.08); padding:10px 16px; border-radius:10px; border:1px solid rgba(255,255,255,0.12);">
             <div style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase;">Estimated Package Total</div>
             <div style="font-size:22px; font-weight:900; color:#f43f5e;">$${Number(totalCost || 0).toFixed(2)} <span style="font-size:13px; font-weight:600; color:#cbd5e1;">${currency}</span></div>
-            <div style="font-size:11.5px; color:#e2e8f0; font-weight:600;">$${Number(pricePerPerson || totalCost || 0).toFixed(2)} / passenger</div>
+            <div style="font-size:11.5px; color:#e2e8f0; font-weight:600;">$${Number(pricePerPerson || totalCost || 0).toFixed(2)} / passenger · 👥 <strong>${itineraryData.passengers || itineraryData.number_of_passengers || 1} Passenger${(itineraryData.passengers || itineraryData.number_of_passengers || 1) > 1 ? 's' : ''}</strong></div>
           </div>
         </div>
 

@@ -130,6 +130,8 @@ export function normalizeSingleOption(rawItem, payload = {}, metaData = {}, opti
         reviews: Array.isArray(item.reviews) ? item.reviews : [],
         website_url: item.website_url || item.direct_website_url || '',
         reviews_url: item.reviews_url || item.google_reviews_url || item.tripadvisor_reviews_url || '',
+        activity_type: item.activity_type || item.type || item.category || 'activity',
+        google_maps_url: item.google_maps_url || item.google_maps_link || item.map_url || '',
         transit_mode: item.transit_mode || nextActivity?.travel_mode || 'drive',
         transit_duration_minutes: item.transit_duration_minutes ?? nextActivity?.travel_time_minutes ?? 0,
         transit_summary: item.transit_summary || nextActivity?.transit_summary || '',
@@ -139,12 +141,27 @@ export function normalizeSingleOption(rawItem, payload = {}, metaData = {}, opti
       };
     });
 
+    const gmapsUrl = dayItem.google_maps_url || dayItem.google_maps_link || dayItem.google_maps || dayItem.map_link || dayItem.directions_url || '';
+    let finalGmapsUrl = gmapsUrl;
+    if (!finalGmapsUrl && activities.length > 0) {
+      const validPoints = activities.filter(a => Number.isFinite(a.lat) && Number.isFinite(a.lng) && a.lat !== 0);
+      if (validPoints.length >= 2) {
+        const originPt = `${validPoints[0].lat},${validPoints[0].lng}`;
+        const destPt = `${validPoints[validPoints.length - 1].lat},${validPoints[validPoints.length - 1].lng}`;
+        const waypoints = validPoints.slice(1, -1).map(p => `${p.lat},${p.lng}`).join('|');
+        finalGmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${originPt}&destination=${destPt}${waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ''}&travelmode=driving`;
+      } else if (validPoints.length === 1) {
+        finalGmapsUrl = `https://www.google.com/maps/search/?api=1&query=${validPoints[0].lat},${validPoints[0].lng}`;
+      }
+    }
+
     return {
       day: dayItem.day_number || dayItem.day || (i + 1),
       date: dayItem.date || '',
       title: dayItem.theme ? `Day ${dayItem.day_number || i + 1}: ${dayItem.theme}` : (dayItem.title || `Day ${i + 1}: ${payload.destination || metaData.destination || 'Destination'} Exploration`),
       themeColor: dayColors[i % dayColors.length],
       daily_total_cost: dayItem.daily_total_cost || 0,
+      google_maps_url: finalGmapsUrl,
       activities: activities
     };
   });
@@ -157,8 +174,8 @@ export function normalizeSingleOption(rawItem, payload = {}, metaData = {}, opti
   const summaryOptionsList = Array.isArray(summary.itinerary_options) ? summary.itinerary_options : [];
   const summaryOpt = summaryOptionsList[optionIndex] || summaryOptionsList.find(o => o.tier === rawItem.budget || o.tier === rawItem.style || o.tier === rawItem.tier);
 
-  const totalCost = rawItem.total_price ?? rawItem.total_cost ?? summaryOpt?.total_price ?? tripSummary.total_trip_price ?? (typeof tripSummary.total_price === 'number' ? tripSummary.total_price : (optSummary.total_cost || 0));
-  const passengers = tripSummary.occupancy_details?.passengers || metaData.passengers_count || 1;
+  const passengers = rawItem.passengers_count ?? rawItem.number_of_passengers ?? rawItem.passengers ?? tripSummary.occupancy_details?.passengers ?? metaData.passengers_count ?? payload.passengers ?? 1;
+  const totalCost = rawItem.total_cost ?? rawItem.total_price ?? summaryOpt?.total_price ?? tripSummary.total_trip_price ?? (typeof tripSummary.total_price === 'number' ? tripSummary.total_price : (optSummary.total_cost || 0));
   const pricePerPerson = rawItem.price_per_person ?? rawItem.cost_per_person ?? summaryOpt?.price_per_person ?? tripSummary.price_per_passenger ?? (totalCost > 0 ? totalCost / passengers : 0);
   const currency = rawItem.currency || tripSummary.currency || optSummary.currency || 'USD';
 
@@ -266,6 +283,8 @@ export function normalizeSingleOption(rawItem, payload = {}, metaData = {}, opti
     map_zoom: rawItem.map_zoom || 13,
     total_days: total_days,
     passengers: passengers,
+    passengers_count: passengers,
+    number_of_passengers: passengers,
     total_attractions: optSummary.attractions?.total_attractions_count || days.reduce((acc, d) => acc + (d.activities?.length || 0), 0),
     service_execution_summary: tripSummary.service_execution_summary || metaData.service_execution_summary || {}
   };

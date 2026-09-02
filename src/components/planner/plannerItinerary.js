@@ -144,8 +144,9 @@ export function renderPlannerItinerary(itineraryData, selectedDayFilter = 'all')
             </div>
             ${act.description ? `<p class="activity-desc" style="margin:6px 0 8px 0;">${act.description}</p>` : ''}
             <div class="activity-meta" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-              <span class="category-chip" style="background:${catInfo.color}; color:#ffffff; font-weight:700;">${catInfo.icon} ${act.category || catInfo.label}</span>
+              <span class="category-chip" style="background:${catInfo.color}; color:#ffffff; font-weight:700;">${catInfo.icon} ${act.activity_type || act.category || catInfo.label}</span>
               ${durationChipHtml}
+              ${act.google_maps_url ? `<a href="${act.google_maps_url}" target="_blank" rel="noopener noreferrer" style="font-size:11px; font-weight:700; color:#0284c7; text-decoration:none; background:#f0f9ff; border:1px solid #bae6fd; padding:2px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:3px;">📍 Google Maps ↗</a>` : ''}
               <button type="button" class="btn-locate-map" title="Show on map" style="margin-left:auto;">📍 Map Pin</button>
             </div>
             ${nextActivityNoteHtml}
@@ -154,14 +155,34 @@ export function renderPlannerItinerary(itineraryData, selectedDayFilter = 'all')
       `;
     }).join('');
 
+    const dateBadgeHtml = day.date
+      ? `<span style="font-size:12px; font-weight:700; color:#475569; background:#f1f5f9; padding:2px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px;">📅 ${day.date}</span>`
+      : '';
+
+    const googleMapsBtnHtml = day.google_maps_url
+      ? `
+        <a href="${day.google_maps_url}" target="_blank" rel="noopener noreferrer" class="btn-day-maps-route" title="Open complete Day ${day.day} route in Google Maps app / web" style="display:inline-flex; align-items:center; gap:6px; background:#eff6ff; border:1.5px solid #bfdbfe; color:#1d4ed8; font-size:11.5px; font-weight:700; padding:6px 12px; border-radius:8px; text-decoration:none; transition:all 0.15s ease; box-shadow:0 1px 3px rgba(0,0,0,0.04); margin-left:auto;">
+          🗺️ Open Day ${day.day} in Google Maps ↗
+        </a>
+      `
+      : '';
+
     return `
       <div class="day-section" data-day-number="${day.day}">
-        <div class="day-section-header" style="border-left-color: ${dayColor}">
-          <div class="day-header-badge" style="background: ${dayColor}">Day ${day.day}</div>
-          <div class="day-header-info">
-            <h3>${day.title}</h3>
-            <span class="day-stats-muted">${day.activities.length} Stops · ${day.daily_total_cost ? `Daily Total: $${day.daily_total_cost.toFixed(2)} USD` : 'Route Color'}</span>
+        <div class="day-section-header" style="border-left-color: ${dayColor}; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div class="day-header-badge" style="background: ${dayColor}; font-size:12px; font-weight:800; padding:4px 10px; border-radius:8px; display:inline-flex; align-items:center; gap:4px;">
+              Day ${day.day}${day.date ? ` · ${day.date}` : ''}
+            </div>
+            <div class="day-header-info">
+              <h3 style="margin:0; display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
+                <span>${day.title}</span>
+                ${dateBadgeHtml}
+              </h3>
+              <span class="day-stats-muted">${day.activities.length} Stops · ${day.daily_total_cost ? `Daily Total: $${day.daily_total_cost.toFixed(2)} USD` : 'Route Color'}</span>
+            </div>
           </div>
+          ${googleMapsBtnHtml}
         </div>
         <div class="day-activities-timeline">
           ${activitiesHtml}
