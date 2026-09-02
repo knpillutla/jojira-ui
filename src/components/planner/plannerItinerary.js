@@ -87,6 +87,13 @@ export function renderPlannerItinerary(itineraryData, selectedDayFilter = 'all')
       }
 
       const phoneHtml = act.phone_number ? `<span style="font-size:11px; color:#64748b;">· 📞 ${act.phone_number}</span>` : '';
+      const airlineName = act.airline || act.airline_name || '';
+      const airlineFieldHtml = airlineName
+        ? `<div class="activity-airline-field" style="margin:3px 0 2px 0; font-size:12px; display:inline-flex; align-items:center; gap:5px;">
+             <span style="font-weight:700; color:#334155;">Airline:</span>
+             <span class="activity-airline-name" style="color:#0284c7; font-weight:800; background:#f0f9ff; border:1px solid #bae6fd; padding:1px 8px; border-radius:6px;">${airlineName}</span>
+           </div>`
+        : '';
 
       // Build Next Activity Note Box strictly from API data as is
       let nextActivityNoteHtml = '';
@@ -139,6 +146,7 @@ export function renderPlannerItinerary(itineraryData, selectedDayFilter = 'all')
                   </div>
                   ${costHtml}
                 </div>
+                ${airlineFieldHtml}
                 <p class="activity-location" style="margin:3px 0 0 0;">${act.address || ''} ${phoneHtml}</p>
               </div>
             </div>

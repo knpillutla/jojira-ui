@@ -751,6 +751,7 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
           <div class="popup-header" style="border-left: 4px solid ${dayColor};">
             <span class="popup-time">Day ${day.day} · Stop #${stopNumLabel} · ⏱️ ${times.startTime} – ${times.endTime} (${times.durationStr})</span>
             <h4 class="popup-title">${catInfo.icon} ${act.title}</h4>
+            ${act.airline ? `<div class="popup-airline" style="font-size:11.5px; font-weight:700; color:#0284c7; margin-top:2px;">✈️ Airline: ${act.airline}</div>` : ''}
           </div>
           <p class="popup-desc">${act.description}</p>
           <div class="popup-footer" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
@@ -967,6 +968,7 @@ function renderLeafletMap(mapContainer, itineraryData, daysToRender, center) {
           <div class="popup-header" style="border-left: 4px solid ${dayColor};">
             <span class="popup-time">Day ${day.day} · Stop #${stopNumLabel} · ⏱️ ${times.startTime} – ${times.endTime} (${times.durationStr})</span>
             <h4 class="popup-title">${catInfo.icon} ${act.title}</h4>
+            ${act.airline ? `<div class="popup-airline" style="font-size:11.5px; font-weight:700; color:#0284c7; margin-top:2px;">✈️ Airline: ${act.airline}</div>` : ''}
           </div>
           <p class="popup-desc">${act.description}</p>
           <div class="popup-footer" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">

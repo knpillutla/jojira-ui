@@ -1,71 +1,79 @@
 /**
- * Planner Road Trip Quick Filter Module
- * Provides Road Trip toggle controls and prompt augmentation for AI Trip Planner.
+ * Planner Trip Mode Quick Filter Module
+ * Provides Road Trip vs Fly & Drive mode controls and payload mapping for AI Trip Planner.
  */
 
 /**
- * Initializes the Road Trip checkbox controls.
+ * Initializes the trip mode radio controls (Road Trip vs Fly & Drive).
  */
 export function initPlannerRoadTripControls() {
   const form = document.getElementById('ai-planner-form');
   if (!form) return;
 
-  const roadTripCheckbox = form.querySelector('#planner-roadtrip-checkbox');
+  const tripModeRadios = form.querySelectorAll('input[name="planner_trip_mode"]');
 
-  // Handle Road Trip checkbox interaction: uncheck flights option by default when selected
-  if (roadTripCheckbox) {
-    roadTripCheckbox.addEventListener('change', (e) => {
+  tripModeRadios.forEach(radio => {
+    radio.addEventListener('change', (e) => {
       const flightsCheckbox = form.querySelector('[name="include_flights"]');
-      if (e.target.checked) {
-        if (flightsCheckbox) {
-          flightsCheckbox.checked = false;
-        }
-      } else {
-        if (flightsCheckbox) {
-          flightsCheckbox.checked = true;
-        }
+      const carsCheckbox = form.querySelector('[name="include_cars"]');
+
+      if (e.target.value === 'road_trip') {
+        // Road trip: uncheck flights by default, keep car rentals
+        if (flightsCheckbox) flightsCheckbox.checked = false;
+        if (carsCheckbox) carsCheckbox.checked = true;
+      } else if (e.target.value === 'fly_and_drive') {
+        // Fly & Drive: check flights and car rentals by default
+        if (flightsCheckbox) flightsCheckbox.checked = true;
+        if (carsCheckbox) carsCheckbox.checked = true;
       }
     });
+  });
+
+  // Apply default state on initialization: Road Trip is selected by default
+  const activeMode = form.querySelector('input[name="planner_trip_mode"]:checked')?.value || 'road_trip';
+  if (activeMode === 'road_trip') {
+    const flightsCheckbox = form.querySelector('[name="include_flights"]');
+    if (flightsCheckbox) flightsCheckbox.checked = false;
   }
 }
 
 /**
- * Returns current Road Trip checkbox state.
- * @returns {{isRoadTrip: boolean}}
+ * Returns current trip mode flags for payload.
+ * @returns {{road_trip: boolean, fly_and_drive: boolean, isRoadTrip: boolean, isFlyAndDrive: boolean}}
  */
 export function getRoadTripSelection() {
   const form = document.getElementById('ai-planner-form');
-  const isRoadTrip = Boolean(form?.querySelector('#planner-roadtrip-checkbox')?.checked);
+  const selectedMode = form?.querySelector('input[name="planner_trip_mode"]:checked')?.value || 'road_trip';
+  const isRoadTrip = selectedMode === 'road_trip';
+  const isFlyAndDrive = selectedMode === 'fly_and_drive';
+
   return {
-    isRoadTrip
+    road_trip: isRoadTrip,
+    fly_and_drive: isFlyAndDrive,
+    isRoadTrip,
+    isFlyAndDrive
   };
 }
 
 /**
- * Internally appends "Road Trip" to the entered search text with a space
- * if selected and not already in the query.
- * @param {string} enteredText
- * @returns {string}
+ * Programmatically restores Road Trip / Fly & Drive selection state.
+ * @param {{road_trip?: boolean, fly_and_drive?: boolean, isRoadTrip?: boolean}} state
  */
-export function augmentPromptWithRoadTrip(enteredText) {
-  const { isRoadTrip } = getRoadTripSelection();
-  let result = (enteredText || '').trim();
-
-  if (isRoadTrip && !/\broad\s*trip\b/i.test(result)) {
-    result = result ? `${result} Road Trip` : 'Road Trip';
-  }
-
-  return result;
-}
-
-/**
- * Programmatically restores Road Trip selection state.
- * @param {{isRoadTrip?: boolean}} state
- */
-export function setRoadTripSelection({ isRoadTrip } = {}) {
+export function setRoadTripSelection({ road_trip, fly_and_drive, isRoadTrip } = {}) {
   const form = document.getElementById('ai-planner-form');
-  const checkbox = form?.querySelector('#planner-roadtrip-checkbox');
-  if (checkbox) {
-    checkbox.checked = Boolean(isRoadTrip);
+  if (!form) return;
+
+  const isFly = fly_and_drive !== undefined ? Boolean(fly_and_drive) : false;
+  const isRoad = road_trip !== undefined ? Boolean(road_trip) : (isRoadTrip !== undefined ? Boolean(isRoadTrip) : !isFly);
+
+  const roadRadio = form.querySelector('#planner-mode-roadtrip');
+  const flyRadio = form.querySelector('#planner-mode-flydrive');
+
+  if (roadRadio && flyRadio) {
+    if (isFly && !isRoad) {
+      flyRadio.checked = true;
+    } else {
+      roadRadio.checked = true;
+    }
   }
 }

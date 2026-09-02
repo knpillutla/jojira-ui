@@ -9,7 +9,7 @@ import { initOrUpdateMap } from './plannerMap.js';
 import { processRawPlannerResponse } from './plannerNormalizer.js';
 import { renderPlannerOptionsOverview } from './plannerOverview.js';
 import { renderTripSummaryHeader, renderDayFilterPills } from './plannerHeader.js';
-import { initPlannerRoadTripControls, augmentPromptWithRoadTrip, getRoadTripSelection, setRoadTripSelection } from './plannerRoadTrip.js';
+import { initPlannerRoadTripControls, getRoadTripSelection, setRoadTripSelection } from './plannerRoadTrip.js';
 
 let currentAllOptions = [];
 let currentSelectedOptionIndex = 0;
@@ -46,8 +46,7 @@ export function initPlannerControls() {
     const styleVal = form.querySelector('[name="planner_style"]')?.value;
     const budgetVal = form.querySelector('[name="planner_budget"]')?.value;
 
-    const basePrompt = rawPromptVal || (destVal ? `Plan a ${daysVal}-day ${styleVal || 'balanced'} trip to ${destVal}` : '4-day trip to Paris');
-    const finalPrompt = augmentPromptWithRoadTrip(basePrompt);
+    const finalPrompt = rawPromptVal || (destVal ? `Plan a ${daysVal}-day ${styleVal || 'balanced'} trip to ${destVal}` : '4-day trip to Paris');
     const finalDest = destVal || extractDestinationFromPrompt(finalPrompt);
 
     const errorEl = document.querySelector('[data-planner-search-error]');
@@ -57,13 +56,14 @@ export function initPlannerControls() {
       errorEl.classList.add('hidden');
     }
 
+    const tripSelection = getRoadTripSelection();
     const payload = {
       prompt: finalPrompt,
       destination: finalDest,
       days: daysVal,
       style: styleVal || 'balanced',
       budget: budgetVal || 'moderate',
-      include_flights: form.querySelector('[name="include_flights"]')?.checked ?? true,
+      include_flights: form.querySelector('[name="include_flights"]')?.checked ?? (tripSelection.road_trip ? false : true),
       include_hotels: form.querySelector('[name="include_hotels"]')?.checked ?? true,
       include_cars: form.querySelector('[name="include_cars"]')?.checked ?? true,
       include_trains: form.querySelector('[name="include_trains"]')?.checked ?? false,
@@ -72,18 +72,15 @@ export function initPlannerControls() {
       include_activities: form.querySelector('[name="include_activities"]')?.checked ?? true,
       include_seasonal_attractions: form.querySelector('[name="include_seasonal_attractions"]')?.checked ?? true,
       include_seasonal_activities: form.querySelector('[name="include_seasonal_activities"]')?.checked ?? true,
-      is_road_trip: getRoadTripSelection().isRoadTrip
+      road_trip: tripSelection.road_trip,
+      fly_and_drive: tripSelection.fly_and_drive
     };
 
     showSearchProgressModal('Generating AI Itinerary Options', `Synthesizing custom ${daysVal}-day travel options for ${finalDest}...`, '✨');
 
     saveRecentSearch({
       serviceTab: 'ai-planner',
-      prompt: payload.prompt,
-      destination: payload.destination,
-      days: payload.days,
-      style: payload.style,
-      budget: payload.budget
+      ...payload
     });
 
     await loadItinerary(payload);
@@ -119,9 +116,8 @@ export function initPlannerControls() {
         errorEl.classList.add('hidden');
       }
 
-      const basePreset = `${days}-day highlights trip to ${dest}`;
-      const finalPresetPrompt = augmentPromptWithRoadTrip(basePreset);
-      const isRoadTrip = form.querySelector('#planner-roadtrip-checkbox')?.checked;
+      const finalPresetPrompt = `${days}-day highlights trip to ${dest}`;
+      const tripSelection = getRoadTripSelection();
 
       loadItinerary({
         prompt: finalPresetPrompt,
@@ -129,11 +125,13 @@ export function initPlannerControls() {
         days: days,
         style: 'balanced',
         budget: 'moderate',
-        include_flights: isRoadTrip ? false : true,
+        include_flights: tripSelection.road_trip ? false : true,
         include_hotels: true,
         include_cars: true,
         include_attractions: true,
-        include_activities: true
+        include_activities: true,
+        road_trip: tripSelection.road_trip,
+        fly_and_drive: tripSelection.fly_and_drive
       });
     });
   });
@@ -204,8 +202,8 @@ export function restorePlannerState() {
       if (payload.prompt && form.querySelector('[name="planner_prompt"]')) form.querySelector('[name="planner_prompt"]').value = payload.prompt;
       if (payload.destination && form.querySelector('[name="planner_destination"]')) form.querySelector('[name="planner_destination"]').value = payload.destination;
       if (payload.days && form.querySelector('[name="planner_days"]')) form.querySelector('[name="planner_days"]').value = String(payload.days);
-      if (payload.is_road_trip !== undefined) {
-        setRoadTripSelection({ isRoadTrip: payload.is_road_trip });
+      if (payload.road_trip !== undefined || payload.fly_and_drive !== undefined || payload.is_road_trip !== undefined) {
+        setRoadTripSelection({ road_trip: payload.road_trip, fly_and_drive: payload.fly_and_drive, isRoadTrip: payload.is_road_trip });
       }
     }
 

@@ -579,7 +579,7 @@ export function normalizeBundleApiResponse(response, fallbackOrigin = 'ATL', fal
 export async function generateAiItinerary(payload) {
   console.log('🧠 [AI PLANNER API] Requesting AI Trip Itinerary:', payload);
 
-  const cacheKey = `planner_${(payload.destination || '').toLowerCase()}_orig${(payload.origin || '').toLowerCase()}_dep${payload.departure_date || ''}_ret${payload.return_date || ''}_days${payload.days || 4}_p${payload.passengers_count || 1}_c${payload.cabin_class || 'economy'}_r${payload.rooms || 1}_st${payload.style || ''}_bg${payload.budget || ''}_f${payload.include_flights !== false}_h${payload.include_hotels !== false}_c${payload.include_cars !== false}_t${payload.include_trains === true}_b${payload.include_buses === true}_att${payload.include_attractions !== false}_act${payload.include_activities !== false}_satt${payload.include_seasonal_attractions !== false}_sact${payload.include_seasonal_activities !== false}_${(payload.prompt || '').toLowerCase()}`;
+  const cacheKey = `planner_${(payload.destination || '').toLowerCase()}_orig${(payload.origin || '').toLowerCase()}_dep${payload.departure_date || ''}_ret${payload.return_date || ''}_days${payload.days || 4}_p${payload.passengers_count || 1}_c${payload.cabin_class || 'economy'}_r${payload.rooms || 1}_st${payload.style || ''}_bg${payload.budget || ''}_f${payload.include_flights !== false}_h${payload.include_hotels !== false}_c${payload.include_cars !== false}_t${payload.include_trains === true}_b${payload.include_buses === true}_att${payload.include_attractions !== false}_act${payload.include_activities !== false}_satt${payload.include_seasonal_attractions !== false}_sact${payload.include_seasonal_activities !== false}_rt${payload.road_trip === true}_fd${payload.fly_and_drive === true}_${(payload.prompt || '').toLowerCase()}`;
   const cached = getCachedSearch(cacheKey);
   if (cached) return cached;
 
@@ -596,7 +596,9 @@ export async function generateAiItinerary(payload) {
     include_seasonal_activities: payload.include_seasonal_activities !== undefined ? payload.include_seasonal_activities : true,
     days: Number(payload.days) || 4,
     style: payload.style || 'balanced',
-    budget: payload.budget || 'moderate'
+    budget: payload.budget || 'moderate',
+    road_trip: Boolean(payload.road_trip),
+    fly_and_drive: Boolean(payload.fly_and_drive)
   };
 
   if (payload.origin) requestBody.origin = payload.origin;

@@ -123,6 +123,7 @@ export function normalizeSingleOption(rawItem, payload = {}, metaData = {}, opti
         lng: lng,
         departure_time: item.departure_time || '',
         arrival_time: item.arrival_time || '',
+        airline: item.airline || item.airline_name || item.operating_carrier || item.carrier || '',
         address: address,
         phone_number: item.phone_number || item.geo_location?.phone_number || '',
         rating: item.rating ?? item.geo_location?.rating ? `${item.rating ?? item.geo_location?.rating}` : '',

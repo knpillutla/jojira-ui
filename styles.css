@@ -3383,6 +3383,31 @@ footer {
   color: var(--muted);
 }
 
+.activity-airline-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 3px 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.activity-airline-field .field-label {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.activity-airline-field .field-value,
+.activity-airline-name {
+  color: #0284c7;
+  font-weight: 800;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 1px 8px;
+  border-radius: 6px;
+}
+
 .activity-desc {
   font-size: 12px;
   color: var(--ink);
@@ -4038,6 +4063,7 @@ footer {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
+.planner-quick-radio-label,
 .planner-quick-checkbox-label {
   display: inline-flex;
   align-items: center;
@@ -4047,15 +4073,17 @@ footer {
   color: #1e293b;
   cursor: pointer;
   user-select: none;
-  padding: 2px 4px;
-  border-radius: 6px;
-  transition: background-color 0.15s ease;
+  padding: 3px 8px;
+  border-radius: 12px;
+  transition: all 0.15s ease;
 }
 
+.planner-quick-radio-label:hover,
 .planner-quick-checkbox-label:hover {
   background: #f1f5f9;
 }
 
+.planner-quick-radio-label input[type="radio"],
 .planner-quick-checkbox-label input[type="checkbox"] {
   width: 13px;
   height: 13px;
@@ -4064,6 +4092,7 @@ footer {
   margin: 0;
 }
 
+.planner-quick-radio-text,
 .planner-quick-checkbox-text {
   letter-spacing: -0.1px;
 }
