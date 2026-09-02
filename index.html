@@ -704,6 +704,14 @@
             <!-- Top AI Search & Preference Panel -->
             <div class="search-panel ai-planner-search-panel" aria-label="AI Trip Planner Search Console">
               <form id="ai-planner-form">
+                <!-- Top Quick Options Bar (Road Trip Checkbox) -->
+                <div class="planner-quick-filter-bar" id="planner-quick-filter-bar">
+                  <label class="planner-quick-checkbox-label" for="planner-roadtrip-checkbox">
+                    <input type="checkbox" id="planner-roadtrip-checkbox" name="planner_road_trip" />
+                    <span class="planner-quick-checkbox-text">🚗 Road Trip</span>
+                  </label>
+                </div>
+
                 <!-- AI Chat Input Bar -->
                 <div class="ai-chat-input-bar" style="display:flex; align-items:center; gap:8px;">
                   <span class="chat-ai-icon">💬</span>
@@ -718,6 +726,7 @@
                     <b>➔</b>
                   </button>
                 </div>
+                <p class="search-error hidden" data-planner-search-error role="alert" aria-live="polite"></p>
 
                 <!-- Collapsible Advanced Options Panel (Default: Collapsed) -->
                 <div id="ai-planner-collapsible-options" class="planner-collapsible-options hidden" style="margin-top: 10px;">
@@ -785,7 +794,6 @@
                   </div>
                 </div>
               </form>
-              <p class="search-error hidden" data-planner-search-error role="alert" aria-live="polite"></p>
             </div>
 
             <!-- Recent Searches Section below Search Panel -->

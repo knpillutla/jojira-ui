@@ -5,6 +5,17 @@
 
 const KNOWN_GEO_DATABASE = {
   // Cities & Regions
+  'dallas': [32.7767, -96.7970],
+  'dfw': [32.8998, -97.0403],
+  'fort worth': [32.7555, -97.3308],
+  'jackson': [32.2988, -90.1848],
+  'birmingham': [33.5186, -86.8104],
+  'meridian': [32.3643, -88.7037],
+  'shreveport': [32.5252, -93.7502],
+  'tyler': [32.3513, -95.3011],
+  'vicksburg': [32.3526, -90.8779],
+  'monroe': [32.5093, -92.1193],
+  'tuscaloosa': [33.2098, -87.5692],
   'atlanta': [33.7490, -84.3880],
   'atl': [33.7490, -84.3880],
   'orlando': [28.5383, -81.3792],
@@ -34,7 +45,19 @@ const KNOWN_GEO_DATABASE = {
   'tokyo': [35.6762, 139.6503],
   'zurich': [47.3769, 8.5417],
 
-  // Specific Attractions & Landmarks
+  // Specific Attractions & Landmarks (Texas & I-20 Route)
+  'omni dallas': [32.7758, -96.8021],
+  'dealey plaza': [32.7786, -96.8085],
+  'sixth floor museum': [32.7798, -96.8085],
+  'reunion tower': [32.7756, -96.8090],
+  'dallas museum of art': [32.7876, -96.8008],
+  'klyde warren park': [32.7894, -96.8017],
+  'pecan lodge': [32.7844, -96.7834],
+  'bully': [32.3361, -90.2012],
+  'civil rights museum': [32.3025, -90.1783],
+  'mississippi civil rights museum': [32.3025, -90.1783],
+
+  // Specific Attractions & Landmarks (Florida / Georgia Route)
   'universal studios': [28.4743, -81.4678],
   'magic kingdom': [28.4177, -81.5812],
   'disney world': [28.4177, -81.5812],
@@ -79,7 +102,7 @@ export function getKnownCoordinates(nameOrText) {
     return KNOWN_GEO_DATABASE[lower];
   }
 
-  // Keyword substring match
+  // Word-bounded / substring match
   for (const [key, coords] of Object.entries(KNOWN_GEO_DATABASE)) {
     if (lower.includes(key)) {
       return coords;
@@ -111,24 +134,10 @@ export function isPlaceholderCoordinate(lat, lng, originName = '', destName = ''
   return false;
 }
 
-export function resolveActivityGeoLocation(item, originName = '', destName = '', fallbackCenter = [28.5383, -81.3792]) {
-  const searchTexts = [
-    item.name,
-    item.title,
-    item.geo_location?.name,
-    item.address,
-    item.geo_location?.address,
-    item.location,
-    item.description
-  ].filter(Boolean).join(' ');
+export function resolveActivityGeoLocation(item, originName = '', destName = '', fallbackCenter = [33.7490, -84.3880]) {
+  if (!item) return { lat: fallbackCenter[0], lng: fallbackCenter[1] };
 
-  // 1. Check known database for specific landmark or city
-  const knownCoords = getKnownCoordinates(searchTexts);
-  if (knownCoords) {
-    return { lat: knownCoords[0], lng: knownCoords[1] };
-  }
-
-  // 2. Check if raw item coordinates are valid non-placeholder coordinates
+  // 1. Check if raw item coordinates from API are valid non-placeholder coordinates FIRST
   const rawLat = parseFloat(item.geo_location?.latitude ?? item.latitude ?? item.lat);
   const rawLng = parseFloat(item.geo_location?.longitude ?? item.longitude ?? item.lng);
 
@@ -136,14 +145,28 @@ export function resolveActivityGeoLocation(item, originName = '', destName = '',
     return { lat: rawLat, lng: rawLng };
   }
 
-  // 3. Check destination / origin fallback
+  // 2. Check specific activity name/title/address ONLY (avoid full description that mentions departure city)
+  const specificTexts = [
+    item.name,
+    item.title,
+    item.geo_location?.name,
+    item.address,
+    item.geo_location?.address,
+    item.location
+  ].filter(Boolean).join(' ');
+
+  const knownCoords = getKnownCoordinates(specificTexts);
+  if (knownCoords) {
+    return { lat: knownCoords[0], lng: knownCoords[1] };
+  }
+
+  // 3. Fallback to destination / origin coordinates with slight offset
   const destCoords = getKnownCoordinates(destName);
   const originCoords = getKnownCoordinates(originName);
 
   if (destCoords) {
-    // Add small subtle jitter to prevent stacking
-    const jitterLat = (Math.random() - 0.5) * 0.02;
-    const jitterLng = (Math.random() - 0.5) * 0.02;
+    const jitterLat = (Math.random() - 0.5) * 0.01;
+    const jitterLng = (Math.random() - 0.5) * 0.01;
     return { lat: destCoords[0] + jitterLat, lng: destCoords[1] + jitterLng };
   }
 
@@ -154,7 +177,7 @@ export function resolveActivityGeoLocation(item, originName = '', destName = '',
   return { lat: fallbackCenter[0], lng: fallbackCenter[1] };
 }
 
-export function resolveTripCenter(originName = '', destName = '', defaultCenter = [28.5383, -81.3792]) {
+export function resolveTripCenter(originName = '', destName = '', defaultCenter = [33.7490, -84.3880]) {
   const destCoords = getKnownCoordinates(destName);
   const originCoords = getKnownCoordinates(originName);
 
@@ -182,14 +205,16 @@ export function getUserDistanceUnit() {
 
   try {
     const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || '').toLowerCase();
-    const lang = (typeof navigator !== 'undefined' ? (navigator.language || navigator.userLanguage || '') : '').toLowerCase();
-    const langs = (typeof navigator !== 'undefined' && Array.isArray(navigator.languages)) ? navigator.languages.map(l => l.toLowerCase()) : [];
+    const lang = (navigator.language || navigator.userLanguage || '').toLowerCase();
 
-    // USA, UK, Liberia, Myanmar territories default to miles (Imperial)
-    const isUsOrUkLang = lang.endsWith('-us') || lang === 'en-us' || lang.endsWith('-gb') || lang === 'en-gb' || langs.some(l => l.endsWith('-us') || l.endsWith('-gb'));
-    const isAmericanTz = tz.startsWith('america/') || tz.startsWith('us/') || tz.includes('honolulu') || tz.includes('anchorage') || tz.startsWith('europe/london');
-
-    if (isUsOrUkLang || isAmericanTz) {
+    // USA, UK, Liberia, Myanmar territories default to miles
+    if (
+      lang.includes('-us') ||
+      lang.includes('-gb') ||
+      tz.startsWith('america/') ||
+      tz.startsWith('us/') ||
+      tz.startsWith('europe/london')
+    ) {
       return 'mi';
     }
   } catch (e) {}
@@ -201,32 +226,34 @@ export function setDistanceUnit(unit) {
   if (unit !== 'mi' && unit !== 'km') return;
   if (typeof window !== 'undefined' && window.localStorage) {
     localStorage.setItem('jojira_distance_unit', unit);
+    window.dispatchEvent(new CustomEvent('jojira:distanceUnitChanged', { detail: { unit } }));
   }
 }
 
-export function formatDistance(distMiles, distKm, unit = getUserDistanceUnit()) {
-  const miles = Number(distMiles);
-  const km = Number(distKm);
+export function formatDistance(distMiles, distKm, targetUnit = null) {
+  const unit = targetUnit || getUserDistanceUnit();
 
   if (unit === 'mi') {
-    if (Number.isFinite(miles) && miles > 0) {
-      return `${miles >= 10 ? miles.toFixed(1) : miles.toFixed(2)} mi`;
+    if (Number.isFinite(distMiles) && distMiles > 0) {
+      return `${Number(distMiles).toFixed(2)} mi`;
     }
-    if (Number.isFinite(km) && km > 0) {
-      const converted = km * 0.621371;
-      return `${converted >= 10 ? converted.toFixed(1) : converted.toFixed(2)} mi`;
+    if (Number.isFinite(distKm) && distKm > 0) {
+      return `${(distKm * 0.621371).toFixed(2)} mi`;
     }
-    if (miles === 0 || km === 0) return '0.0 mi';
-  } else {
-    if (Number.isFinite(km) && km > 0) {
-      return `${km >= 10 ? km.toFixed(1) : km.toFixed(2)} km`;
+    if (distMiles === 0 || distKm === 0) {
+      return '0.00 mi';
     }
-    if (Number.isFinite(miles) && miles > 0) {
-      const converted = miles * 1.60934;
-      return `${converted >= 10 ? converted.toFixed(1) : converted.toFixed(2)} km`;
-    }
-    if (km === 0 || miles === 0) return '0.0 km';
+    return 'N/A';
   }
 
+  if (Number.isFinite(distKm) && distKm > 0) {
+    return `${Number(distKm).toFixed(2)} km`;
+  }
+  if (Number.isFinite(distMiles) && distMiles > 0) {
+    return `${(distMiles * 1.60934).toFixed(2)} km`;
+  }
+  if (distMiles === 0 || distKm === 0) {
+    return '0.00 km';
+  }
   return 'N/A';
 }

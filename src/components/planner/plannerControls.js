@@ -9,6 +9,7 @@ import { initOrUpdateMap } from './plannerMap.js';
 import { processRawPlannerResponse } from './plannerNormalizer.js';
 import { renderPlannerOptionsOverview } from './plannerOverview.js';
 import { renderTripSummaryHeader, renderDayFilterPills } from './plannerHeader.js';
+import { initPlannerRoadTripControls, augmentPromptWithRoadTrip, getRoadTripSelection, setRoadTripSelection } from './plannerRoadTrip.js';
 
 let currentAllOptions = [];
 let currentSelectedOptionIndex = 0;
@@ -18,6 +19,8 @@ let currentDayFilter = 'all';
 export function initPlannerControls() {
   const form = document.getElementById('ai-planner-form');
   if (!form) return;
+
+  initPlannerRoadTripControls();
 
   const toggleOptionsBtn = document.getElementById('btn-toggle-planner-options');
   const collapsibleOptions = document.getElementById('ai-planner-collapsible-options');
@@ -37,14 +40,15 @@ export function initPlannerControls() {
     e.preventDefault();
     collapseLeftNav();
 
-    const promptVal = form.querySelector('[name="planner_prompt"]')?.value.trim();
-    const destVal = form.querySelector('[name="planner_destination"]')?.value?.trim() || extractDestinationFromPrompt(promptVal);
-    const daysVal = parseInt(form.querySelector('[name="planner_days"]')?.value || extractDurationFromPrompt(promptVal) || '4', 10);
+    const rawPromptVal = form.querySelector('[name="planner_prompt"]')?.value.trim();
+    const destVal = form.querySelector('[name="planner_destination"]')?.value?.trim() || extractDestinationFromPrompt(rawPromptVal);
+    const daysVal = parseInt(form.querySelector('[name="planner_days"]')?.value || extractDurationFromPrompt(rawPromptVal) || '4', 10);
     const styleVal = form.querySelector('[name="planner_style"]')?.value;
     const budgetVal = form.querySelector('[name="planner_budget"]')?.value;
 
-    const finalPrompt = promptVal || (destVal ? `Plan a ${daysVal}-day ${styleVal || 'balanced'} trip to ${destVal}` : '4-day trip to Paris');
-    const finalDest = destVal || extractDestinationFromPrompt(promptVal);
+    const basePrompt = rawPromptVal || (destVal ? `Plan a ${daysVal}-day ${styleVal || 'balanced'} trip to ${destVal}` : '4-day trip to Paris');
+    const finalPrompt = augmentPromptWithRoadTrip(basePrompt);
+    const finalDest = destVal || extractDestinationFromPrompt(finalPrompt);
 
     const errorEl = document.querySelector('[data-planner-search-error]');
     if (errorEl) {
@@ -67,7 +71,8 @@ export function initPlannerControls() {
       include_attractions: form.querySelector('[name="include_attractions"]')?.checked ?? true,
       include_activities: form.querySelector('[name="include_activities"]')?.checked ?? true,
       include_seasonal_attractions: form.querySelector('[name="include_seasonal_attractions"]')?.checked ?? true,
-      include_seasonal_activities: form.querySelector('[name="include_seasonal_activities"]')?.checked ?? true
+      include_seasonal_activities: form.querySelector('[name="include_seasonal_activities"]')?.checked ?? true,
+      is_road_trip: getRoadTripSelection().isRoadTrip
     };
 
     showSearchProgressModal('Generating AI Itinerary Options', `Synthesizing custom ${daysVal}-day travel options for ${finalDest}...`, '✨');
@@ -114,13 +119,17 @@ export function initPlannerControls() {
         errorEl.classList.add('hidden');
       }
 
+      const basePreset = `${days}-day highlights trip to ${dest}`;
+      const finalPresetPrompt = augmentPromptWithRoadTrip(basePreset);
+      const isRoadTrip = form.querySelector('#planner-roadtrip-checkbox')?.checked;
+
       loadItinerary({
-        prompt: `${days}-day highlights trip to ${dest}`,
+        prompt: finalPresetPrompt,
         destination: dest,
         days: days,
         style: 'balanced',
         budget: 'moderate',
-        include_flights: true,
+        include_flights: isRoadTrip ? false : true,
         include_hotels: true,
         include_cars: true,
         include_attractions: true,
@@ -195,6 +204,9 @@ export function restorePlannerState() {
       if (payload.prompt && form.querySelector('[name="planner_prompt"]')) form.querySelector('[name="planner_prompt"]').value = payload.prompt;
       if (payload.destination && form.querySelector('[name="planner_destination"]')) form.querySelector('[name="planner_destination"]').value = payload.destination;
       if (payload.days && form.querySelector('[name="planner_days"]')) form.querySelector('[name="planner_days"]').value = String(payload.days);
+      if (payload.is_road_trip !== undefined) {
+        setRoadTripSelection({ isRoadTrip: payload.is_road_trip });
+      }
     }
 
     const options = processRawPlannerResponse(rawData, payload);

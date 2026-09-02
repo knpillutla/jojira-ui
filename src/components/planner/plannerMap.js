@@ -199,51 +199,53 @@ function openGoogleInfoWindow(infoWindow, marker, mapInstance) {
   }
 }
 
-function createGoogleMarker({ position, map, title, labelText, color, iconEmoji, legacyIcon, clickHandler }) {
-  let marker;
+function createGoogleMarker({ position, map, title, labelText, color, iconEmoji, clickHandler }) {
   if (window.google?.maps?.marker?.AdvancedMarkerElement) {
     const pinEl = document.createElement('div');
     pinEl.className = 'google-custom-marker-pin';
     if (iconEmoji) {
-      pinEl.style.cssText = `background:${color || '#0d9488'}; color:#ffffff; font-size:14px; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #ffffff; box-shadow:0 2px 6px rgba(0,0,0,0.35); cursor:pointer;`;
+      pinEl.style.cssText = `background:${color || '#0d9488'}; color:#ffffff; font-size:13px; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #ffffff; box-shadow:0 2px 6px rgba(0,0,0,0.35); cursor:pointer;`;
       pinEl.textContent = iconEmoji;
-    } else if (labelText && (labelText.includes('Departure') || labelText.includes('Arrival') || labelText.includes('Airport'))) {
-      pinEl.style.cssText = `background:${color || '#0284c7'}; color:#ffffff; font-weight:800; font-size:10px; padding:3px 8px; border-radius:12px; display:flex; align-items:center; justify-content:center; border:2px solid #ffffff; box-shadow:0 2px 6px rgba(0,0,0,0.35); cursor:pointer; white-space:nowrap;`;
-      pinEl.textContent = labelText;
     } else {
       pinEl.style.cssText = `background:${color || '#2563eb'}; color:#ffffff; font-weight:800; font-size:11px; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:2px solid #ffffff; box-shadow:0 2px 6px rgba(0,0,0,0.35); cursor:pointer;`;
-      pinEl.textContent = labelText || '';
+      pinEl.textContent = labelText ? String(labelText) : '📍';
     }
 
-    marker = new google.maps.marker.AdvancedMarkerElement({
+    const marker = new google.maps.marker.AdvancedMarkerElement({
       position,
       map,
-      title,
+      title: title || '',
       content: pinEl
     });
-  } else {
-    marker = new google.maps.Marker({
-      position,
-      map,
-      title,
-      label: labelText ? {
-        text: labelText,
-        color: '#ffffff',
-        fontWeight: '800',
-        fontSize: '11px'
-      } : undefined,
-      icon: legacyIcon || {
-        path: 'M 12 2 C 7.03 2 3 6.03 3 11 C 3 17.25 12 26 12 26 C 12 26 21 17.25 21 11 C 21 6.03 16.97 2 12 2 Z',
-        fillColor: color || '#2563eb',
-        fillOpacity: 1,
-        strokeColor: '#ffffff',
-        strokeWeight: 2,
-        scale: 1.4,
-        anchor: new google.maps.Point(12, 26),
-        labelOrigin: new google.maps.Point(12, 10)
-      }
-    });
+
+    if (clickHandler) {
+      marker.addListener('gmp-click', clickHandler);
+    }
+    return marker;
   }
+
+  const isHotel = iconEmoji === '🏨';
+  const marker = new google.maps.Marker({
+    position,
+    map,
+    title,
+    label: labelText ? {
+      text: String(labelText),
+      color: '#ffffff',
+      fontWeight: '800',
+      fontSize: '11px'
+    } : (isHotel ? { text: '🏨', fontSize: '11px' } : undefined),
+    icon: {
+      path: 'M 12 2 C 7.03 2 3 6.03 3 11 C 3 17.25 12 26 12 26 C 12 26 21 17.25 21 11 C 21 6.03 16.97 2 12 2 Z',
+      fillColor: color || '#2563eb',
+      fillOpacity: 1,
+      strokeColor: '#ffffff',
+      strokeWeight: 2,
+      scale: 1.45,
+      anchor: new google.maps.Point(12, 26),
+      labelOrigin: new google.maps.Point(12, 10)
+    }
+  });
 
   if (clickHandler) {
     marker.addListener('click', clickHandler);
@@ -261,13 +263,13 @@ function renderGoogleHotelsMap(mapContainer, itineraryData, hotels, center) {
   }
 
   const mapCenterObj = { lat: center[0], lng: center[1] };
-  if (!googleMapInstance) {
+  if (!googleMapInstance || !mapContainer.contains(googleMapInstance.getDiv())) {
+    mapContainer.innerHTML = '';
     googleMapInstance = new google.maps.Map(mapContainer, {
       center: mapCenterObj,
-      zoom: itineraryData.map_zoom || 13,
-      mapId: itineraryData.google_map_id || 'DEMO_MAP_ID',
+      zoom: itineraryData.map_zoom || 11,
+      mapId: 'JOJIRA_MAP_ID',
       mapTypeId: 'roadmap',
-      styles: GOOGLE_MAPS_STYLE,
       zoomControl: true,
       fullscreenControl: true
     });
@@ -691,13 +693,13 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
 
   const mapCenterObj = { lat: center[0], lng: center[1] };
 
-  if (!googleMapInstance) {
+  if (!googleMapInstance || !mapContainer.contains(googleMapInstance.getDiv())) {
+    mapContainer.innerHTML = '';
     googleMapInstance = new google.maps.Map(mapContainer, {
       center: mapCenterObj,
-      zoom: itineraryData.map_zoom || 13,
-      mapId: itineraryData.google_map_id || 'DEMO_MAP_ID',
+      zoom: itineraryData.map_zoom || 11,
+      mapId: 'JOJIRA_MAP_ID',
       mapTypeId: 'roadmap',
-      styles: GOOGLE_MAPS_STYLE,
       zoomControl: true,
       mapTypeControl: false,
       streetViewControl: false,
@@ -732,78 +734,7 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
     day.activities.forEach((act, idx) => {
       const latNum = parseFloat(act.lat);
       const lngNum = parseFloat(act.lng);
-      if (isNaN(latNum) || isNaN(lngNum)) return;
-
-      const isLongHaul = Math.abs(latNum - centerLat) > 1.2 || Math.abs(lngNum - centerLng) > 1.2;
-
-      if (act.type === 'flight' || isLongHaul) {
-        const flightDestPos = {
-          lat: !isLongHaul ? latNum : (centerLat + 0.01),
-          lng: !isLongHaul ? lngNum : (centerLng - 0.01)
-        };
-        const originPos = { lat: latNum, lng: lngNum };
-
-        const fullFlightLine = new google.maps.Polyline({
-          path: [originPos, flightDestPos],
-          geodesic: true,
-          strokeColor: '#0284c7',
-          strokeOpacity: 0.8,
-          strokeWeight: 3.5,
-          icons: [{
-            icon: {
-              path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-              scale: 3,
-              strokeColor: '#ffffff',
-              strokeWeight: 1,
-              fillColor: '#0284c7',
-              fillOpacity: 1
-            },
-            offset: '50%',
-            repeat: '100px'
-          }],
-          map: googleMapInstance
-        });
-        googlePolylines.push(fullFlightLine);
-
-        if (isLongHaul) {
-          const originMarker = createGoogleMarker({
-            position: originPos,
-            map: googleMapInstance,
-            title: `✈️ [Airport] Flight Departure: ${act.title}`,
-            labelText: `✈️ Departure`,
-            color: '#0369a1',
-            legacyIcon: {
-              path: 'M -35,-11 L 35,-11 C 39,-11 41,-8 41,-4 L 41,4 C 41,8 39,11 35,11 L -35,11 C -39,11 -41,8 -41,4 L -41,-4 C -41,-8 -39,-11 -35,-11 Z',
-              fillColor: '#0369a1',
-              fillOpacity: 0.95,
-              strokeColor: '#ffffff',
-              strokeWeight: 2,
-              scale: 1,
-              labelOrigin: new google.maps.Point(0, 0)
-            }
-          });
-          googlePolylines.push(originMarker);
-        }
-
-        const flightMarker = createGoogleMarker({
-          position: flightDestPos,
-          map: googleMapInstance,
-          title: `✈️ [Airport] Flight Arrival: ${act.title}`,
-          labelText: `✈️ Arrival`,
-          color: '#0284c7',
-          legacyIcon: {
-            path: 'M -38,-11 L 38,-11 C 42,-11 44,-8 44,-4 L 44,4 C 44,8 42,11 38,11 L -38,11 C -42,11 -44,8 -44,4 L -44,-4 C -44,-8 -42,-11 -38,-11 Z',
-            fillColor: '#0284c7',
-            fillOpacity: 0.95,
-            strokeColor: '#ffffff',
-            strokeWeight: 2,
-            scale: 1,
-            labelOrigin: new google.maps.Point(0, 0)
-          }
-        });
-        googlePolylines.push(flightMarker);
-        return;
-      }
+      if (isNaN(latNum) || isNaN(lngNum) || latNum === 0) return;
 
       globalStopNumber++;
       const stopNumLabel = (lastSelectedDayFilter === 'all') ? String(globalStopNumber) : String(idx + 1);
@@ -934,14 +865,17 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
       googlePolylines.push(polyline);
 
       const distTimeStr = getSegmentDistTimeText(p1, p2, actFrom, actTo);
-      const midPos = {
-        lat: (p1.lat + p2.lat) / 2,
-        lng: (p1.lng + p2.lng) / 2
-      };
+      const distKm = getDistanceKm(p1.lat, p1.lng, p2.lat, p2.lng);
+      if (distKm > 0.1) {
+        const midPos = {
+          lat: (p1.lat + p2.lat) / 2,
+          lng: (p1.lng + p2.lng) / 2
+        };
 
-      const pathOverlay = createGoogleMicroOverlay(midPos, distTimeStr, googleMapInstance);
-      if (pathOverlay) {
-        googlePolylines.push(pathOverlay);
+        const pathOverlay = createGoogleMicroOverlay(midPos, distTimeStr, googleMapInstance);
+        if (pathOverlay) {
+          googlePolylines.push(pathOverlay);
+        }
       }
     }
   });
@@ -1000,29 +934,7 @@ function renderLeafletMap(mapContainer, itineraryData, daysToRender, center) {
     day.activities.forEach((act, idx) => {
       const latNum = parseFloat(act.lat);
       const lngNum = parseFloat(act.lng);
-      if (isNaN(latNum) || isNaN(lngNum)) return;
-
-      const isLongHaul = Math.abs(latNum - centerLat) > 1.2 || Math.abs(lngNum - centerLng) > 1.2;
-
-      if (act.type === 'flight' || isLongHaul) {
-        const flightDestLatLng = [
-          !isLongHaul ? latNum : (centerLat + 0.01),
-          !isLongHaul ? lngNum : (centerLng - 0.01)
-        ];
-        const flightOriginLatLng = [
-          flightDestLatLng[0] + 0.035,
-          flightDestLatLng[1] - 0.045
-        ];
-
-        const flightPolyline = L.polyline([flightOriginLatLng, flightDestLatLng], {
-          color: '#0284c7',
-          weight: 4,
-          opacity: 0.9,
-          dashArray: '4, 8'
-        }).addTo(leafletMapInstance);
-        leafletPolylines.push(flightPolyline);
-        return;
-      }
+      if (isNaN(latNum) || isNaN(lngNum) || latNum === 0) return;
 
       globalLeafletStopNumber++;
       const stopNumLabel = (lastSelectedDayFilter === 'all') ? String(globalLeafletStopNumber) : String(idx + 1);
@@ -1156,24 +1068,27 @@ async function fetchConfigApiKey() {
   if (window.GOOGLE_MAPS_API_KEY && typeof window.GOOGLE_MAPS_API_KEY === 'string' && !window.GOOGLE_MAPS_API_KEY.startsWith('${')) {
     return window.GOOGLE_MAPS_API_KEY;
   }
-  try {
-    const res = await fetch('/config.json');
-    if (res.ok) {
-      const cfg = await res.json();
-      if (cfg && cfg.google_maps_api_key && typeof cfg.google_maps_api_key === 'string' && !cfg.google_maps_api_key.startsWith('${')) {
-        window.GOOGLE_MAPS_API_KEY = cfg.google_maps_api_key;
-        return cfg.google_maps_api_key;
+  const configPaths = ['/config.json', './config.json', 'config.json'];
+  for (const path of configPaths) {
+    try {
+      const res = await fetch(path);
+      if (res.ok) {
+        const cfg = await res.json();
+        if (cfg && cfg.google_maps_api_key && typeof cfg.google_maps_api_key === 'string' && !cfg.google_maps_api_key.startsWith('${')) {
+          window.GOOGLE_MAPS_API_KEY = cfg.google_maps_api_key;
+          return cfg.google_maps_api_key;
+        }
       }
-    }
-  } catch (e) {
-    console.log('ℹ️ [CONFIG] config.json not loaded');
+    } catch (e) {}
   }
   return '';
 }
 
 async function loadGoogleMapsScript() {
-  if (window.google?.maps) return Promise.resolve();
-  if (googleScriptLoaded) return Promise.resolve();
+  if (window.google?.maps?.Map) {
+    googleScriptLoaded = true;
+    return Promise.resolve();
+  }
 
   const apiKey = await fetchConfigApiKey();
   if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim() || apiKey.startsWith('${')) {
@@ -1184,21 +1099,41 @@ async function loadGoogleMapsScript() {
   if (isGoogleScriptLoading) {
     return new Promise((resolve, reject) => {
       const check = setInterval(() => {
-        if (window.google?.maps) {
+        if (window.google?.maps?.Map) {
           clearInterval(check);
           resolve();
         }
       }, 100);
-      setTimeout(() => { clearInterval(check); reject(new Error('Timeout')); }, 4000);
+      setTimeout(() => { clearInterval(check); reject(new Error('Timeout')); }, 6000);
     });
   }
 
   isGoogleScriptLoading = true;
 
   return new Promise((resolve, reject) => {
+    const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
+    if (existingScript) {
+      if (window.google?.maps?.Map) {
+        googleScriptLoaded = true;
+        isGoogleScriptLoading = false;
+        resolve();
+        return;
+      }
+      existingScript.addEventListener('load', () => {
+        googleScriptLoaded = true;
+        isGoogleScriptLoading = false;
+        resolve();
+      });
+      existingScript.addEventListener('error', (err) => {
+        isGoogleScriptLoading = false;
+        reject(err);
+      });
+      return;
+    }
+
     const script = document.createElement('script');
     const keyParam = apiKey ? `key=${encodeURIComponent(apiKey)}&` : '';
-    script.src = `https://maps.googleapis.com/maps/api/js?${keyParam}libraries=places,geometry,marker`;
+    script.src = `https://maps.googleapis.com/maps/api/js?${keyParam}libraries=places,geometry,marker&v=weekly`;
     script.async = true;
     script.defer = true;
 
@@ -1210,6 +1145,7 @@ async function loadGoogleMapsScript() {
 
     script.onerror = (err) => {
       isGoogleScriptLoading = false;
+      console.warn('⚠️ [GOOGLE MAPS LOAD ERROR]:', err);
       reject(err);
     };
 
