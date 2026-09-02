@@ -150,6 +150,8 @@ if (-not $caExists) {
         AZURE_KEYVAULT_URL="https://$AkvName.vault.azure.net/" `
         CONTAINER_APP_USER_SERVICE_HOST="$UserSvcAppHost" `
         CONTAINER_APP_API_HOST="$ApiAppHost" `
+        GOOGLE_MAPS_API_KEY="AIzaSyBV0RK2DPGa5uOofjOf_CN6s0rFwUhC4lM" `
+        GOOGLE_CLIENT_ID="902031561179-a55usf1op5d3sukbm6vr1c2uqs0k6t95.apps.googleusercontent.com" `
         --system-assigned --only-show-errors *>$null
 } else {
     az containerapp update `
@@ -162,7 +164,9 @@ if (-not $caExists) {
         AZURE_KEYVAULT_NAME="$AkvName" `
         AZURE_KEYVAULT_URL="https://$AkvName.vault.azure.net/" `
         CONTAINER_APP_USER_SERVICE_HOST="$UserSvcAppHost" `
-        CONTAINER_APP_API_HOST="$ApiAppHost" --only-show-errors *>$null
+        CONTAINER_APP_API_HOST="$ApiAppHost" `
+        GOOGLE_MAPS_API_KEY="AIzaSyBV0RK2DPGa5uOofjOf_CN6s0rFwUhC4lM" `
+        GOOGLE_CLIENT_ID="902031561179-a55usf1op5d3sukbm6vr1c2uqs0k6t95.apps.googleusercontent.com" --only-show-errors *>$null
 }
 $ErrorActionPreference = $PrevEap
 

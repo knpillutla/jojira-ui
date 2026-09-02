@@ -199,7 +199,7 @@ function openGoogleInfoWindow(infoWindow, marker, mapInstance) {
   }
 }
 
-function createGoogleMarker({ position, map, title, labelText, color, iconEmoji, clickHandler }) {
+function createGoogleMarker({ position, map, title, labelText, color, iconEmoji, clickHandler, zIndex }) {
   if (window.google?.maps?.marker?.AdvancedMarkerElement) {
     const pinEl = document.createElement('div');
     pinEl.className = 'google-custom-marker-pin';
@@ -215,7 +215,8 @@ function createGoogleMarker({ position, map, title, labelText, color, iconEmoji,
       position,
       map,
       title: title || '',
-      content: pinEl
+      content: pinEl,
+      zIndex: zIndex || 1
     });
 
     if (clickHandler) {
@@ -229,6 +230,7 @@ function createGoogleMarker({ position, map, title, labelText, color, iconEmoji,
     position,
     map,
     title,
+    zIndex: zIndex || 1,
     label: labelText ? {
       text: String(labelText),
       color: '#ffffff',
@@ -730,18 +732,30 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
     const paletteColor = DAY_COLOR_PALETTE[dayIndex % DAY_COLOR_PALETTE.length];
     const dayColor = day.themeColor || paletteColor;
     const dayPath = [];
+    const seenLocations = new Map();
 
     day.activities.forEach((act, idx) => {
-      const latNum = parseFloat(act.lat);
-      const lngNum = parseFloat(act.lng);
+      let latNum = parseFloat(act.lat);
+      let lngNum = parseFloat(act.lng);
       if (isNaN(latNum) || isNaN(lngNum) || latNum === 0) return;
+
+      // Prevent overlapping stops (e.g. hotel at start of day and end of day) from occluding Stop 1
+      const locKey = `${latNum.toFixed(4)},${lngNum.toFixed(4)}`;
+      const prevOccurrences = seenLocations.get(locKey) || 0;
+      seenLocations.set(locKey, prevOccurrences + 1);
+
+      if (prevOccurrences > 0) {
+        const angle = ((prevOccurrences * 120) - 30) * (Math.PI / 180);
+        latNum += 0.0004 * Math.cos(angle);
+        lngNum += 0.0005 * Math.sin(angle);
+      }
 
       globalStopNumber++;
       const stopNumLabel = (lastSelectedDayFilter === 'all') ? String(globalStopNumber) : String(idx + 1);
       const catInfo = getCategoryInfo(act);
 
       const pos = { lat: latNum, lng: lngNum };
-      dayPath.push(pos);
+      dayPath.push({ pos, act, stopLabel: stopNumLabel });
       bounds.extend(pos);
       hasValidPoints = true;
 
@@ -770,6 +784,7 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
         title: `[${catInfo.label}] Day ${day.day} · Stop #${stopNumLabel}: ${act.title}`,
         labelText: stopNumLabel,
         color: dayColor,
+        zIndex: (idx === 0 ? 150 : 100 - idx),
         legacyIcon: {
           path: 'M 12 2 C 7.03 2 3 6.03 3 11 C 3 17.25 12 26 12 26 C 12 26 21 17.25 21 11 C 21 6.03 16.97 2 12 2 Z',
           fillColor: dayColor,
@@ -792,66 +807,81 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
     });
 
     for (let s = 0; s < dayPath.length - 1; s++) {
-      const p1 = dayPath[s];
-      const p2 = dayPath[s + 1];
-      const actFrom = day.activities[s];
-      const actTo = day.activities[s + 1];
+      const p1 = dayPath[s].pos;
+      const p2 = dayPath[s + 1].pos;
+      const actFrom = dayPath[s].act;
+      const actTo = dayPath[s + 1].act;
       const transport = getTransportModeBetweenStops(p1, p2, actFrom, actTo);
       const lineColor = transport.mode === 'flight' ? '#0284c7' : (transport.mode === 'cruise' ? '#0891b2' : dayColor);
 
       let lineIcons = [];
       let strokeOpacity = 0.95;
 
+      const forwardArrow = {
+        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+        scale: 3.5,
+        strokeColor: '#ffffff',
+        strokeWeight: 1.5,
+        fillColor: lineColor,
+        fillOpacity: 1
+      };
+
       if (transport.mode === 'driving') {
         lineIcons = [{
-          icon: {
-            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-            scale: 3.5,
-            strokeColor: '#ffffff',
-            strokeWeight: 1.5,
-            fillColor: lineColor,
-            fillOpacity: 1
-          },
+          icon: forwardArrow,
           offset: '50%',
-          repeat: '90px'
+          repeat: '80px'
         }];
+        strokeOpacity = 0.95;
       } else if (transport.mode === 'walking') {
-        lineIcons = [{
-          icon: {
-            path: 'M 0,-1 0,1',
-            strokeColor: lineColor,
-            strokeOpacity: 1,
-            scale: 3
+        lineIcons = [
+          {
+            icon: { path: 'M 0,-1 0,1', strokeColor: lineColor, strokeOpacity: 1, scale: 3 },
+            offset: '0',
+            repeat: '12px'
           },
-          offset: '0',
-          repeat: '12px'
-        }];
+          {
+            icon: forwardArrow,
+            offset: '50%',
+            repeat: '90px'
+          }
+        ];
         strokeOpacity = 0;
       } else if (transport.mode === 'train') {
-        lineIcons = [{
-          icon: {
-            path: 'M -1,0 1,0',
-            strokeColor: lineColor,
-            strokeOpacity: 1,
-            scale: 3
+        lineIcons = [
+          {
+            icon: { path: 'M -1,0 1,0', strokeColor: lineColor, strokeOpacity: 1, scale: 3 },
+            offset: '0',
+            repeat: '16px'
           },
-          offset: '0',
-          repeat: '16px'
-        }];
+          {
+            icon: forwardArrow,
+            offset: '50%',
+            repeat: '90px'
+          }
+        ];
         strokeOpacity = 0.4;
       } else if (transport.mode === 'cruise') {
-        lineIcons = [{
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 3,
-            strokeColor: '#0891b2',
-            fillColor: '#0891b2',
-            fillOpacity: 1
+        lineIcons = [
+          {
+            icon: { path: google.maps.SymbolPath.CIRCLE, scale: 3, strokeColor: '#0891b2', fillColor: '#0891b2', fillOpacity: 1 },
+            offset: '0',
+            repeat: '14px'
           },
-          offset: '0',
-          repeat: '14px'
-        }];
+          {
+            icon: forwardArrow,
+            offset: '50%',
+            repeat: '90px'
+          }
+        ];
         strokeOpacity = 0;
+      } else {
+        lineIcons = [{
+          icon: forwardArrow,
+          offset: '50%',
+          repeat: '80px'
+        }];
+        strokeOpacity = 0.95;
       }
 
       const polyline = new google.maps.Polyline({
@@ -860,20 +890,31 @@ function renderGoogleMap(mapContainer, itineraryData, daysToRender, center) {
         strokeColor: lineColor,
         strokeOpacity: strokeOpacity,
         strokeWeight: 5,
-        icons: lineIcons.length ? lineIcons : undefined,
+        icons: lineIcons,
         map: googleMapInstance
       });
       googlePolylines.push(polyline);
 
       const distTimeStr = getSegmentDistTimeText(p1, p2, actFrom, actTo);
       const distKm = getDistanceKm(p1.lat, p1.lng, p2.lat, p2.lng);
-      if (distKm > 0.1) {
+      if (distKm > 0.05) {
         const midPos = {
           lat: (p1.lat + p2.lat) / 2,
           lng: (p1.lng + p2.lng) / 2
         };
 
-        const pathOverlay = createGoogleMicroOverlay(midPos, distTimeStr, googleMapInstance);
+        const dLat = p2.lat - p1.lat;
+        const dLng = p2.lng - p1.lng;
+        const angleDeg = Math.atan2(dLng, dLat) * (180 / Math.PI);
+
+        const labeledHtml = `
+          <span style="display:inline-flex; align-items:center; gap:3px;">
+            <span style="display:inline-block; transform:rotate(${angleDeg - 90}deg); color:${lineColor}; font-size:11px; font-weight:900;">➤</span>
+            <span>${distTimeStr}</span>
+          </span>
+        `;
+
+        const pathOverlay = createGoogleMicroOverlay(midPos, labeledHtml, googleMapInstance);
         if (pathOverlay) {
           googlePolylines.push(pathOverlay);
         }
@@ -931,18 +972,30 @@ function renderLeafletMap(mapContainer, itineraryData, daysToRender, center) {
     const paletteColor = DAY_COLOR_PALETTE[dayIndex % DAY_COLOR_PALETTE.length];
     const dayColor = day.themeColor || paletteColor;
     const dayLatLngs = [];
+    const seenLocations = new Map();
 
     day.activities.forEach((act, idx) => {
-      const latNum = parseFloat(act.lat);
-      const lngNum = parseFloat(act.lng);
+      let latNum = parseFloat(act.lat);
+      let lngNum = parseFloat(act.lng);
       if (isNaN(latNum) || isNaN(lngNum) || latNum === 0) return;
+
+      // Prevent overlapping stops from occluding Stop 1
+      const locKey = `${latNum.toFixed(4)},${lngNum.toFixed(4)}`;
+      const prevOccurrences = seenLocations.get(locKey) || 0;
+      seenLocations.set(locKey, prevOccurrences + 1);
+
+      if (prevOccurrences > 0) {
+        const angle = ((prevOccurrences * 120) - 30) * (Math.PI / 180);
+        latNum += 0.0004 * Math.cos(angle);
+        lngNum += 0.0005 * Math.sin(angle);
+      }
 
       globalLeafletStopNumber++;
       const stopNumLabel = (lastSelectedDayFilter === 'all') ? String(globalLeafletStopNumber) : String(idx + 1);
       const catInfo = getCategoryInfo(act);
 
       const latLng = [latNum, lngNum];
-      dayLatLngs.push(latLng);
+      dayLatLngs.push({ latLng, act, stopLabel: stopNumLabel });
       allLatLngs.push(latLng);
 
       const markerHtml = `
@@ -979,7 +1032,7 @@ function renderLeafletMap(mapContainer, itineraryData, daysToRender, center) {
         </div>
       `;
 
-      const marker = L.marker(latLng, { icon: customIcon })
+      const marker = L.marker(latLng, { icon: customIcon, zIndexOffset: (idx === 0 ? 1000 : 100 - idx) })
         .addTo(leafletMapInstance)
         .bindPopup(popupContent);
 
@@ -991,10 +1044,10 @@ function renderLeafletMap(mapContainer, itineraryData, daysToRender, center) {
     });
 
     for (let s = 0; s < dayLatLngs.length - 1; s++) {
-      const p1 = dayLatLngs[s];
-      const p2 = dayLatLngs[s + 1];
-      const actFrom = day.activities[s];
-      const actTo = day.activities[s + 1];
+      const p1 = dayLatLngs[s].latLng;
+      const p2 = dayLatLngs[s + 1].latLng;
+      const actFrom = dayLatLngs[s].act;
+      const actTo = dayLatLngs[s + 1].act;
       const transport = getTransportModeBetweenStops(p1, p2, actFrom, actTo);
       const lineColor = transport.mode === 'flight' ? '#0284c7' : dayColor;
 
@@ -1014,16 +1067,21 @@ function renderLeafletMap(mapContainer, itineraryData, daysToRender, center) {
         (p1[1] + p2[1]) / 2
       ];
 
+      const dLat = p2[0] - p1[0];
+      const dLng = p2[1] - p1[1];
+      const angleDeg = Math.atan2(dLng, dLat) * (180 / Math.PI);
+
       const microHtml = `
-        <div style="background:rgba(255,255,255,0.92); color:#334155; padding:1px 5px; border-radius:6px; border:1px solid #cbd5e1; font-size:9.5px; font-weight:700; box-shadow:0 1px 3px rgba(0,0,0,0.12); white-space:nowrap; pointer-events:none;">
-          ${distTimeStr}
+        <div style="background:rgba(255,255,255,0.94); color:#1e293b; padding:2px 6px; border-radius:6px; border:1.5px solid ${lineColor}; font-size:10px; font-weight:700; box-shadow:0 1px 4px rgba(0,0,0,0.18); white-space:nowrap; pointer-events:none; display:inline-flex; align-items:center; gap:3px;">
+          <span style="display:inline-block; transform:rotate(${angleDeg - 90}deg); color:${lineColor}; font-size:11px; font-weight:900;">➤</span>
+          <span>${distTimeStr}</span>
         </div>
       `;
       const microIcon = L.divIcon({
         className: 'custom-segment-micro-wrap',
         html: microHtml,
-        iconSize: [60, 16],
-        iconAnchor: [30, 8]
+        iconSize: [80, 20],
+        iconAnchor: [40, 10]
       });
 
       const segMicroMarker = L.marker(midLatLng, { icon: microIcon }).addTo(leafletMapInstance);

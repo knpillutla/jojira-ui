@@ -47,7 +47,8 @@ export function normalizeSingleOption(rawItem, payload = {}, metaData = {}, opti
     : (Array.isArray(rawItem.map_center) ? rawItem.map_center[1] : -81.3792);
 
   if (isPlaceholderCoordinate(mapCenterLat, mapCenterLng, originName, destName)) {
-    const computedCenter = resolveTripCenter(originName, destName, [28.5383, -81.3792]);
+    const isRoadTrip = Boolean(payload.road_trip || payload.fly_and_drive || rawItem.is_road_trip);
+    const computedCenter = resolveTripCenter(originName, destName, [51.5074, -0.1278], isRoadTrip);
     mapCenterLat = computedCenter[0];
     mapCenterLng = computedCenter[1];
   }
@@ -142,18 +143,15 @@ export function normalizeSingleOption(rawItem, payload = {}, metaData = {}, opti
       };
     });
 
-    const gmapsUrl = dayItem.google_maps_url || dayItem.google_maps_link || dayItem.google_maps || dayItem.map_link || dayItem.directions_url || '';
-    let finalGmapsUrl = gmapsUrl;
-    if (!finalGmapsUrl && activities.length > 0) {
-      const validPoints = activities.filter(a => Number.isFinite(a.lat) && Number.isFinite(a.lng) && a.lat !== 0);
-      if (validPoints.length >= 2) {
-        const originPt = `${validPoints[0].lat},${validPoints[0].lng}`;
-        const destPt = `${validPoints[validPoints.length - 1].lat},${validPoints[validPoints.length - 1].lng}`;
-        const waypoints = validPoints.slice(1, -1).map(p => `${p.lat},${p.lng}`).join('|');
-        finalGmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${originPt}&destination=${destPt}${waypoints ? `&waypoints=${encodeURIComponent(waypoints)}` : ''}&travelmode=driving`;
-      } else if (validPoints.length === 1) {
-        finalGmapsUrl = `https://www.google.com/maps/search/?api=1&query=${validPoints[0].lat},${validPoints[0].lng}`;
-      }
+    const validPoints = activities.filter(a => Number.isFinite(a.lat) && Number.isFinite(a.lng) && a.lat !== 0);
+    let finalGmapsUrl = '';
+    if (validPoints.length >= 2) {
+      const pathParts = validPoints.map(p => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join('/');
+      finalGmapsUrl = `https://www.google.com/maps/dir/${pathParts}`;
+    } else if (validPoints.length === 1) {
+      finalGmapsUrl = `https://www.google.com/maps/search/?api=1&query=${validPoints[0].lat.toFixed(5)},${validPoints[0].lng.toFixed(5)}`;
+    } else {
+      finalGmapsUrl = dayItem.google_maps_url || dayItem.google_maps_link || dayItem.google_maps || dayItem.map_link || dayItem.directions_url || '';
     }
 
     return {
