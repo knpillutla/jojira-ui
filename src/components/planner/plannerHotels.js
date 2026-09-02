@@ -3,11 +3,14 @@
  */
 
 import { panToActivityMarker } from './plannerMap.js';
+import { resolveActivityGeoLocation } from './plannerGeo.js';
 
 export function extractHotelsFromItinerary(itineraryData) {
   if (!itineraryData) return [];
   const hotels = [];
   const seenNames = new Set();
+  const origin = itineraryData.origin || itineraryData.source || '';
+  const dest = itineraryData.destination || '';
 
   // 1. Check summary.hotels.hotel_list from updated API payload
   const summaryHotels = itineraryData.summary?.hotels?.hotel_list || itineraryData.hotel_list || [];
@@ -22,6 +25,7 @@ export function extractHotelsFromItinerary(itineraryData) {
         seenNames.add(name.toLowerCase());
         const totalCostStr = h.total_cost != null && h.total_cost > 0 ? `$${Number(h.total_cost).toFixed(2)} ${h.currency || 'USD'}` : (h.total_cost === 0 ? 'Included' : 'Rate TBD');
         const costPerNightStr = h.cost_per_night != null && h.cost_per_night > 0 ? `$${Number(h.cost_per_night).toFixed(2)} / night` : (h.cost_per_night === 0 ? 'Included' : 'Rate TBD');
+        const hotelGeo = resolveActivityGeoLocation({ name, address: h.city, title: name }, origin, dest);
         
         hotels.push({
           id: `hotel_summary_${h.night_number || i + 1}`,
@@ -50,8 +54,8 @@ export function extractHotelsFromItinerary(itineraryData) {
             h.safety_rating ? `🛡️ ${h.safety_rating}` : 'Prime Location',
             h.family_friendly ? '👨‍👩‍👦 Family Friendly' : 'Air Conditioning'
           ],
-          lat: parseFloat(Array.isArray(itineraryData.map_center) ? itineraryData.map_center[0] : (itineraryData.map_center?.latitude || 28.5383)),
-          lng: parseFloat(Array.isArray(itineraryData.map_center) ? itineraryData.map_center[1] : (itineraryData.map_center?.longitude || -81.3792)),
+          lat: hotelGeo.lat,
+          lng: hotelGeo.lng,
           description: `Night ${h.night_number || i + 1} accommodation in ${h.city || itineraryData.destination}.`
         });
       }

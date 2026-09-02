@@ -260,3 +260,22 @@ function extractDurationFromPrompt(promptStr) {
   }
   return 4;
 }
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('jojira:distanceUnitChanged', () => {
+    if (currentItineraryData) {
+      renderPlannerItinerary(currentItineraryData, currentDayFilter);
+      initOrUpdateMap(currentItineraryData, currentDayFilter);
+    }
+  });
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (currentItineraryData && !document.getElementById('ai-planner-view')?.classList.contains('hidden')) {
+        initOrUpdateMap(currentItineraryData, currentDayFilter);
+      }
+    }, 250);
+  });
+}

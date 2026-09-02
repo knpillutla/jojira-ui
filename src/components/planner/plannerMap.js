@@ -1,5 +1,8 @@
 import { recordGoogleMapsCall, checkQuotaAlerts } from '../../utils/mapsQuotaTracker.js';
 import { extractHotelsFromItinerary } from './plannerItinerary.js';
+import { isPlaceholderCoordinate, resolveTripCenter, getUserDistanceUnit, setDistanceUnit, formatDistance } from './plannerGeo.js';
+
+export { getUserDistanceUnit, setDistanceUnit, formatDistance };
 
 let currentMapProvider = 'google'; // Default: google as requested by user
 let googleMapInstance = null;
@@ -13,33 +16,45 @@ let activeInfoWindow = null;
 let lastItineraryData = null;
 let lastSelectedDayFilter = 'all';
 export function extractCenter(itineraryData) {
-  if (!itineraryData) return [52.3667, 13.5033];
+  if (!itineraryData) return [28.5383, -81.3792];
+
+  const origin = itineraryData.origin || itineraryData.source || '';
+  const dest = itineraryData.destination || '';
+
   if (Array.isArray(itineraryData.map_center) && Number.isFinite(itineraryData.map_center[0]) && Number.isFinite(itineraryData.map_center[1])) {
-    return itineraryData.map_center;
+    if (!isPlaceholderCoordinate(itineraryData.map_center[0], itineraryData.map_center[1], origin, dest)) {
+      return itineraryData.map_center;
+    }
   }
+
   if (itineraryData.map_center && Number.isFinite(itineraryData.map_center.latitude) && Number.isFinite(itineraryData.map_center.longitude)) {
-    return [itineraryData.map_center.latitude, itineraryData.map_center.longitude];
+    if (!isPlaceholderCoordinate(itineraryData.map_center.latitude, itineraryData.map_center.longitude, origin, dest)) {
+      return [itineraryData.map_center.latitude, itineraryData.map_center.longitude];
+    }
   }
+
   if (Array.isArray(itineraryData.days)) {
     for (const d of itineraryData.days) {
       for (const act of (d.activities || [])) {
         const lat = parseFloat(act.lat);
         const lng = parseFloat(act.lng);
-        if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0) {
+        if (Number.isFinite(lat) && Number.isFinite(lng) && !isPlaceholderCoordinate(lat, lng, origin, dest)) {
           return [lat, lng];
         }
       }
     }
   }
+
   if (Array.isArray(itineraryData.map_pins) && itineraryData.map_pins.length > 0) {
     const pin = itineraryData.map_pins[0];
     const lat = parseFloat(pin.latitude ?? pin.lat);
     const lng = parseFloat(pin.longitude ?? pin.lng);
-    if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0) {
+    if (Number.isFinite(lat) && Number.isFinite(lng) && !isPlaceholderCoordinate(lat, lng, origin, dest)) {
       return [lat, lng];
     }
   }
-  return [52.3667, 13.5033];
+
+  return resolveTripCenter(origin, dest, [28.5383, -81.3792]);
 }
 
 let isGoogleScriptLoading = false;
@@ -138,7 +153,7 @@ export function initOrUpdateMap(itineraryData, selectedDayFilter = 'all') {
     return;
   }
 
-  const daysToRender = selectedDayFilter === 'all'
+  const daysToRender = (selectedDayFilter === 'all' || selectedDayFilter === 'summary')
     ? itineraryData.days
     : itineraryData.days.filter(d => String(d.day) === String(selectedDayFilter));
 
@@ -502,28 +517,6 @@ export function getTransportModeBetweenStops(p1, p2, actFrom, actTo) {
   return { mode: 'driving', label: `🚗 Drive (${driveMins} min)`, color: '#2563eb', dash: null };
 }
 
-export function getUserDistanceUnit() {
-  const cachedUnit = localStorage.getItem('jojira_distance_unit');
-  if (cachedUnit === 'mi' || cachedUnit === 'km') return cachedUnit;
-
-  try {
-    const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || '').toLowerCase();
-    const lang = (navigator.language || navigator.userLanguage || '').toLowerCase();
-
-    // USA, UK, Liberia, Myanmar territories default to miles
-    if (
-      lang.includes('-us') ||
-      lang.includes('-gb') ||
-      tz.startsWith('america/') ||
-      tz.startsWith('europe/london')
-    ) {
-      return 'mi';
-    }
-  } catch (e) {}
-
-  return 'km';
-}
-
 export function formatTime12h(totalMins) {
   const normalizedMins = (Math.floor(totalMins) % (24 * 60) + (24 * 60)) % (24 * 60);
   let hrs = Math.floor(normalizedMins / 60);
@@ -594,104 +587,63 @@ export function getTimePeriodLabel(startMins) {
 }
 
 export function correctActivityTitle(title, startMins, category = '') {
-  let cleanedTitle = String(title || '').trim();
-  const cat = String(category).toLowerCase();
-  const lowerTitle = cleanedTitle.toLowerCase();
-  const isDining = cat.includes('dining') || cat.includes('food') || lowerTitle.includes('restaurant') || lowerTitle.includes('bistro') || lowerTitle.includes('lunch') || lowerTitle.includes('dinner') || lowerTitle.includes('breakfast');
-
-  if (isDining) {
-    const normMins = (Math.floor(startMins) % (24 * 60) + (24 * 60)) % (24 * 60);
-    if (normMins < 660) { // before 11:00 AM
-      cleanedTitle = cleanedTitle.replace(/lunch|dinner/gi, 'Breakfast');
-      if (!cleanedTitle.toLowerCase().includes('breakfast')) cleanedTitle = `Breakfast at ${cleanedTitle.replace(/^(at|lunch at|dinner at|breakfast at)\s+/i, '')}`;
-    } else if (normMins >= 660 && normMins < 1020) { // 11:00 AM - 04:59 PM
-      cleanedTitle = cleanedTitle.replace(/breakfast|dinner/gi, 'Lunch');
-      if (!cleanedTitle.toLowerCase().includes('lunch')) cleanedTitle = `Lunch at ${cleanedTitle.replace(/^(at|lunch at|dinner at|breakfast at)\s+/i, '')}`;
-    } else { // 05:00 PM onwards
-      cleanedTitle = cleanedTitle.replace(/breakfast|lunch/gi, 'Dinner');
-      if (!cleanedTitle.toLowerCase().includes('dinner')) cleanedTitle = `Dinner at ${cleanedTitle.replace(/^(at|lunch at|dinner at|breakfast at)\s+/i, '')}`;
-    }
-  }
-
-  return cleanedTitle;
+  return String(title || '').trim();
 }
 
 export function formatStopTimes(act, actIdx = 0, dayActivities = []) {
-  if (act.departure_time || act.arrival_time) {
-    const startTime = act.departure_time || '09:00 AM';
-    const endTime = act.arrival_time || startTime;
-    return {
-      startTime,
-      endTime,
-      durationStr: act.duration || '2 hrs',
-      periodLabel: getTimePeriodLabel(parseTimeToMins(startTime, 540)),
-      correctedTitle: act.title,
-      startMins: parseTimeToMins(startTime, 540),
-      endMins: parseTimeToMins(endTime, 660),
-      displayRange: `${startTime} – ${endTime}`
-    };
-  }
-
-  let startMins = 540; // Default 09:00 AM
-
-  if (Array.isArray(dayActivities) && dayActivities.length > 0) {
-    let currentMins = 540;
-    const firstAct = dayActivities[0];
-    const firstCat = (firstAct.category || firstAct.type || '').toLowerCase();
-
-    if (firstCat.includes('flight') || firstCat.includes('airport') || (firstAct.title || '').toLowerCase().includes('flight')) {
-      currentMins = parseTimeToMins(firstAct.time || firstAct.start_time, 390); // 06:30 AM
-    }
-
-    for (let i = 0; i <= actIdx && i < dayActivities.length; i++) {
-      const item = dayActivities[i];
-      if (i === actIdx) {
-        startMins = currentMins;
-      }
-      const dur = parseDurationMins(item.duration, item.category);
-      const isFlightItem = (item.category || item.type || '').toLowerCase().includes('flight') || (item.title || '').toLowerCase().includes('flight');
-      const bufferMins = isFlightItem ? 30 : 15; // 15 min buffer between stops (30 min for flight arrival)
-      currentMins += dur + bufferMins;
-    }
-  } else {
-    startMins = parseTimeToMins(act.time || act.start_time, 540);
-  }
-
-  const durMins = parseDurationMins(act.duration, act.category);
-  const endMins = startMins + durMins;
-
-  const startTime = formatTime12h(startMins);
-  const endTime = formatTime12h(endMins);
-
-  const durHrs = Math.floor(durMins / 60);
-  const durRemMins = durMins % 60;
+  let startTime = act.departure_time || '';
+  let endTime = act.arrival_time || '';
   let durationStr = '';
-  if (durHrs > 0 && durRemMins > 0) durationStr = `${durHrs}h ${durRemMins}m`;
-  else if (durHrs > 0) durationStr = `${durHrs} hr${durHrs > 1 ? 's' : ''}`;
-  else durationStr = `${durRemMins} mins`;
+
+  const rawTimeSlot = act.time_slot || act.time || '';
+  if (rawTimeSlot) {
+    const rangeMatch = rawTimeSlot.match(/(\d{1,2}:\d{2}\s*(?:AM|PM))\s*(?:–|-|to)\s*(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
+    if (rangeMatch) {
+      if (!startTime) startTime = rangeMatch[1].trim();
+      if (!endTime) endTime = rangeMatch[2].trim();
+    } else {
+      const singleMatch = rawTimeSlot.match(/(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
+      if (singleMatch && !startTime) {
+        startTime = singleMatch[1].trim();
+      }
+    }
+  }
+
+  if (act.departure_time && !startTime) startTime = act.departure_time;
+  if (act.arrival_time && !endTime) endTime = act.arrival_time;
+
+  const startMins = parseTimeToMins(startTime || rawTimeSlot, 540);
+  let endMins = endTime ? parseTimeToMins(endTime, startMins + 90) : (startMins + 90);
+  if (endMins < startMins) endMins += 1440;
+
+  if (!startTime) startTime = formatTime12h(startMins);
+  if (!endTime) endTime = formatTime12h(endMins);
+
+  const diffMins = Math.max(0, endMins - startMins);
+  if (diffMins > 0) {
+    const durHrs = Math.floor(diffMins / 60);
+    const durRemMins = diffMins % 60;
+    if (durHrs > 0 && durRemMins > 0) durationStr = `${durHrs}h ${durRemMins}m`;
+    else if (durHrs > 0) durationStr = `${durHrs} hr${durHrs > 1 ? 's' : ''}`;
+    else durationStr = `${durRemMins} mins`;
+  } else if (act.duration && act.duration !== '2 hrs' && !act.duration.includes('AM') && !act.duration.includes('PM')) {
+    durationStr = act.duration;
+  } else {
+    durationStr = '1 hr';
+  }
 
   const periodLabel = getTimePeriodLabel(startMins);
-  const correctedTitle = correctActivityTitle(act.title, startMins, act.category);
 
   return {
     startTime,
     endTime,
     durationStr,
     periodLabel,
-    correctedTitle,
+    correctedTitle: act.title || act.name,
     startMins,
     endMins,
-    displayRange: `${startTime} – ${endTime} (${periodLabel})`
+    displayRange: `${startTime} – ${endTime} (${durationStr} · ${periodLabel})`
   };
-}
-
-export function setDistanceUnit(unit) {
-  if (unit !== 'mi' && unit !== 'km') return;
-  localStorage.setItem('jojira_distance_unit', unit);
-  updateUnitToggleUI();
-  if (lastItineraryData) {
-    initOrUpdateMap(lastItineraryData, lastSelectedDayFilter);
-  }
 }
 
 export function getSegmentDistTimeText(p1, p2, actFrom, actTo) {
@@ -700,29 +652,18 @@ export function getSegmentDistTimeText(p1, p2, actFrom, actTo) {
 
   if (nextActObj) {
     const durStr = nextActObj.travel_time_display || (Number.isFinite(nextActObj.travel_time_minutes) && nextActObj.travel_time_minutes > 0 ? `~${nextActObj.travel_time_minutes} mins` : '');
-    if (unit === 'mi' && Number.isFinite(nextActObj.distance_miles) && nextActObj.distance_miles > 0) {
-      return durStr ? `${nextActObj.distance_miles.toFixed(2)} mi, ${durStr}` : `${nextActObj.distance_miles.toFixed(2)} mi`;
-    }
-    if (unit === 'km' && Number.isFinite(nextActObj.distance_km) && nextActObj.distance_km > 0) {
-      return durStr ? `${nextActObj.distance_km.toFixed(2)} km, ${durStr}` : `${nextActObj.distance_km.toFixed(2)} km`;
-    }
-    if (Number.isFinite(nextActObj.distance_miles) && nextActObj.distance_miles > 0) {
-      return durStr ? `${nextActObj.distance_miles.toFixed(2)} mi, ${durStr}` : `${nextActObj.distance_miles.toFixed(2)} mi`;
-    }
-    if (Number.isFinite(nextActObj.distance_km) && nextActObj.distance_km > 0) {
-      return durStr ? `${nextActObj.distance_km.toFixed(2)} km, ${durStr}` : `${nextActObj.distance_km.toFixed(2)} km`;
+    const distStr = formatDistance(nextActObj.distance_miles, nextActObj.distance_km, unit);
+    if (distStr && distStr !== 'N/A') {
+      return durStr ? `${distStr}, ${durStr}` : distStr;
     }
   }
 
   if (actTo) {
     const durMins = actTo.transit_duration_minutes;
     const durStr = Number.isFinite(durMins) && durMins > 0 ? `~${durMins} mins` : '';
-
-    if (unit === 'mi' && Number.isFinite(actTo.distance_miles) && actTo.distance_miles > 0) {
-      return durStr ? `${actTo.distance_miles.toFixed(2)} mi, ${durStr}` : `${actTo.distance_miles.toFixed(2)} mi`;
-    }
-    if (unit === 'km' && Number.isFinite(actTo.distance_km) && actTo.distance_km > 0) {
-      return durStr ? `${actTo.distance_km.toFixed(2)} km, ${durStr}` : `${actTo.distance_km.toFixed(2)} km`;
+    const distStr = formatDistance(actTo.distance_miles, actTo.distance_km, unit);
+    if (distStr && distStr !== 'N/A') {
+      return durStr ? `${distStr}, ${durStr}` : distStr;
     }
   }
 
@@ -732,15 +673,7 @@ export function getSegmentDistTimeText(p1, p2, actFrom, actTo) {
   const lon2 = Array.isArray(p2) ? p2[1] : p2?.lng;
 
   const distKm = getDistanceKm(lat1, lon1, lat2, lon2);
-
-  let distStr = '';
-  if (unit === 'mi') {
-    const distMiles = distKm * 0.621371;
-    distStr = `${distMiles.toFixed(1)} mi`;
-  } else {
-    distStr = `${distKm.toFixed(1)} km`;
-  }
-
+  const distStr = formatDistance(null, distKm, unit);
   const mins = Math.max(5, Math.round(distKm * 2.5));
   const timeStr = `${mins} mins`;
 
@@ -1326,6 +1259,7 @@ function bindMapToggleEvents() {
       e.stopPropagation();
       const u = btn.getAttribute('data-distance-unit');
       setDistanceUnit(u);
+      updateUnitToggleUI();
     });
   });
 
@@ -1412,7 +1346,7 @@ function renderMapLegendUI(itineraryData, selectedDayFilter = 'all') {
   const legendContainer = document.getElementById('planner-map-legend');
   if (!legendContainer || !itineraryData || !itineraryData.days) return;
 
-  const daysToDisplay = selectedDayFilter === 'all'
+  const daysToDisplay = (selectedDayFilter === 'all' || selectedDayFilter === 'summary')
     ? itineraryData.days
     : itineraryData.days.filter(d => String(d.day) === String(selectedDayFilter));
 

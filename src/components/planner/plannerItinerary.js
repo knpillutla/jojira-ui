@@ -4,8 +4,10 @@
 
 import { panToActivityMarker, getCategoryInfo, formatStopTimes } from './plannerMap.js';
 import { extractHotelsFromItinerary, renderHotelsView } from './plannerHotels.js';
+import { renderSummaryView } from './plannerSummary.js';
+import { formatDistance } from './plannerGeo.js';
 
-export { extractHotelsFromItinerary, renderHotelsView };
+export { extractHotelsFromItinerary, renderHotelsView, renderSummaryView };
 
 export function getTravelModeBadgeInfo(modeStr) {
   const mode = (modeStr || '').toLowerCase();
@@ -33,6 +35,11 @@ export function getTravelModeBadgeInfo(modeStr) {
 export function renderPlannerItinerary(itineraryData, selectedDayFilter = 'all') {
   const container = document.getElementById('planner-itinerary-list');
   if (!container) return;
+
+  if (selectedDayFilter === 'summary') {
+    renderSummaryView(container, itineraryData);
+    return;
+  }
 
   if (selectedDayFilter === 'hotels') {
     renderHotelsView(container, itineraryData);
@@ -81,27 +88,15 @@ export function renderPlannerItinerary(itineraryData, selectedDayFilter = 'all')
 
       const phoneHtml = act.phone_number ? `<span style="font-size:11px; color:#64748b;">· 📞 ${act.phone_number}</span>` : '';
 
-      // Build compact Next Activity Note Box
+      // Build Next Activity Note Box strictly from API data as is
       let nextActivityNoteHtml = '';
       const nextActObj = act.next_activity;
 
-      if (nextActObj && (nextActObj.name || nextActObj.transit_summary)) {
-        const nextName = nextActObj.name || 'Upcoming Activity';
+      if (nextActObj && typeof nextActObj === 'object' && (nextActObj.name || nextActObj.transit_summary || nextActObj.travel_mode)) {
+        const nextName = nextActObj.name || '';
         const modeInfo = getTravelModeBadgeInfo(nextActObj.travel_mode);
-        const timeDisplay = nextActObj.travel_time_display || (Number.isFinite(nextActObj.travel_time_minutes) && nextActObj.travel_time_minutes > 0 ? `${nextActObj.travel_time_minutes} mins` : (nextActObj.travel_mode === 'stay' ? '0 mins' : 'N/A'));
-        
-        let distStr = nextActObj.distance_display || 'N/A';
-        if (distStr === 'N/A') {
-          if (Number.isFinite(nextActObj.distance_miles) && nextActObj.distance_miles > 0) {
-            distStr = Number.isFinite(nextActObj.distance_km) && nextActObj.distance_km > 0
-              ? `${nextActObj.distance_miles} mi (${nextActObj.distance_km} km)`
-              : `${nextActObj.distance_miles} mi`;
-          } else if (Number.isFinite(nextActObj.distance_km) && nextActObj.distance_km > 0) {
-            distStr = `${nextActObj.distance_km} km`;
-          } else if (nextActObj.travel_mode === 'stay') {
-            distStr = '0.0 mi';
-          }
-        }
+        const timeDisplay = nextActObj.travel_time_display || (Number.isFinite(nextActObj.travel_time_minutes) ? `${nextActObj.travel_time_minutes} mins` : '');
+        const distStr = nextActObj.distance_display || formatDistance(nextActObj.distance_miles, nextActObj.distance_km);
 
         const transitSummaryHtml = nextActObj.transit_summary
           ? `<div style="font-size:10.5px; color:#64748b; margin-top:2px; font-style:italic;">ℹ️ ${nextActObj.transit_summary}</div>`
@@ -111,47 +106,22 @@ export function renderPlannerItinerary(itineraryData, selectedDayFilter = 'all')
           <div class="activity-next-note-box" style="margin-top:10px; padding:7px 11px; background:#f8fafc; border:1px solid #e2e8f0; border-left:3px solid #0284c7; border-radius:6px; font-size:11px; color:#475569; display:flex; flex-direction:column; gap:3px;">
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <span style="font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#0284c7; background:rgba(2,132,199,0.1); padding:1px 6px; border-radius:4px;">Next Activity</span>
-              <strong style="color:#0f172a; font-size:12px;">Name: ${nextName}</strong>
+              ${nextName ? `<strong style="color:#0f172a; font-size:12px;">Name: ${nextName}</strong>` : ''}
             </div>
             <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:11px; color:#334155; padding-top:3px; border-top:1px dashed #e2e8f0;">
-              <div><span style="color:#64748b; font-weight:600;">Travel Mode:</span> <strong>${modeInfo.icon} ${modeInfo.label}</strong></div>
-              <div><span style="color:#64748b; font-weight:600;">Travel Time:</span> <strong>⏱️ ${timeDisplay}</strong></div>
-              <div><span style="color:#64748b; font-weight:600;">Travel Distance:</span> <strong>📏 ${distStr}</strong></div>
+              ${nextActObj.travel_mode ? `<div><span style="color:#64748b; font-weight:600;">Travel Mode:</span> <strong>${modeInfo.icon} ${modeInfo.label}</strong></div>` : ''}
+              ${timeDisplay ? `<div><span style="color:#64748b; font-weight:600;">Travel Time:</span> <strong>⏱️ ${timeDisplay}</strong></div>` : ''}
+              ${distStr && distStr !== 'N/A' ? `<div><span style="color:#64748b; font-weight:600;">Travel Distance:</span> <strong>📏 ${distStr}</strong></div>` : ''}
             </div>
             ${transitSummaryHtml}
           </div>
         `;
-      } else if (idx < day.activities.length - 1) {
-        const nextAct = day.activities[idx + 1];
-        const nextName = nextAct.title || nextAct.name || 'Upcoming Activity';
-        const mode = (nextAct.transit_mode || 'drive').toLowerCase();
-        const modeInfo = getTravelModeBadgeInfo(mode);
-        const durMins = nextAct.transit_duration_minutes;
-        const timeDisplay = Number.isFinite(durMins) && durMins > 0 ? `${durMins} mins` : 'N/A';
-
-        let distStr = 'N/A';
-        if (Number.isFinite(nextAct.distance_miles) && nextAct.distance_miles > 0) {
-          distStr = Number.isFinite(nextAct.distance_km) && nextAct.distance_km > 0
-            ? `${nextAct.distance_miles.toFixed(2)} mi (${nextAct.distance_km.toFixed(2)} km)`
-            : `${nextAct.distance_miles.toFixed(2)} mi`;
-        } else if (Number.isFinite(nextAct.distance_km) && nextAct.distance_km > 0) {
-          distStr = `${nextAct.distance_km.toFixed(2)} km`;
-        }
-
-        nextActivityNoteHtml = `
-          <div class="activity-next-note-box" style="margin-top:10px; padding:7px 11px; background:#f8fafc; border:1px solid #e2e8f0; border-left:3px solid #0284c7; border-radius:6px; font-size:11px; color:#475569; display:flex; flex-direction:column; gap:3px;">
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-              <span style="font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:#0284c7; background:rgba(2,132,199,0.1); padding:1px 6px; border-radius:4px;">Next Activity</span>
-              <strong style="color:#0f172a; font-size:12px;">Name: ${nextName}</strong>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:11px; color:#334155; padding-top:3px; border-top:1px dashed #e2e8f0;">
-              <div><span style="color:#64748b; font-weight:600;">Travel Mode:</span> <strong>${modeInfo.icon} ${modeInfo.label}</strong></div>
-              <div><span style="color:#64748b; font-weight:600;">Travel Time:</span> <strong>⏱️ ${timeDisplay}</strong></div>
-              <div><span style="color:#64748b; font-weight:600;">Travel Distance:</span> <strong>📏 ${distStr}</strong></div>
-            </div>
-          </div>
-        `;
       }
+
+      const costDisplay = act.cost || act.price_display;
+      const costHtml = (costDisplay && costDisplay !== 'undefined')
+        ? `<strong class="cost-chip" style="font-size:12.5px;">${costDisplay}</strong>`
+        : '';
 
       return `
         <div class="activity-card" data-activity-id="${act.id}" data-lat="${act.lat}" data-lng="${act.lng}">
@@ -164,15 +134,15 @@ export function renderPlannerItinerary(itineraryData, selectedDayFilter = 'all')
               <div style="flex:1;">
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
                   <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                    <h4 class="activity-title" style="margin:0; font-size:15px; font-weight:700; color:#0f172a;">${times.correctedTitle || act.title}</h4>
+                    <h4 class="activity-title" style="margin:0; font-size:15px; font-weight:700; color:#0f172a;">${act.title || act.name}</h4>
                     ${ratingHtml}
                   </div>
-                  <strong class="cost-chip" style="font-size:12.5px;">${act.cost}</strong>
+                  ${costHtml}
                 </div>
                 <p class="activity-location" style="margin:3px 0 0 0;">${act.address || ''} ${phoneHtml}</p>
               </div>
             </div>
-            <p class="activity-desc" style="margin:6px 0 8px 0;">${act.description}</p>
+            ${act.description ? `<p class="activity-desc" style="margin:6px 0 8px 0;">${act.description}</p>` : ''}
             <div class="activity-meta" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
               <span class="category-chip" style="background:${catInfo.color}; color:#ffffff; font-weight:700;">${catInfo.icon} ${act.category || catInfo.label}</span>
               ${durationChipHtml}

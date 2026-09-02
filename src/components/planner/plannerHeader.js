@@ -141,6 +141,9 @@ export function renderDayFilterPills(data, onFilterChange = null) {
     <button type="button" class="day-pill" data-day-filter="hotels" style="--pill-color: #0d9488">
       🏨 Hotels (${hotelsCount})
     </button>
+    <button type="button" class="day-pill" data-day-filter="summary" style="--pill-color: #6366f1">
+      📋 Summary
+    </button>
   `;
 
   filterContainer.innerHTML = pillsHtml;
